@@ -15,12 +15,35 @@ declare global {
   }
 }
 
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 5,
+  initialDelay: number = 1000
+): Promise<T> {
+  let lastError: Error | undefined;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      if (i < maxRetries - 1) {
+        const delay = initialDelay * Math.pow(2, i);
+        console.log(`OIDC discovery attempt ${i + 1} failed, retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
 const getOidcConfig = memoize(
   async () => {
-    return client.discovery(
-      new URL(process.env.REPLIT_DEPLOYMENT_URL || `https://${process.env.REPLIT_DEV_DOMAIN}`),
-      process.env.REPLIT_IDENTITY_TOKEN_AUDIENCE!
-    );
+    return retryWithBackoff(async () => {
+      return client.discovery(
+        new URL(process.env.REPLIT_DEPLOYMENT_URL || `https://${process.env.REPLIT_DEV_DOMAIN}`),
+        process.env.REPLIT_IDENTITY_TOKEN_AUDIENCE!
+      );
+    });
   },
   { maxAge: 3600 * 1000 }
 );
