@@ -28,6 +28,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import teixeiraCircleLogoPath from "@assets/image_1766152301102.png";
+import teixeiraBarberiaLogoPath from "@assets/logo.png";
 
 const ownerMenuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -60,13 +61,11 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border p-4">
-        <div className="flex items-center gap-3">
-          <img src={teixeiraCircleLogoPath} alt="Teixeira" className="h-10 w-10 rounded-lg" style={{ mixBlendMode: 'multiply' }} />
-          <div className="flex flex-col">
-            <span className="font-semibold text-sidebar-foreground text-sm">Teixeira</span>
-            <span className="text-xs text-muted-foreground">Barbearia</span>
-          </div>
+      <SidebarHeader className="border-b border-sidebar-border p-4 flex flex-col items-center justify-center">
+        <img src={teixeiraBarberiaLogoPath} alt="Teixeira Barbearia" className="h-16 w-auto mb-2 opacity-90" />
+        <div className="flex flex-col text-center">
+          <span className="font-semibold text-sidebar-foreground text-sm">Teixeira</span>
+          <span className="text-xs text-muted-foreground">Barbearia</span>
         </div>
       </SidebarHeader>
       <SidebarContent>
