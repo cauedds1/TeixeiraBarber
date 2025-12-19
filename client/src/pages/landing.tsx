@@ -1,127 +1,154 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Calendar,
-  Users,
   Scissors,
-  BarChart3,
   Clock,
   Star,
-  CheckCircle,
   ArrowRight,
+  MapPin,
+  Phone,
 } from "lucide-react";
 import teixeiraLogoPath from "@assets/image_1766152163278.png";
 
-const features = [
+const barbers = [
   {
-    icon: Calendar,
-    title: "Agendamento Online",
-    description: "Clientes agendam 24/7 pelo link ou QR code. Confirme automaticamente via WhatsApp.",
+    name: "Fran",
+    bio: "Especialista em cortes modernos",
+    initials: "FR",
   },
   {
-    icon: Users,
-    title: "Gestão de Clientes",
-    description: "CRM completo com histórico, preferências, fotos antes/depois e programa de fidelidade.",
+    name: "Jefferson",
+    bio: "Mestre em design capilar",
+    initials: "JF",
   },
   {
-    icon: Scissors,
-    title: "Catálogo de Serviços",
-    description: "Tabela de preços organizada com combos, promoções e serviços por profissional.",
-  },
-  {
-    icon: BarChart3,
-    title: "Controle Financeiro",
-    description: "Caixa diário, comissões automáticas, relatórios detalhados e metas de faturamento.",
-  },
-  {
-    icon: Clock,
-    title: "Gestão de Equipe",
-    description: "Agenda individual, horários configuráveis, folgas e painel exclusivo para barbeiros.",
-  },
-  {
-    icon: Star,
-    title: "Marketing e Fidelização",
-    description: "Pontos, cashback, cupons de desconto e campanhas automatizadas para seus clientes.",
+    name: "Jean",
+    bio: "Artista em barbearia clássica",
+    initials: "JN",
   },
 ];
 
-const benefits = [
-  "Agendamento online 24 horas",
-  "Confirmações automáticas por WhatsApp",
-  "Controle financeiro completo",
-  "Relatórios em tempo real",
-  "Programa de fidelidade integrado",
-  "Suporte dedicado",
+const services = [
+  {
+    name: "Corte Masculino",
+    duration: "30 min",
+    price: "R$ 55",
+  },
+  {
+    name: "Corte e Barba",
+    duration: "1h",
+    price: "R$ 92",
+  },
+  {
+    name: "Barba",
+    duration: "30 min",
+    price: "R$ 49",
+  },
+  {
+    name: "Corte e Máquina",
+    duration: "1h",
+    price: "R$ 75",
+  },
 ];
 
 export default function Landing() {
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b border-primary/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      {/* Header Premium */}
+      <header className="sticky top-0 z-50 border-b border-primary/10 bg-background/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <img src={teixeiraLogoPath} alt="Teixeira" className="h-10 w-auto" />
-            </div>
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <Button asChild data-testid="button-login">
-                <a href="/api/login">Entrar</a>
-              </Button>
-            </div>
+          <div className="flex h-16 items-center justify-between">
+            <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-12 w-auto" />
+            <Button asChild size="lg" className="bg-gradient-to-r from-primary to-primary/80" data-testid="button-booking">
+              <a href="/book/teixeira">
+                Agendar Agora
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </a>
+            </Button>
           </div>
         </div>
       </header>
 
       <main>
-        <section className="relative py-20 sm:py-40 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5" />
+        {/* Hero Section */}
+        <section className="relative py-20 sm:py-32 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-primary/5" />
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <div className="max-w-3xl mx-auto text-center">
-              <div className="mb-8 flex justify-center">
-                <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-32 w-auto" />
+            <div className="max-w-3xl mx-auto text-center space-y-8">
+              <div className="flex justify-center mb-6">
+                <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-40 w-auto" />
               </div>
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
-                Sistema de Gestão{" "}
-                <span className="text-primary">Premium</span>
-              </h1>
-              <p className="text-lg sm:text-xl text-foreground/70 mb-8 max-w-2xl mx-auto">
-                Plataforma completa para barbearias modernas. Agendamentos, CRM, 
-                controle financeiro, gestão de equipe e muito mais.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" asChild data-testid="button-start-free">
-                  <a href="/api/login">
-                    Acessar Sistema
+
+              <div className="space-y-4">
+                <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight">
+                  Bem-vindo à{" "}
+                  <span className="text-primary">Teixeira</span>
+                </h1>
+                <p className="text-xl sm:text-2xl text-foreground/70 max-w-2xl mx-auto">
+                  Onde a tradição encontra a modernidade. Seus barbeiros preferidos, sempre prontos para transformar seu visual.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+                <Button size="lg" asChild className="bg-gradient-to-r from-primary to-primary/80 text-base h-12 shadow-lg shadow-primary/30" data-testid="button-booking-cta">
+                  <a href="/book/teixeira">
+                    Agendar Agora
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                 </Button>
-                <Button size="lg" variant="outline" data-testid="button-learn-more">
-                  Conhecer Recursos
-                </Button>
+              </div>
+
+              {/* Quick Info */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-8 border-t border-primary/10">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-primary mb-1">3</div>
+                  <p className="text-sm text-foreground/60">Profissionais</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-primary mb-1">4+</div>
+                  <p className="text-sm text-foreground/60">Serviços</p>
+                </div>
+                <div className="text-center col-span-2 sm:col-span-1">
+                  <div className="text-3xl font-bold text-primary mb-1">24/7</div>
+                  <p className="text-sm text-foreground/60">Agendamento</p>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
+        {/* Barbeiros */}
         <section className="py-20 bg-card/30 border-y border-primary/10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold mb-4">Tudo que você precisa</h2>
-              <p className="text-foreground/60 max-w-2xl mx-auto">
-                Recursos completos para modernizar sua barbearia e aumentar seu faturamento
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-bold mb-4">Conheça Nossa Equipe</h2>
+              <p className="text-lg text-foreground/60 max-w-2xl mx-auto">
+                Profissionais experientes prontos para cuidar do seu visual
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {features.map((feature) => (
-                <Card key={feature.title} className="hover-elevate">
-                  <CardContent className="p-6">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary mb-4">
-                      <feature.icon className="h-6 w-6" />
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {barbers.map((barber) => (
+                <Card key={barber.name} className="overflow-hidden border-primary/20 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 hover-elevate">
+                  <div className="relative h-48 bg-gradient-to-br from-primary/30 to-primary/5 flex items-center justify-center overflow-hidden">
+                    <div className="absolute inset-0 opacity-30" />
+                    <Avatar className="h-32 w-32 relative z-10 border-4 border-background">
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-background text-2xl font-bold text-xl">
+                        {barber.initials}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                  <CardContent className="p-6 text-center space-y-3">
+                    <div>
+                      <h3 className="text-2xl font-bold">{barber.name}</h3>
+                      <p className="text-foreground/60 mt-1">{barber.bio}</p>
                     </div>
-                    <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
-                    <p className="text-muted-foreground text-sm">{feature.description}</p>
+                    <div className="flex items-center justify-center gap-1 text-primary">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="h-4 w-4 fill-current" />
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -129,56 +156,115 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* Serviços */}
         <section className="py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div>
-                <h2 className="text-3xl font-bold mb-6">
-                  Por que escolher o BarberPro?
-                </h2>
-                <p className="text-muted-foreground mb-8">
-                  Nossa plataforma foi desenvolvida especificamente para barbearias, 
-                  com foco na praticidade e resultados reais para o seu negócio.
-                </p>
-                <ul className="space-y-4">
-                  {benefits.map((benefit) => (
-                    <li key={benefit} className="flex items-center gap-3">
-                      <CheckCircle className="h-5 w-5 text-primary flex-shrink-0" />
-                      <span>{benefit}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-8">
-                  <Button asChild data-testid="button-create-account">
-                    <a href="/api/login">Criar Conta Gratuita</a>
-                  </Button>
-                </div>
-              </div>
-              <div className="relative">
-                <div className="aspect-square rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                  <div className="text-center p-8">
-                    <div className="text-6xl font-bold text-primary mb-2">+500</div>
-                    <div className="text-muted-foreground">Barbearias ativas</div>
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-bold mb-4">Nossos Serviços</h2>
+              <p className="text-lg text-foreground/60 max-w-2xl mx-auto">
+                Qualidade e excelência em cada detalhe
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {services.map((service) => (
+                <Card key={service.name} className="overflow-hidden border-primary/20 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 hover-elevate">
+                  <div className="h-32 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                    <Scissors className="h-16 w-16 text-primary/40" />
                   </div>
-                </div>
-              </div>
+                  <CardContent className="p-6">
+                    <div className="space-y-4">
+                      <h3 className="text-xl font-bold">{service.name}</h3>
+                      <div className="flex items-center justify-between pt-4 border-t border-primary/10">
+                        <div className="flex items-center gap-2 text-foreground/60">
+                          <Clock className="h-4 w-4" />
+                          <span className="text-sm">{service.duration}</span>
+                        </div>
+                        <span className="text-2xl font-bold text-primary">{service.price}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
         </section>
 
+        {/* Localização */}
         <section className="relative py-20 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent" />
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
-            <h2 className="text-3xl font-bold mb-4">
-              Transforme sua Barbearia Agora
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+            <Card className="border-primary/20 overflow-hidden">
+              <div className="h-1 bg-gradient-to-r from-primary to-primary/50" />
+              <CardContent className="p-8 space-y-6">
+                <h2 className="text-3xl font-bold text-center">Visite-nos</h2>
+                
+                <div className="grid sm:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary flex-shrink-0 mt-1">
+                        <MapPin className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-foreground/60">Localização</p>
+                        <p className="font-semibold text-lg">Rua Rosa, 430, Sala 03</p>
+                        <p className="text-foreground/70">Kobrasol, São José - SC</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary flex-shrink-0 mt-1">
+                        <Phone className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-foreground/60">Contato</p>
+                        <p className="font-semibold text-lg">(48) 3261-2310</p>
+                        <p className="text-foreground/70">Seg-Sab: 09:00 às 20:00</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 space-y-3">
+                      <h3 className="font-semibold text-lg">Por que agendar online?</h3>
+                      <ul className="space-y-2 text-sm text-foreground/70">
+                        <li className="flex gap-2">
+                          <span className="text-primary">✓</span>
+                          <span>Rápido e fácil</span>
+                        </li>
+                        <li className="flex gap-2">
+                          <span className="text-primary">✓</span>
+                          <span>Sem fila de espera</span>
+                        </li>
+                        <li className="flex gap-2">
+                          <span className="text-primary">✓</span>
+                          <span>Confirmação por WhatsApp</span>
+                        </li>
+                        <li className="flex gap-2">
+                          <span className="text-primary">✓</span>
+                          <span>Agendamento 24/7</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+
+        {/* CTA Final */}
+        <section className="py-20 bg-gradient-to-br from-primary/10 via-transparent to-primary/5">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 className="text-4xl sm:text-5xl font-bold mb-6">
+              Pronto para seu novo visual?
             </h2>
-            <p className="text-foreground/70 mb-8 max-w-2xl mx-auto">
-              Comece em minutos e veja os resultados imediatamente. 
-              Sem cadastro de cartão, sem compromisso.
+            <p className="text-xl text-foreground/70 mb-8">
+              Agende agora mesmo e prepare-se para sair daqui transformado
             </p>
-            <Button size="lg" asChild data-testid="button-cta-start">
-              <a href="/api/login">
-                Acessar Agora
+            <Button size="lg" asChild className="bg-gradient-to-r from-primary to-primary/80 text-base h-12 shadow-lg shadow-primary/30" data-testid="button-final-cta">
+              <a href="/book/teixeira">
+                Agendar Agora
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </Button>
@@ -186,12 +272,13 @@ export default function Landing() {
         </section>
       </main>
 
-      <footer className="border-t border-primary/10 py-8">
+      {/* Footer */}
+      <footer className="border-t border-primary/10 py-8 bg-card/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <img src={teixeiraLogoPath} alt="Teixeira" className="h-8 w-auto" />
+            <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-10 w-auto" />
             <p className="text-sm text-foreground/50">
-              2024 Teixeira Barbearia. Todos os direitos reservados.
+              © 2024 Teixeira Barbearia. Todos os direitos reservados.
             </p>
           </div>
         </div>
