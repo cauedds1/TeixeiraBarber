@@ -26,6 +26,7 @@ import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
 import Booking from "@/pages/booking";
 import teixeiraCircleLogoPath from "@assets/image_1766152301102.png";
+import teixeiraBarberiaLogoPath from "@assets/logo.png";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const style = {
@@ -39,7 +40,10 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
           <header className="flex items-center justify-between gap-4 p-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <div className="flex items-center gap-3">
+              <SidebarTrigger data-testid="button-sidebar-toggle" />
+              <img src={teixeiraBarberiaLogoPath} alt="Teixeira Barbearia" className="h-10 w-auto" />
+            </div>
             <ThemeToggle />
           </header>
           <main className="flex-1 overflow-auto bg-muted/30">
