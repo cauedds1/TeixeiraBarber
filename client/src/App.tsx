@@ -11,7 +11,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
-import Login from "@/pages/login";
 import OwnerDashboard from "@/pages/owner-dashboard";
 import Dashboard from "@/pages/dashboard";
 import Appointments from "@/pages/appointments";
@@ -78,7 +77,6 @@ function PublicRouter() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
-      <Route path="/login" component={Login} />
       <Route path="/book/:slug" component={Booking} />
       <Route component={NotFound} />
     </Switch>

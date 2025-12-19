@@ -62,13 +62,11 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">
-            B
+            T
           </div>
           <div className="flex flex-col">
-            <span className="font-semibold text-sidebar-foreground">BarberPro</span>
-            <span className="text-xs text-muted-foreground">
-              {isBarber ? "Painel do Barbeiro" : "Painel do Proprietário"}
-            </span>
+            <span className="font-semibold text-sidebar-foreground">Teixeira</span>
+            <span className="text-xs text-muted-foreground">Barbearia</span>
           </div>
         </div>
       </SidebarHeader>
