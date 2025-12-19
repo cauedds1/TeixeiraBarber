@@ -58,14 +58,21 @@ export default function Landing() {
       {/* Header Premium */}
       <header className="sticky top-0 z-50 border-b border-primary/10 bg-background/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
+          <div className="flex h-16 items-center justify-between gap-4">
             <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-12 w-auto mix-blend-mode-multiply" style={{ mixBlendMode: 'multiply' }} />
-            <Button asChild size="lg" className="bg-gradient-to-r from-primary to-primary/80" data-testid="button-booking">
-              <a href="/book/teixeira">
-                Agendar Agora
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
-            </Button>
+            <div className="flex gap-3">
+              <Button asChild variant="outline" size="lg" data-testid="button-login">
+                <a href="/api/auth/login">
+                  Entrar
+                </a>
+              </Button>
+              <Button asChild size="lg" className="bg-gradient-to-r from-primary to-primary/80" data-testid="button-booking">
+                <a href="/book/teixeira">
+                  Agendar Agora
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+            </div>
           </div>
         </div>
       </header>
