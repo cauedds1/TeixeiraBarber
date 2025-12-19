@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
+import teixeiraCircleLogoPath from "@assets/image_1766152301102.png";
 
 const ownerMenuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -61,11 +62,9 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">
-            T
-          </div>
+          <img src={teixeiraCircleLogoPath} alt="Teixeira" className="h-10 w-10 rounded-lg" />
           <div className="flex flex-col">
-            <span className="font-semibold text-sidebar-foreground">Teixeira</span>
+            <span className="font-semibold text-sidebar-foreground text-sm">Teixeira</span>
             <span className="text-xs text-muted-foreground">Barbearia</span>
           </div>
         </div>

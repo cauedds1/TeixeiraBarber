@@ -25,6 +25,7 @@ import Reviews from "@/pages/reviews";
 import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
 import Booking from "@/pages/booking";
+import teixeiraCircleLogoPath from "@assets/image_1766152301102.png";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const style = {
@@ -87,9 +88,7 @@ function LoadingScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="space-y-4 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-xl mx-auto">
-          B
-        </div>
+        <img src={teixeiraCircleLogoPath} alt="Teixeira" className="h-12 w-12 mx-auto rounded-lg" />
         <div className="space-y-2">
           <Skeleton className="h-4 w-32 mx-auto" />
           <Skeleton className="h-3 w-24 mx-auto" />
@@ -122,7 +121,7 @@ function AppRouter() {
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="light" storageKey="barberpro-theme">
+    <ThemeProvider defaultTheme="dark" storageKey="teixeira-theme">
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <AppRouter />

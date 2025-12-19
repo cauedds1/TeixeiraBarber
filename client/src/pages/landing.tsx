@@ -11,6 +11,7 @@ import {
   CheckCircle,
   ArrowRight,
 } from "lucide-react";
+import teixeiraLogoPath from "@assets/image_1766152163278.png";
 
 const features = [
   {
@@ -57,14 +58,11 @@ const benefits = [
 export default function Landing() {
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 border-b border-primary/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
-                B
-              </div>
-              <span className="font-semibold text-lg">BarberPro</span>
+              <img src={teixeiraLogoPath} alt="Teixeira" className="h-10 w-auto" />
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
@@ -77,22 +75,25 @@ export default function Landing() {
       </header>
 
       <main>
-        <section className="relative py-20 sm:py-32 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5" />
+        <section className="relative py-20 sm:py-40 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5" />
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <div className="max-w-3xl mx-auto text-center">
+              <div className="mb-8 flex justify-center">
+                <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-32 w-auto" />
+              </div>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
-                Gerencie sua barbearia com{" "}
-                <span className="text-primary">eficiência</span>
+                Sistema de Gestão{" "}
+                <span className="text-primary">Premium</span>
               </h1>
-              <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-                Sistema completo de gestão para barbearias. Agendamento online, 
-                controle financeiro, gestão de equipe e muito mais em uma única plataforma.
+              <p className="text-lg sm:text-xl text-foreground/70 mb-8 max-w-2xl mx-auto">
+                Plataforma completa para barbearias modernas. Agendamentos, CRM, 
+                controle financeiro, gestão de equipe e muito mais.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button size="lg" asChild data-testid="button-start-free">
                   <a href="/api/login">
-                    Começar Grátis
+                    Acessar Sistema
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                 </Button>
@@ -104,11 +105,11 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="py-20 bg-muted/30">
+        <section className="py-20 bg-card/30 border-y border-primary/10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold mb-4">Tudo que você precisa</h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
+              <p className="text-foreground/60 max-w-2xl mx-auto">
                 Recursos completos para modernizar sua barbearia e aumentar seu faturamento
               </p>
             </div>
@@ -165,18 +166,19 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="py-20 bg-primary text-primary-foreground">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <section className="relative py-20 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent" />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
             <h2 className="text-3xl font-bold mb-4">
-              Pronto para transformar sua barbearia?
+              Transforme sua Barbearia Agora
             </h2>
-            <p className="text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
-              Comece gratuitamente e veja os resultados em poucos dias. 
-              Sem compromisso, cancele quando quiser.
+            <p className="text-foreground/70 mb-8 max-w-2xl mx-auto">
+              Comece em minutos e veja os resultados imediatamente. 
+              Sem cadastro de cartão, sem compromisso.
             </p>
-            <Button size="lg" variant="secondary" asChild data-testid="button-cta-start">
+            <Button size="lg" asChild data-testid="button-cta-start">
               <a href="/api/login">
-                Começar Agora
+                Acessar Agora
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </Button>
@@ -184,17 +186,12 @@ export default function Landing() {
         </section>
       </main>
 
-      <footer className="border-t py-8">
+      <footer className="border-t border-primary/10 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
-                B
-              </div>
-              <span className="font-semibold">BarberPro</span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              2024 BarberPro. Todos os direitos reservados.
+            <img src={teixeiraLogoPath} alt="Teixeira" className="h-8 w-auto" />
+            <p className="text-sm text-foreground/50">
+              2024 Teixeira Barbearia. Todos os direitos reservados.
             </p>
           </div>
         </div>
