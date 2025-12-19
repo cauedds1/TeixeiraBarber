@@ -88,7 +88,7 @@ function LoadingScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="space-y-4 text-center">
-        <img src={teixeiraCircleLogoPath} alt="Teixeira" className="h-12 w-12 mx-auto rounded-lg" />
+        <img src={teixeiraCircleLogoPath} alt="Teixeira" className="h-12 w-12 mx-auto rounded-lg" style={{ mixBlendMode: 'multiply' }} />
         <div className="space-y-2">
           <Skeleton className="h-4 w-32 mx-auto" />
           <Skeleton className="h-3 w-24 mx-auto" />

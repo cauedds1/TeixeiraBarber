@@ -62,7 +62,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center gap-3">
-          <img src={teixeiraCircleLogoPath} alt="Teixeira" className="h-10 w-10 rounded-lg" />
+          <img src={teixeiraCircleLogoPath} alt="Teixeira" className="h-10 w-10 rounded-lg" style={{ mixBlendMode: 'multiply' }} />
           <div className="flex flex-col">
             <span className="font-semibold text-sidebar-foreground text-sm">Teixeira</span>
             <span className="text-xs text-muted-foreground">Barbearia</span>

@@ -230,7 +230,7 @@ export default function Booking() {
       <header className="sticky top-0 z-50 border-b border-primary/10 bg-background/80 backdrop-blur-xl">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <img src={teixeiraLogoPath} alt="Teixeira" className="h-12 w-auto" />
+            <img src={teixeiraLogoPath} alt="Teixeira" className="h-12 w-auto" style={{ mixBlendMode: 'multiply' }} />
             <div className="text-right">
               <h1 className="font-semibold text-foreground">{barbershop?.name}</h1>
               {barbershop?.phone && (

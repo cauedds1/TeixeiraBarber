@@ -59,7 +59,7 @@ export default function Landing() {
       <header className="sticky top-0 z-50 border-b border-primary/10 bg-background/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
-            <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-12 w-auto" />
+            <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-12 w-auto mix-blend-mode-multiply" style={{ mixBlendMode: 'multiply' }} />
             <Button asChild size="lg" className="bg-gradient-to-r from-primary to-primary/80" data-testid="button-booking">
               <a href="/book/teixeira">
                 Agendar Agora
@@ -77,7 +77,7 @@ export default function Landing() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <div className="max-w-3xl mx-auto text-center space-y-8">
               <div className="flex justify-center mb-6">
-                <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-40 w-auto" />
+                <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-40 w-auto" style={{ mixBlendMode: 'multiply' }} />
               </div>
 
               <div className="space-y-4">
@@ -276,7 +276,7 @@ export default function Landing() {
       <footer className="border-t border-primary/10 py-8 bg-card/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-10 w-auto" />
+            <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-10 w-auto" style={{ mixBlendMode: 'multiply' }} />
             <p className="text-sm text-foreground/50">
               © 2024 Teixeira Barbearia. Todos os direitos reservados.
             </p>
