@@ -62,7 +62,7 @@ export default function Landing() {
             <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-12 w-auto mix-blend-mode-multiply" style={{ mixBlendMode: 'multiply' }} />
             <div className="flex gap-3">
               <Button asChild variant="outline" size="lg" data-testid="button-login">
-                <a href="/api/auth/login">
+                <a href="/api/login">
                   Entrar
                 </a>
               </Button>
