@@ -40,9 +40,16 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
           <header className="flex items-center justify-between gap-4 p-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
-              <img src={teixeiraBarberiaLogoPath} alt="Teixeira Barbearia" className="h-10 w-auto" />
+              <div className="bg-muted rounded-lg p-2 flex items-center justify-center">
+                <img 
+                  src={teixeiraBarberiaLogoPath} 
+                  alt="Teixeira Barbearia" 
+                  className="h-14 w-auto drop-shadow-lg" 
+                  style={{ filter: 'brightness(1.1) contrast(1.1)' }}
+                />
+              </div>
             </div>
             <ThemeToggle />
           </header>
