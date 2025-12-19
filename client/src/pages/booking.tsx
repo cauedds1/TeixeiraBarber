@@ -263,8 +263,8 @@ export default function Booking() {
                   <Skeleton className="h-24" />
                   <Skeleton className="h-24" />
                 </>
-              ) : (
-                services?.filter((s) => s.isActive).map((service) => (
+              ) : services && services.length > 0 ? (
+                services.map((service) => (
                   <div
                     key={service.id}
                     onClick={() => setSelectedService(service)}
@@ -289,6 +289,10 @@ export default function Booking() {
                     </div>
                   </div>
                 ))
+              ) : (
+                <div className="text-center py-8 text-foreground/60">
+                  <p>Nenhum serviço disponível</p>
+                </div>
               )}
             </div>
           )}
@@ -301,8 +305,8 @@ export default function Booking() {
                   <Skeleton className="h-20" />
                   <Skeleton className="h-20" />
                 </>
-              ) : (
-                barbers?.filter((b) => b.isActive).map((barber) => (
+              ) : barbers && barbers.length > 0 ? (
+                barbers.map((barber) => (
                   <div
                     key={barber.id}
                     onClick={() => setSelectedBarber(barber)}
@@ -325,6 +329,10 @@ export default function Booking() {
                     </div>
                   </div>
                 ))
+              ) : (
+                <div className="text-center py-8 text-foreground/60">
+                  <p>Nenhum profissional disponível</p>
+                </div>
               )}
             </div>
           )}
