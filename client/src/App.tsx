@@ -25,6 +25,7 @@ import Reviews from "@/pages/reviews";
 import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
 import Booking from "@/pages/booking";
+import ClientBooking from "@/pages/client-booking";
 import teixeiraCircleLogoPath from "@assets/image_1766152301102.png";
 import teixeiraBarberiaLogoPath from "@assets/logo.png";
 
@@ -90,6 +91,7 @@ function PublicRouter() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/book/:slug" component={Booking} />
+      <Route path="/agendar/:slug" component={ClientBooking} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -117,10 +119,10 @@ function AppRouter() {
     return <LoadingScreen />;
   }
 
-  const isPublicBookingPage = location.startsWith("/book/");
+  const isPublicBookingPage = location.startsWith("/book/") || location.startsWith("/agendar/");
 
   if (isPublicBookingPage) {
-    return <Booking />;
+    return location.startsWith("/agendar/") ? <ClientBooking /> : <Booking />;
   }
 
   if (user) {

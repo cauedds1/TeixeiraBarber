@@ -27,6 +27,109 @@ export async function registerRoutes(
     return barbershop;
   };
 
+  // ===== PUBLIC CLIENT ROUTES (BLOCO 1) =====
+
+  app.get("/api/public/barbershops/:slug", async (req: Request, res: Response) => {
+    try {
+      const barbershop = await storage.getBarbershopBySlug(req.params.slug);
+      if (!barbershop) {
+        return res.status(404).json({ message: "Barbearia não encontrada" });
+      }
+      res.json(barbershop);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar barbearia" });
+    }
+  });
+
+  app.get("/api/public/barbershops/:slug/services", async (req: Request, res: Response) => {
+    try {
+      const barbershop = await storage.getBarbershopBySlug(req.params.slug);
+      if (!barbershop) {
+        return res.status(404).json({ message: "Barbearia não encontrada" });
+      }
+      const services = await storage.getServices(barbershop.id);
+      res.json(services);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar serviços" });
+    }
+  });
+
+  app.get("/api/public/barbershops/:slug/barbers", async (req: Request, res: Response) => {
+    try {
+      const barbershop = await storage.getBarbershopBySlug(req.params.slug);
+      if (!barbershop) {
+        return res.status(404).json({ message: "Barbearia não encontrada" });
+      }
+      const barbers = await storage.getBarbers(barbershop.id);
+      res.json(barbers.filter(b => b.isActive));
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar barbeiros" });
+    }
+  });
+
+  app.get("/api/public/barbershops/:slug/reviews", async (req: Request, res: Response) => {
+    try {
+      const barbershop = await storage.getBarbershopBySlug(req.params.slug);
+      if (!barbershop) {
+        return res.status(404).json({ message: "Barbearia não encontrada" });
+      }
+      const reviews = await storage.getReviews(barbershop.id);
+      const publicReviews = reviews.filter(r => r.isPublic);
+      const totalReviews = publicReviews.length;
+      const averageRating = totalReviews > 0
+        ? publicReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+        : 0;
+
+      res.json({
+        reviews: publicReviews,
+        averageRating,
+        totalReviews,
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar avaliações" });
+    }
+  });
+
+  app.post("/api/public/appointments", async (req: Request, res: Response) => {
+    try {
+      const { slug, clientName, clientPhone, date, startTime, endTime, barberId, serviceId } = req.body;
+
+      const barbershop = await storage.getBarbershopBySlug(slug);
+      if (!barbershop) {
+        return res.status(404).json({ message: "Barbearia não encontrada" });
+      }
+
+      const service = await storage.getService(serviceId);
+      if (!service || service.barbershopId !== barbershop.id) {
+        return res.status(404).json({ message: "Serviço não encontrado" });
+      }
+
+      const barber = await storage.getBarber(barberId);
+      if (!barber || barber.barbershopId !== barbershop.id) {
+        return res.status(404).json({ message: "Barbeiro não encontrado" });
+      }
+
+      const appointment = await storage.createAppointment({
+        barbershopId: barbershop.id,
+        barberId,
+        serviceId,
+        date,
+        startTime,
+        endTime,
+        price: service.price,
+        clientName,
+        clientPhone,
+        status: "pending",
+      });
+
+      res.status(201).json(appointment);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao criar agendamento" });
+    }
+  });
+
+  // ===== EXISTING AUTHENTICATED ROUTES =====
+
   // Barbershop routes
   app.get("/api/barbershop", isAuthenticated, async (req: Request, res: Response) => {
     try {
