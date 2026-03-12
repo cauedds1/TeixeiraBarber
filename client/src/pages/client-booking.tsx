@@ -305,6 +305,24 @@ export default function ClientBooking() {
         {step === 2 && (
           <div className="space-y-3" data-testid="step-barber-content">
             <h2 className="text-lg font-semibold text-white mb-4">Escolha o profissional</h2>
+            <button
+              onClick={() => {
+                const randomBarber = barbers[Math.floor(Math.random() * barbers.length)];
+                if (randomBarber) { setSelectedBarber(randomBarber); setStep(3); }
+              }}
+              className={`w-full text-left p-4 rounded-xl border transition-all bg-[#1a1a1a] border-white/5 hover:border-[#C9A24D]/30`}
+              data-testid="card-barber-any"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#C9A24D]/20 to-[#C9A24D]/5 border-2 border-[#C9A24D]/20 flex items-center justify-center">
+                  <User className="h-6 w-6 text-[#C9A24D]" />
+                </div>
+                <div>
+                  <p className="font-medium text-white">Qualquer profissional</p>
+                  <p className="text-xs text-white/40 mt-0.5">Escolha automática do profissional disponível</p>
+                </div>
+              </div>
+            </button>
             {barbers.map((barber) => (
               <button
                 key={barber.id}

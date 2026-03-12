@@ -112,7 +112,7 @@ export default function Appointments() {
     confirmed: appointments.filter(a => a.status === "confirmed").length,
     completed: appointments.filter(a => a.status === "completed").length,
     revenue: appointments
-      .filter(a => a.status === "completed")
+      .filter(a => a.status !== "cancelled")
       .reduce((sum, a) => sum + parseFloat(String(a.price) || "0"), 0),
   };
 
@@ -216,7 +216,7 @@ export default function Appointments() {
           <p className="text-2xl font-bold text-emerald-400">{stats.confirmed}</p>
         </div>
         <div className="bg-[#1a1a1a] border border-white/5 rounded-xl p-4" data-testid="stat-revenue">
-          <p className="text-xs text-[#C9A24D]/70 mb-1">Faturamento</p>
+          <p className="text-xs text-[#C9A24D]/70 mb-1">Receita Estimada</p>
           <p className="text-2xl font-bold text-[#C9A24D]">{formatCurrency(stats.revenue)}</p>
         </div>
       </div>
@@ -249,11 +249,19 @@ export default function Appointments() {
                   <p className="text-[10px] text-white/30 font-mono">{apt.endTime?.slice(0, 5)}</p>
                 </div>
 
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#C9A24D]/10 border border-[#C9A24D]/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-[#C9A24D] text-xs md:text-sm font-bold">
-                    {(apt.clientName || "C")[0].toUpperCase()}
-                  </span>
-                </div>
+                {apt.barber?.photoUrl ? (
+                  <img
+                    src={apt.barber.photoUrl}
+                    alt={apt.barber.name}
+                    className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover border border-[#C9A24D]/20 flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#C9A24D]/10 border border-[#C9A24D]/20 flex items-center justify-center flex-shrink-0">
+                    <span className="text-[#C9A24D] text-xs md:text-sm font-bold">
+                      {(apt.barber?.name || apt.clientName || "C")[0].toUpperCase()}
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-white truncate text-sm md:text-base">
