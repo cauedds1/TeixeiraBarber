@@ -50,7 +50,7 @@ export async function setupAuth(app: Express) {
 }
 
 export function registerAuthRoutes(app: Express) {
-  app.post("/api/auth/login", async (req, res) => {
+  const loginHandler: RequestHandler = async (req, res) => {
     try {
       const { email, password } = req.body;
       if (!email || !password) {
@@ -75,9 +75,9 @@ export function registerAuthRoutes(app: Express) {
       console.error("Login error:", error);
       res.status(500).json({ message: "Erro interno ao fazer login" });
     }
-  });
+  };
 
-  app.post("/api/auth/logout", (req, res) => {
+  const logoutHandler: RequestHandler = (req, res) => {
     req.session.destroy((err) => {
       if (err) {
         return res.status(500).json({ message: "Erro ao fazer logout" });
@@ -85,7 +85,12 @@ export function registerAuthRoutes(app: Express) {
       res.clearCookie("connect.sid");
       res.json({ message: "Logout realizado com sucesso" });
     });
-  });
+  };
+
+  app.post("/api/auth/login", loginHandler);
+  app.post("/api/login", loginHandler);
+  app.post("/api/auth/logout", logoutHandler);
+  app.post("/api/logout", logoutHandler);
 
   app.get("/api/auth/user", async (req, res) => {
     const userId = (req.session as any)?.userId;
