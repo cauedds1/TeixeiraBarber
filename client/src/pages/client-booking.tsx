@@ -1,10 +1,10 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Loader2, Scissors, User, CalendarDays, Clock, CheckCircle2,
-  ChevronLeft, Phone, MessageCircle, Star, Sparkles, ArrowRight,
+  Loader2, Scissors, User, CalendarDays, Clock,
+  CheckCircle2, Phone, MessageCircle, Sparkles, ChevronRight,
 } from "lucide-react";
 import { format, addDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -12,92 +12,13 @@ import type { Barbershop, Service, Barber } from "@shared/schema";
 import teixeiraLogoPath from "@assets/image_1766152163278.png";
 
 const WHATSAPP_NUMBER = "5548999505167";
-
 const SERVICE_EMOJIS = ["✂️", "💈", "⚡", "🪒", "💇", "🧴", "🎨", "🔥"];
-const STEP_COUNT = 5;
-
-function ProgressBar({ step }: { step: number }) {
-  const pct = ((step - 1) / (STEP_COUNT - 1)) * 100;
-  return (
-    <div className="h-0.5 bg-white/5 w-full">
-      <div
-        className="h-full bg-gradient-to-r from-[#C9A24D] to-[#e8c06a] transition-all duration-500 ease-out"
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  );
-}
-
-function SummaryBar({
-  step, service, barber, date, time, onClickService, onClickBarber, onClickDate, onClickTime,
-}: {
-  step: number;
-  service: Service | null;
-  barber: Barber | null;
-  date: string;
-  time: string;
-  onClickService: () => void;
-  onClickBarber: () => void;
-  onClickDate: () => void;
-  onClickTime: () => void;
-}) {
-  const hasAny = service || barber || date || time;
-  if (!hasAny || step === 1) return null;
-
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#C9A24D]/15 bg-[#0a0a0a]/97 backdrop-blur-md">
-      <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-        {service && (
-          <button
-            onClick={onClickService}
-            className="flex-shrink-0 flex items-center gap-1.5 bg-[#C9A24D]/12 border border-[#C9A24D]/25 rounded-full px-3 py-1.5 text-xs text-[#C9A24D] font-medium hover:bg-[#C9A24D]/20 transition-colors"
-            data-testid="summary-service"
-          >
-            <Scissors className="h-3 w-3" />
-            {service.name}
-          </button>
-        )}
-        {barber && (
-          <button
-            onClick={onClickBarber}
-            className="flex-shrink-0 flex items-center gap-1.5 bg-[#C9A24D]/12 border border-[#C9A24D]/25 rounded-full px-3 py-1.5 text-xs text-[#C9A24D] font-medium hover:bg-[#C9A24D]/20 transition-colors"
-            data-testid="summary-barber"
-          >
-            <User className="h-3 w-3" />
-            {barber.name}
-          </button>
-        )}
-        {date && (
-          <button
-            onClick={onClickDate}
-            className="flex-shrink-0 flex items-center gap-1.5 bg-[#C9A24D]/12 border border-[#C9A24D]/25 rounded-full px-3 py-1.5 text-xs text-[#C9A24D] font-medium hover:bg-[#C9A24D]/20 transition-colors"
-            data-testid="summary-date"
-          >
-            <CalendarDays className="h-3 w-3" />
-            {format(new Date(date + "T12:00:00"), "EEE dd/MM", { locale: ptBR })}
-          </button>
-        )}
-        {time && (
-          <button
-            onClick={onClickTime}
-            className="flex-shrink-0 flex items-center gap-1.5 bg-[#C9A24D]/12 border border-[#C9A24D]/25 rounded-full px-3 py-1.5 text-xs text-[#C9A24D] font-medium hover:bg-[#C9A24D]/20 transition-colors"
-            data-testid="summary-time"
-          >
-            <Clock className="h-3 w-3" />
-            {time}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export default function ClientBooking() {
   const [, params] = useRoute("/agendar/:slug");
   const slug = params?.slug || "";
   const { toast } = useToast();
 
-  const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
@@ -105,7 +26,17 @@ export default function ClientBooking() {
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [booked, setBooked] = useState(false);
-  const [confirming, setConfirming] = useState(false);
+
+  const barberRef = useRef<HTMLDivElement>(null);
+  const dateRef = useRef<HTMLDivElement>(null);
+  const timeRef = useRef<HTMLDivElement>(null);
+  const infoRef = useRef<HTMLDivElement>(null);
+
+  const scrollTo = (ref: React.RefObject<HTMLDivElement>) => {
+    setTimeout(() => {
+      ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
+  };
 
   const { data: barbershop, isLoading: barbershopLoading } = useQuery<Barbershop>({
     queryKey: ["/api/public/barbershops", slug],
@@ -187,12 +118,14 @@ export default function ClientBooking() {
     return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
   };
 
+  const canConfirm = selectedService && selectedBarber && selectedDate && selectedTime && clientName.trim() && clientPhone.trim();
+
   const handleConfirm = () => {
-    if (!clientName.trim() || !clientPhone.trim()) {
-      toast({ title: "Preencha seu nome e WhatsApp", variant: "destructive" });
+    if (!canConfirm) {
+      toast({ title: "Complete todas as seleções acima", variant: "destructive" });
       return;
     }
-    const endTime = calculateEndTime(selectedTime, selectedService?.duration || 30);
+    const endTime = calculateEndTime(selectedTime, selectedService!.duration || 30);
     createMutation.mutate({
       slug,
       serviceId: selectedService!.id,
@@ -205,46 +138,18 @@ export default function ClientBooking() {
     });
   };
 
-  const handleSelectService = (service: Service) => {
-    setSelectedService(service);
-    setTimeout(() => setStep(2), 200);
-  };
-
-  const handleSelectBarber = (barber: Barber) => {
-    setSelectedBarber(barber);
-    setTimeout(() => setStep(3), 200);
-  };
-
-  const handleSelectDate = (date: string) => {
-    setSelectedDate(date);
-    setSelectedTime("");
-    setTimeout(() => setStep(4), 200);
-  };
-
-  const handleSelectTime = (time: string) => {
-    setSelectedTime(time);
-    setTimeout(() => setStep(5), 200);
-  };
-
-  const hasSummaryBar = !booked && (selectedService || selectedBarber || selectedDate || selectedTime) && step > 1;
-
   if (barbershopLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#0e0e0e]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-[#C9A24D]" data-testid="loader-booking" />
-          <p className="text-white/30 text-sm">Carregando...</p>
-        </div>
+        <Loader2 className="h-7 w-7 animate-spin text-[#C9A24D]" data-testid="loader-booking" />
       </div>
     );
   }
 
   if (!barbershop) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0e0e0e] gap-4 p-8">
-        <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-2">
-          <Scissors className="h-7 w-7 text-white/20" />
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0e0e0e] gap-3 p-8">
+        <Scissors className="h-10 w-10 text-white/15" />
         <h1 className="text-xl font-bold text-white">Barbearia não encontrada</h1>
         <p className="text-white/40 text-sm text-center">Verifique o link e tente novamente.</p>
       </div>
@@ -253,80 +158,51 @@ export default function ClientBooking() {
 
   if (booked) {
     const whatsappMsg = encodeURIComponent(
-      `Olá! Acabei de agendar um horário na Teixeira Barbearia.\n\nServiço: ${selectedService?.name}\nProfissional: ${selectedBarber?.name}\nData: ${selectedDate ? format(new Date(selectedDate + "T12:00:00"), "dd/MM/yyyy") : ""}\nHorário: ${selectedTime}\n\nNome: ${clientName}`
+      `Olá! Acabei de agendar na Teixeira Barbearia.\n\nServiço: ${selectedService?.name}\nProfissional: ${selectedBarber?.name}\nData: ${selectedDate ? format(new Date(selectedDate + "T12:00:00"), "dd/MM/yyyy") : ""}\nHorário: ${selectedTime}\nNome: ${clientName}`
     );
     return (
       <div className="min-h-screen bg-[#0e0e0e] flex flex-col">
         <div className="border-b border-white/5 bg-[#0e0e0e]">
           <div className="max-w-lg mx-auto px-4 py-4 flex justify-center">
-            <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-10 w-auto" style={{ filter: "brightness(1.1)" }} />
+            <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-10 w-auto" />
           </div>
         </div>
-
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-md text-center space-y-8">
             <div className="flex justify-center">
               <div className="relative">
-                <div className="absolute inset-0 bg-[#C9A24D]/20 rounded-full blur-2xl scale-150" />
-                <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-[#C9A24D]/30 to-[#C9A24D]/10 border border-[#C9A24D]/40 flex items-center justify-center">
+                <div className="absolute inset-0 bg-[#C9A24D]/20 rounded-full blur-3xl scale-150" />
+                <div className="relative w-24 h-24 rounded-full bg-[#C9A24D]/15 border border-[#C9A24D]/35 flex items-center justify-center">
                   <CheckCircle2 className="h-12 w-12 text-[#C9A24D]" />
                 </div>
               </div>
             </div>
-
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2" data-testid="text-booking-success">
-                Agendado!
-              </h1>
+              <h1 className="text-3xl font-bold text-white mb-2" data-testid="text-booking-success">Agendado!</h1>
               <p className="text-white/40">Seu horário está confirmado. Te esperamos!</p>
             </div>
-
             <div className="bg-[#151515] border border-white/8 rounded-2xl overflow-hidden text-left">
-              <div className="px-5 py-4 border-b border-white/5">
-                <p className="text-xs text-white/30 uppercase tracking-widest font-medium">Resumo do agendamento</p>
-              </div>
               <div className="divide-y divide-white/5">
-                <div className="px-5 py-3.5 flex justify-between items-center">
-                  <span className="text-white/40 text-sm flex items-center gap-2">
-                    <Scissors className="h-3.5 w-3.5" /> Serviço
-                  </span>
-                  <span className="text-white text-sm font-medium">{selectedService?.name}</span>
-                </div>
-                <div className="px-5 py-3.5 flex justify-between items-center">
-                  <span className="text-white/40 text-sm flex items-center gap-2">
-                    <User className="h-3.5 w-3.5" /> Profissional
-                  </span>
-                  <span className="text-white text-sm font-medium">{selectedBarber?.name}</span>
-                </div>
-                <div className="px-5 py-3.5 flex justify-between items-center">
-                  <span className="text-white/40 text-sm flex items-center gap-2">
-                    <CalendarDays className="h-3.5 w-3.5" /> Data
-                  </span>
-                  <span className="text-white text-sm font-medium capitalize">
-                    {selectedDate && format(new Date(selectedDate + "T12:00:00"), "EEEE, dd/MM/yyyy", { locale: ptBR })}
-                  </span>
-                </div>
-                <div className="px-5 py-3.5 flex justify-between items-center">
-                  <span className="text-white/40 text-sm flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5" /> Horário
-                  </span>
-                  <span className="text-[#C9A24D] font-bold">{selectedTime}</span>
-                </div>
-                <div className="px-5 py-3.5 flex justify-between items-center">
-                  <span className="text-white/40 text-sm">Valor</span>
-                  <span className="text-[#C9A24D] font-bold text-lg">
-                    R$ {Number(selectedService?.price || 0).toFixed(2)}
-                  </span>
-                </div>
+                {[
+                  { label: "Serviço", value: selectedService?.name },
+                  { label: "Profissional", value: selectedBarber?.name },
+                  { label: "Data", value: selectedDate ? format(new Date(selectedDate + "T12:00:00"), "dd/MM/yyyy") : "" },
+                  { label: "Horário", value: selectedTime, gold: true },
+                  { label: "Valor", value: `R$ ${Number(selectedService?.price || 0).toFixed(2)}`, gold: true },
+                ].map(({ label, value, gold }) => (
+                  <div key={label} className="px-5 py-3.5 flex justify-between items-center">
+                    <span className="text-white/40 text-sm">{label}</span>
+                    <span className={`text-sm font-medium ${gold ? "text-[#C9A24D] font-bold" : "text-white"}`}>{value}</span>
+                  </div>
+                ))}
               </div>
             </div>
-
             <div className="space-y-3">
               <a
                 href={`https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMsg}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-[#25D366]/15 border border-[#25D366]/30 text-[#25D366] font-medium hover:bg-[#25D366]/25 transition-colors"
+                className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-[#25D366]/12 border border-[#25D366]/30 text-[#25D366] font-medium hover:bg-[#25D366]/20 transition-colors"
                 data-testid="button-whatsapp"
               >
                 <MessageCircle className="h-5 w-5" />
@@ -335,7 +211,6 @@ export default function ClientBooking() {
               <button
                 onClick={() => {
                   setBooked(false);
-                  setStep(1);
                   setSelectedService(null);
                   setSelectedBarber(null);
                   setSelectedDate("");
@@ -343,7 +218,7 @@ export default function ClientBooking() {
                   setClientName("");
                   setClientPhone("");
                 }}
-                className="w-full py-3.5 rounded-xl border border-white/10 text-white/50 text-sm hover:text-white hover:border-white/20 transition-colors"
+                className="w-full py-3.5 rounded-xl border border-white/8 text-white/40 text-sm hover:text-white hover:border-white/20 transition-colors"
                 data-testid="button-new-booking"
               >
                 Fazer novo agendamento
@@ -356,424 +231,293 @@ export default function ClientBooking() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0e0e0e] flex flex-col">
-      <div className="sticky top-0 z-40 bg-[#0e0e0e]/98 backdrop-blur-sm border-b border-white/5">
+    <div className="min-h-screen bg-[#0e0e0e]">
+      <div className="sticky top-0 z-40 bg-[#0e0e0e]/97 backdrop-blur-sm border-b border-white/5">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {step > 1 && (
-              <button
-                onClick={() => setStep(step - 1)}
-                className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
-                data-testid="button-back"
-              >
-                <ChevronLeft className="h-4 w-4 text-white/60" />
-              </button>
-            )}
-            <img
-              src={teixeiraLogoPath}
-              alt="Teixeira Barbearia"
-              className="h-9 w-auto"
-              style={{ filter: "brightness(1.1)" }}
-            />
-          </div>
+          <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-9 w-auto" />
           {barbershop.phone && (
-            <a
-              href={`tel:${barbershop.phone}`}
-              className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors"
-            >
+            <a href={`tel:${barbershop.phone}`} className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors">
               <Phone className="h-3 w-3" />
               {barbershop.phone}
             </a>
           )}
         </div>
-        <ProgressBar step={step} />
       </div>
 
-      <div className={`flex-1 max-w-lg mx-auto w-full px-4 pt-8 ${hasSummaryBar ? "pb-24" : "pb-10"}`}>
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-8 pb-10">
 
-        {step === 1 && (
-          <div data-testid="step-service-content">
-            <div className="mb-8">
-              <p className="text-[#C9A24D] text-sm font-medium mb-1 flex items-center gap-1.5">
-                <Scissors className="h-3.5 w-3.5" /> Passo 1 de 5
-              </p>
-              <h2 className="text-2xl font-bold text-white">Qual serviço?</h2>
-              <p className="text-white/40 text-sm mt-1">Escolha o serviço que você quer realizar</p>
+        {/* ─── SERVIÇO ─────────────────────────────────────────── */}
+        <section data-testid="step-service-content">
+          <SectionHeader number={1} icon={<Scissors className="h-4 w-4" />} title="Serviço" done={!!selectedService} doneLabel={selectedService?.name} />
+          {servicesLoading ? (
+            <div className="space-y-2.5 mt-4">
+              {[1, 2, 3].map(i => <div key={i} className="h-20 rounded-2xl bg-white/5 animate-pulse" />)}
             </div>
-
-            {servicesLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-24 rounded-2xl bg-white/5 animate-pulse" />
-                ))}
-              </div>
-            ) : activeServices.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="text-4xl mb-3">✂️</div>
-                <p className="text-white/40">Nenhum serviço disponível no momento</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {activeServices.map((service, i) => (
-                  <button
-                    key={service.id}
-                    onClick={() => handleSelectService(service)}
-                    className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group ${
-                      selectedService?.id === service.id
-                        ? "bg-[#C9A24D]/12 border-[#C9A24D]/50 shadow-[0_0_20px_rgba(201,162,77,0.08)]"
-                        : "bg-[#151515] border-white/6 hover:border-[#C9A24D]/30 hover:bg-[#1a1a1a]"
-                    }`}
-                    data-testid={`card-service-${service.id}`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 transition-colors ${
-                        selectedService?.id === service.id ? "bg-[#C9A24D]/20" : "bg-white/5 group-hover:bg-[#C9A24D]/10"
-                      }`}>
-                        {SERVICE_EMOJIS[i % SERVICE_EMOJIS.length]}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white">{service.name}</p>
-                        {service.description && (
-                          <p className="text-xs text-white/35 mt-0.5 line-clamp-1">{service.description}</p>
-                        )}
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <span className="inline-flex items-center gap-1 text-xs text-white/30 bg-white/5 rounded-full px-2 py-0.5">
-                            <Clock className="h-2.5 w-2.5" />
-                            {service.duration} min
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex-shrink-0 text-right">
-                        <p className="text-[#C9A24D] font-bold text-lg">
-                          R$ {Number(service.price).toFixed(0)}
-                        </p>
-                        <ArrowRight className="h-4 w-4 text-white/20 group-hover:text-[#C9A24D]/50 transition-colors ml-auto mt-1" />
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {step === 2 && (
-          <div data-testid="step-barber-content">
-            <div className="mb-8">
-              <p className="text-[#C9A24D] text-sm font-medium mb-1 flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5" /> Passo 2 de 5
-              </p>
-              <h2 className="text-2xl font-bold text-white">Quem vai te atender?</h2>
-              <p className="text-white/40 text-sm mt-1">Escolha seu profissional favorito</p>
-            </div>
-
-            {barbersLoading ? (
-              <div className="space-y-3">
-                {[1, 2].map(i => (
-                  <div key={i} className="h-24 rounded-2xl bg-white/5 animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <button
-                  onClick={() => {
-                    const randomBarber = barbers[Math.floor(Math.random() * barbers.length)];
-                    if (randomBarber) handleSelectBarber(randomBarber);
-                  }}
-                  className="w-full text-left p-4 rounded-2xl border border-[#C9A24D]/20 bg-gradient-to-r from-[#C9A24D]/8 to-transparent hover:from-[#C9A24D]/15 transition-all duration-200 group"
-                  data-testid="card-barber-any"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#C9A24D]/25 to-[#C9A24D]/8 border-2 border-[#C9A24D]/20 flex items-center justify-center flex-shrink-0">
-                      <Sparkles className="h-6 w-6 text-[#C9A24D]" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-white">Qualquer profissional</p>
-                      <p className="text-xs text-white/35 mt-0.5">Próximo disponível no horário escolhido</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-[#C9A24D]/40 group-hover:text-[#C9A24D]/70 transition-colors flex-shrink-0" />
-                  </div>
-                </button>
-
-                {barbers.map((barber) => (
-                  <button
-                    key={barber.id}
-                    onClick={() => handleSelectBarber(barber)}
-                    className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group ${
-                      selectedBarber?.id === barber.id
-                        ? "bg-[#C9A24D]/12 border-[#C9A24D]/50"
-                        : "bg-[#151515] border-white/6 hover:border-[#C9A24D]/30 hover:bg-[#1a1a1a]"
-                    }`}
-                    data-testid={`card-barber-${barber.id}`}
-                  >
-                    <div className="flex items-center gap-4">
-                      {barber.photoUrl ? (
-                        <img
-                          src={barber.photoUrl}
-                          alt={barber.name}
-                          className="w-14 h-14 rounded-full object-cover border-2 border-[#C9A24D]/25 flex-shrink-0"
-                        />
-                      ) : (
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#C9A24D]/20 to-[#C9A24D]/5 border-2 border-[#C9A24D]/20 flex items-center justify-center flex-shrink-0">
-                          <span className="text-[#C9A24D] font-bold text-xl">
-                            {barber.name[0].toUpperCase()}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white">{barber.name}</p>
-                        {barber.bio && (
-                          <p className="text-xs text-white/35 mt-0.5 line-clamp-1">{barber.bio}</p>
-                        )}
-                        <div className="flex items-center gap-1 mt-1.5">
-                          {[1, 2, 3, 4, 5].map(s => (
-                            <Star key={s} className="h-3 w-3 fill-[#C9A24D] text-[#C9A24D]" />
-                          ))}
-                        </div>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-white/20 group-hover:text-[#C9A24D]/50 transition-colors flex-shrink-0" />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {step === 3 && (
-          <div data-testid="step-date-content">
-            <div className="mb-8">
-              <p className="text-[#C9A24D] text-sm font-medium mb-1 flex items-center gap-1.5">
-                <CalendarDays className="h-3.5 w-3.5" /> Passo 3 de 5
-              </p>
-              <h2 className="text-2xl font-bold text-white">Qual a data?</h2>
-              <p className="text-white/40 text-sm mt-1">Escolha o dia do seu atendimento</p>
-            </div>
-
-            <div
-              className="flex gap-2.5 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory"
-              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-            >
-              {calendarDays.map(({ date, day }) => {
-                const dayName = format(day, "EEE", { locale: ptBR });
-                const dayNum = format(day, "dd");
-                const monthName = format(day, "MMM", { locale: ptBR });
-                const isSelected = selectedDate === date;
+          ) : activeServices.length === 0 ? (
+            <div className="mt-4 py-10 text-center text-white/30 text-sm">Nenhum serviço disponível no momento</div>
+          ) : (
+            <div className="space-y-2.5 mt-4">
+              {activeServices.map((service, i) => {
+                const sel = selectedService?.id === service.id;
                 return (
                   <button
-                    key={date}
-                    onClick={() => handleSelectDate(date)}
-                    className={`flex-shrink-0 snap-start w-[76px] py-4 px-2 rounded-2xl border text-center transition-all duration-200 ${
-                      isSelected
-                        ? "bg-[#C9A24D] border-[#C9A24D] shadow-[0_4px_20px_rgba(201,162,77,0.35)]"
-                        : "bg-[#151515] border-white/6 hover:border-[#C9A24D]/40 hover:bg-[#1a1a1a]"
-                    }`}
-                    data-testid={`date-${date}`}
+                    key={service.id}
+                    onClick={() => { setSelectedService(service); scrollTo(barberRef); }}
+                    className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group active:scale-[0.99] ${sel ? "bg-[#C9A24D]/12 border-[#C9A24D]/45" : "bg-[#141414] border-white/6 hover:border-white/15 active:border-[#C9A24D]/30"}`}
+                    data-testid={`card-service-${service.id}`}
                   >
-                    <p className={`text-xs capitalize font-medium ${isSelected ? "text-black/60" : "text-white/35"}`}>
-                      {dayName}
-                    </p>
-                    <p className={`text-2xl font-bold mt-1 leading-none ${isSelected ? "text-black" : "text-white"}`}>
-                      {dayNum}
-                    </p>
-                    <p className={`text-[10px] capitalize mt-1 ${isSelected ? "text-black/50" : "text-white/25"}`}>
-                      {monthName}
-                    </p>
+                    <div className="flex items-center gap-3.5">
+                      <span className="text-2xl w-11 h-11 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">{SERVICE_EMOJIS[i % SERVICE_EMOJIS.length]}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-white text-sm leading-tight">{service.name}</p>
+                        {service.description && <p className="text-xs text-white/30 mt-0.5 line-clamp-1">{service.description}</p>}
+                        <p className="text-xs text-white/25 mt-1 flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{service.duration} min</p>
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <p className={`font-bold text-base ${sel ? "text-[#C9A24D]" : "text-white"}`}>R$ {Number(service.price).toFixed(0)}</p>
+                        <ChevronRight className={`h-4 w-4 ml-auto mt-1 transition-colors ${sel ? "text-[#C9A24D]" : "text-white/15 group-hover:text-white/30"}`} />
+                      </div>
+                    </div>
                   </button>
                 );
               })}
             </div>
+          )}
+        </section>
 
-            {!selectedDate && (
-              <p className="text-center text-white/25 text-sm mt-4">
-                Toque em um dia para ver os horários disponíveis
-              </p>
-            )}
-          </div>
-        )}
-
-        {step === 4 && (
-          <div data-testid="step-time-content">
-            <div className="mb-8">
-              <p className="text-[#C9A24D] text-sm font-medium mb-1 flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" /> Passo 4 de 5
-              </p>
-              <h2 className="text-2xl font-bold text-white">Que horas?</h2>
-              <p className="text-white/40 text-sm mt-1 capitalize">
-                {selectedDate && format(new Date(selectedDate + "T12:00:00"), "EEEE, d 'de' MMMM", { locale: ptBR })}
-              </p>
+        {/* ─── PROFISSIONAL ────────────────────────────────────── */}
+        <section ref={barberRef} data-testid="step-barber-content">
+          <SectionHeader number={2} icon={<User className="h-4 w-4" />} title="Profissional" done={!!selectedBarber} doneLabel={selectedBarber?.name} />
+          {barbersLoading ? (
+            <div className="space-y-2.5 mt-4">
+              {[1, 2].map(i => <div key={i} className="h-20 rounded-2xl bg-white/5 animate-pulse" />)}
             </div>
+          ) : (
+            <div className="space-y-2.5 mt-4">
+              <button
+                onClick={() => {
+                  const r = barbers[Math.floor(Math.random() * barbers.length)];
+                  if (r) { setSelectedBarber(r); scrollTo(dateRef); }
+                }}
+                className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group active:scale-[0.99] bg-[#141414] border-[#C9A24D]/15 hover:border-[#C9A24D]/35 active:border-[#C9A24D]/50`}
+                data-testid="card-barber-any"
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-full bg-[#C9A24D]/12 border border-[#C9A24D]/20 flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="h-5 w-5 text-[#C9A24D]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-white text-sm">Qualquer profissional</p>
+                    <p className="text-xs text-white/30 mt-0.5">Próximo disponível</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-[#C9A24D]/30 group-hover:text-[#C9A24D]/60 transition-colors flex-shrink-0" />
+                </div>
+              </button>
+              {barbers.map((barber) => {
+                const sel = selectedBarber?.id === barber.id;
+                return (
+                  <button
+                    key={barber.id}
+                    onClick={() => { setSelectedBarber(barber); scrollTo(dateRef); }}
+                    className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group active:scale-[0.99] ${sel ? "bg-[#C9A24D]/12 border-[#C9A24D]/45" : "bg-[#141414] border-white/6 hover:border-white/15"}`}
+                    data-testid={`card-barber-${barber.id}`}
+                  >
+                    <div className="flex items-center gap-3.5">
+                      {barber.photoUrl ? (
+                        <img src={barber.photoUrl} alt={barber.name} className="w-11 h-11 rounded-full object-cover border border-[#C9A24D]/20 flex-shrink-0" />
+                      ) : (
+                        <div className="w-11 h-11 rounded-full bg-[#C9A24D]/12 border border-[#C9A24D]/20 flex items-center justify-center flex-shrink-0">
+                          <span className="text-[#C9A24D] font-bold">{barber.name[0].toUpperCase()}</span>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-white text-sm">{barber.name}</p>
+                        {barber.bio && <p className="text-xs text-white/30 mt-0.5 line-clamp-1">{barber.bio}</p>}
+                      </div>
+                      <ChevronRight className={`h-4 w-4 flex-shrink-0 transition-colors ${sel ? "text-[#C9A24D]" : "text-white/15 group-hover:text-white/30"}`} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
-            {slotsLoading ? (
-              <div className="grid grid-cols-3 gap-2.5">
-                {Array.from({ length: 12 }).map((_, i) => (
-                  <div key={i} className="h-14 rounded-xl bg-white/5 animate-pulse" />
-                ))}
+        {/* ─── DATA ────────────────────────────────────────────── */}
+        <section ref={dateRef} data-testid="step-date-content">
+          <SectionHeader
+            number={3}
+            icon={<CalendarDays className="h-4 w-4" />}
+            title="Data"
+            done={!!selectedDate}
+            doneLabel={selectedDate ? format(new Date(selectedDate + "T12:00:00"), "EEEE, dd/MM", { locale: ptBR }) : undefined}
+          />
+          <div
+            className="flex gap-2.5 overflow-x-auto pb-3 mt-4 -mx-4 px-4 snap-x snap-mandatory"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
+            {calendarDays.map(({ date, day }) => {
+              const sel = selectedDate === date;
+              return (
+                <button
+                  key={date}
+                  onClick={() => { setSelectedDate(date); setSelectedTime(""); scrollTo(timeRef); }}
+                  className={`flex-shrink-0 snap-start w-[68px] py-3.5 px-1.5 rounded-2xl border text-center transition-all duration-200 active:scale-95 ${sel ? "bg-[#C9A24D] border-[#C9A24D] shadow-[0_4px_16px_rgba(201,162,77,0.3)]" : "bg-[#141414] border-white/6 hover:border-[#C9A24D]/35"}`}
+                  data-testid={`date-${date}`}
+                >
+                  <p className={`text-[10px] capitalize font-medium ${sel ? "text-black/60" : "text-white/30"}`}>{format(day, "EEE", { locale: ptBR })}</p>
+                  <p className={`text-xl font-bold mt-0.5 leading-none ${sel ? "text-black" : "text-white"}`}>{format(day, "dd")}</p>
+                  <p className={`text-[9px] capitalize mt-0.5 ${sel ? "text-black/50" : "text-white/20"}`}>{format(day, "MMM", { locale: ptBR })}</p>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ─── HORÁRIO ─────────────────────────────────────────── */}
+        <section ref={timeRef} data-testid="step-time-content">
+          <SectionHeader
+            number={4}
+            icon={<Clock className="h-4 w-4" />}
+            title="Horário"
+            done={!!selectedTime}
+            doneLabel={selectedTime || undefined}
+          />
+          <div className="mt-4">
+            {!selectedBarber || !selectedDate ? (
+              <p className="text-white/20 text-sm py-4">Selecione profissional e data para ver os horários.</p>
+            ) : slotsLoading ? (
+              <div className="grid grid-cols-4 gap-2">
+                {Array.from({ length: 12 }).map((_, i) => <div key={i} className="h-12 rounded-xl bg-white/5 animate-pulse" />)}
               </div>
             ) : availability && availability.allSlots.length > 0 ? (
-              <>
-                <div className="flex items-center gap-4 mb-5 text-xs text-white/30">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-sm bg-[#C9A24D]/30 border border-[#C9A24D]/50" />
-                    Disponível
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-sm bg-white/5 border border-white/10" />
-                    Ocupado
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
-                  {availability.allSlots.map((time) => {
-                    const isAvailable = availability.slots.includes(time);
-                    const isSelected = selectedTime === time;
-                    return (
-                      <button
-                        key={time}
-                        onClick={() => { if (isAvailable) handleSelectTime(time); }}
-                        disabled={!isAvailable}
-                        className={`py-3.5 px-2 rounded-xl border text-center font-mono font-semibold text-sm transition-all duration-150 ${
-                          !isAvailable
-                            ? "bg-white/[0.02] border-white/5 text-white/15 cursor-not-allowed line-through decoration-white/20"
-                            : isSelected
-                            ? "bg-[#C9A24D] text-black border-[#C9A24D] shadow-[0_4px_16px_rgba(201,162,77,0.3)]"
-                            : "bg-[#151515] border-white/8 text-white hover:border-[#C9A24D]/50 hover:bg-[#C9A24D]/10 hover:text-[#C9A24D]"
-                        }`}
-                        data-testid={`time-${time}`}
-                      >
-                        {time}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
+              <div className="grid grid-cols-4 gap-2" data-testid="time-grid">
+                {availability.allSlots.map((time) => {
+                  const avail = availability.slots.includes(time);
+                  const sel = selectedTime === time;
+                  return (
+                    <button
+                      key={time}
+                      onClick={() => { if (avail) { setSelectedTime(time); scrollTo(infoRef); } }}
+                      disabled={!avail}
+                      className={`py-3 px-1 rounded-xl border text-center font-mono font-semibold text-xs transition-all duration-150 active:scale-95 ${!avail ? "bg-white/[0.02] border-white/5 text-white/12 cursor-not-allowed line-through" : sel ? "bg-[#C9A24D] text-black border-[#C9A24D] shadow-[0_2px_12px_rgba(201,162,77,0.3)]" : "bg-[#141414] border-white/8 text-white hover:border-[#C9A24D]/40 hover:text-[#C9A24D]"}`}
+                      data-testid={`time-${time}`}
+                    >
+                      {time}
+                    </button>
+                  );
+                })}
+              </div>
             ) : (
-              <div className="text-center py-16">
-                <div className="text-4xl mb-3">😔</div>
-                <p className="text-white/50 font-medium mb-1">Nenhum horário disponível</p>
-                <p className="text-white/30 text-sm mb-6">Tente outra data ou profissional</p>
-                <button
-                  onClick={() => setStep(3)}
-                  className="px-6 py-2.5 rounded-xl border border-[#C9A24D]/30 text-[#C9A24D] text-sm hover:bg-[#C9A24D]/10 transition-colors"
-                  data-testid="button-change-date"
-                >
+              <div className="py-6 text-center">
+                <p className="text-white/40 text-sm">Nenhum horário disponível nesta data.</p>
+                <button onClick={() => setSelectedDate("")} className="mt-3 text-xs text-[#C9A24D] hover:underline" data-testid="button-change-date">
                   Escolher outra data
                 </button>
               </div>
             )}
           </div>
-        )}
+        </section>
 
-        {step === 5 && (
-          <div data-testid="step-confirm-content">
-            <div className="mb-8">
-              <p className="text-[#C9A24D] text-sm font-medium mb-1 flex items-center gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Passo 5 de 5
-              </p>
-              <h2 className="text-2xl font-bold text-white">Seus dados</h2>
-              <p className="text-white/40 text-sm mt-1">Quase lá! Só precisamos te identificar</p>
-            </div>
+        {/* ─── DADOS + CONFIRMAR ───────────────────────────────── */}
+        <section ref={infoRef} data-testid="step-confirm-content">
+          <SectionHeader number={5} icon={<CheckCircle2 className="h-4 w-4" />} title="Seus dados" done={!!(clientName && clientPhone)} />
 
-            <div className="bg-[#151515] border border-white/6 rounded-2xl overflow-hidden mb-6">
-              <div className="px-5 py-3.5 border-b border-white/5">
-                <p className="text-xs text-white/30 uppercase tracking-widest font-medium">Resumo</p>
+          {(selectedService || selectedBarber || selectedDate || selectedTime) && (
+            <div className="bg-[#141414] border border-white/6 rounded-2xl overflow-hidden mb-5 mt-4">
+              <div className="px-4 py-3 border-b border-white/5">
+                <p className="text-[10px] text-white/25 uppercase tracking-widest font-medium">Resumo do agendamento</p>
               </div>
               <div className="divide-y divide-white/5">
-                <div className="px-5 py-3 flex justify-between items-center">
-                  <span className="text-white/40 text-sm">Serviço</span>
-                  <span className="text-white text-sm font-medium">{selectedService?.name}</span>
-                </div>
-                <div className="px-5 py-3 flex justify-between items-center">
-                  <span className="text-white/40 text-sm">Profissional</span>
-                  <span className="text-white text-sm font-medium">{selectedBarber?.name}</span>
-                </div>
-                <div className="px-5 py-3 flex justify-between items-center">
-                  <span className="text-white/40 text-sm">Data</span>
-                  <span className="text-white text-sm font-medium capitalize">
-                    {selectedDate && format(new Date(selectedDate + "T12:00:00"), "dd/MM/yyyy")}
-                  </span>
-                </div>
-                <div className="px-5 py-3 flex justify-between items-center">
-                  <span className="text-white/40 text-sm">Horário</span>
-                  <span className="text-[#C9A24D] font-bold">{selectedTime}</span>
-                </div>
-                <div className="px-5 py-3 flex justify-between items-center">
-                  <span className="text-white/40 text-sm">Valor</span>
-                  <span className="text-[#C9A24D] font-bold text-lg">
-                    R$ {Number(selectedService?.price || 0).toFixed(2)}
-                  </span>
-                </div>
+                {selectedService && (
+                  <div className="px-4 py-2.5 flex justify-between items-center">
+                    <span className="text-white/35 text-xs">Serviço</span>
+                    <span className="text-white text-xs font-medium">{selectedService.name} · R$ {Number(selectedService.price).toFixed(2)}</span>
+                  </div>
+                )}
+                {selectedBarber && (
+                  <div className="px-4 py-2.5 flex justify-between items-center">
+                    <span className="text-white/35 text-xs">Profissional</span>
+                    <span className="text-white text-xs font-medium">{selectedBarber.name}</span>
+                  </div>
+                )}
+                {selectedDate && (
+                  <div className="px-4 py-2.5 flex justify-between items-center">
+                    <span className="text-white/35 text-xs">Data</span>
+                    <span className="text-white text-xs font-medium capitalize">{format(new Date(selectedDate + "T12:00:00"), "EEEE, dd/MM/yyyy", { locale: ptBR })}</span>
+                  </div>
+                )}
+                {selectedTime && (
+                  <div className="px-4 py-2.5 flex justify-between items-center">
+                    <span className="text-white/35 text-xs">Horário</span>
+                    <span className="text-[#C9A24D] text-xs font-bold">{selectedTime}</span>
+                  </div>
+                )}
               </div>
             </div>
+          )}
 
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm text-white/50 mb-2 font-medium">
-                  Seu nome completo
-                </label>
-                <input
-                  type="text"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  placeholder="Ex: João Silva"
-                  autoComplete="name"
-                  className="w-full px-4 py-3.5 bg-[#151515] border border-white/8 rounded-xl text-white placeholder:text-white/20 focus:outline-none focus:border-[#C9A24D]/50 focus:bg-[#1a1a1a] transition-all"
-                  data-testid="input-name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-white/50 mb-2 font-medium">
-                  WhatsApp
-                </label>
-                <input
-                  type="tel"
-                  value={clientPhone}
-                  onChange={(e) => setClientPhone(e.target.value)}
-                  placeholder="(48) 99999-9999"
-                  autoComplete="tel"
-                  inputMode="tel"
-                  className="w-full px-4 py-3.5 bg-[#151515] border border-white/8 rounded-xl text-white placeholder:text-white/20 focus:outline-none focus:border-[#C9A24D]/50 focus:bg-[#1a1a1a] transition-all"
-                  data-testid="input-phone"
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={handleConfirm}
-              disabled={createMutation.isPending || !clientName.trim() || !clientPhone.trim()}
-              className="w-full py-4 bg-[#C9A24D] hover:bg-[#b8912f] disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold text-base rounded-xl transition-all shadow-[0_4px_20px_rgba(201,162,77,0.25)] hover:shadow-[0_4px_28px_rgba(201,162,77,0.4)] flex items-center justify-center gap-2"
-              data-testid="button-confirm-booking"
-            >
-              {createMutation.isPending ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Agendando...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-5 w-5" />
-                  Confirmar Agendamento
-                </>
-              )}
-            </button>
-
-            <p className="text-center text-white/20 text-xs mt-4">
-              Ao confirmar você concorda em comparecer no horário marcado.
-            </p>
+          <div className="space-y-3 mt-4">
+            <input
+              type="text"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              placeholder="Seu nome completo"
+              autoComplete="name"
+              className="w-full px-4 py-3.5 bg-[#141414] border border-white/8 rounded-xl text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-[#C9A24D]/50 transition-all"
+              data-testid="input-name"
+            />
+            <input
+              type="tel"
+              value={clientPhone}
+              onChange={(e) => setClientPhone(e.target.value)}
+              placeholder="WhatsApp (48) 99999-9999"
+              autoComplete="tel"
+              inputMode="tel"
+              className="w-full px-4 py-3.5 bg-[#141414] border border-white/8 rounded-xl text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-[#C9A24D]/50 transition-all"
+              data-testid="input-phone"
+            />
           </div>
+
+          <button
+            onClick={handleConfirm}
+            disabled={createMutation.isPending || !canConfirm}
+            className="w-full mt-5 py-4 bg-[#C9A24D] hover:bg-[#b8912f] disabled:opacity-35 disabled:cursor-not-allowed text-black font-bold text-base rounded-xl transition-all shadow-[0_4px_20px_rgba(201,162,77,0.2)] hover:shadow-[0_4px_28px_rgba(201,162,77,0.35)] flex items-center justify-center gap-2"
+            data-testid="button-confirm-booking"
+          >
+            {createMutation.isPending ? (
+              <><Loader2 className="h-5 w-5 animate-spin" />Agendando...</>
+            ) : (
+              <><CheckCircle2 className="h-5 w-5" />Confirmar Agendamento</>
+            )}
+          </button>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function SectionHeader({
+  number, icon, title, done, doneLabel,
+}: {
+  number: number;
+  icon: React.ReactNode;
+  title: string;
+  done?: boolean;
+  doneLabel?: string;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${done ? "bg-[#C9A24D] text-black" : "bg-white/8 text-white/40"}`}>
+        {done ? <CheckCircle2 className="h-4 w-4" /> : icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-white font-semibold text-sm leading-none">{title}</p>
+        {done && doneLabel && (
+          <p className="text-[#C9A24D] text-xs mt-0.5 truncate">{doneLabel}</p>
         )}
       </div>
-
-      <SummaryBar
-        step={step}
-        service={selectedService}
-        barber={selectedBarber}
-        date={selectedDate}
-        time={selectedTime}
-        onClickService={() => setStep(1)}
-        onClickBarber={() => setStep(2)}
-        onClickDate={() => setStep(3)}
-        onClickTime={() => setStep(4)}
-      />
+      {!done && <div className="h-px flex-1 bg-white/6 max-w-[80px]" />}
     </div>
   );
 }
