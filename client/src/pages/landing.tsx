@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, MapPin, Phone, Clock, Star, Scissors, ChevronDown, Menu, X, Instagram, MessageCircle, Calendar, Award, Users } from "lucide-react";
+import { ArrowRight, MapPin, Phone, Clock, Star, Scissors, ChevronDown, Menu, X, Instagram, MessageCircle, Calendar, Award, Users, Lock } from "lucide-react";
 import teixeiraLogoPath from "@assets/logo.png";
 import type { Service, Barber } from "@shared/schema";
 
@@ -625,7 +625,14 @@ export default function Landing() {
                   <MessageCircle className="w-5 h-5" />
                 </a>
               </div>
-              <p className="text-white/20 text-xs">© 2025 Teixeira Barbearia. Todos os direitos reservados.</p>
+              <div className="flex items-center gap-3">
+                <p className="text-white/20 text-xs">© 2025 Teixeira Barbearia. Todos os direitos reservados.</p>
+                <span className="text-white/10">·</span>
+                <a href="/api/login" data-testid="link-owner-login" className="inline-flex items-center gap-1 text-white/15 hover:text-white/40 text-[10px] transition-colors">
+                  <Lock className="w-2.5 h-2.5" />
+                  Área do Proprietário
+                </a>
+              </div>
             </div>
           </div>
         </div>
