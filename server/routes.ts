@@ -4,6 +4,17 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated, registerAuthRoutes, seedOwner } from "./auth";
 import { format } from "date-fns";
 
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function minutesToTime(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -90,9 +101,71 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/public/barbershops/:slug/availability", async (req: Request, res: Response) => {
+    try {
+      const barbershop = await storage.getBarbershopBySlug(req.params.slug);
+      if (!barbershop) {
+        return res.status(404).json({ message: "Barbearia não encontrada" });
+      }
+
+      const { barberId, date, serviceId } = req.query as { barberId?: string; date?: string; serviceId?: string };
+      if (!barberId || !date) {
+        return res.status(400).json({ message: "barberId e date são obrigatórios" });
+      }
+
+      const barber = await storage.getBarber(barberId);
+      if (!barber || barber.barbershopId !== barbershop.id) {
+        return res.status(404).json({ message: "Barbeiro não encontrado" });
+      }
+
+      let serviceDuration = 30;
+      if (serviceId) {
+        const service = await storage.getService(serviceId);
+        if (service) serviceDuration = service.duration;
+      }
+
+      const existingAppointments = await storage.getAppointmentsByBarber(barberId, date);
+      const bookedSlots = existingAppointments
+        .filter(a => a.status !== "cancelled")
+        .map(a => ({ start: a.startTime, end: a.endTime }));
+
+      const openingTime = barbershop.openingTime || "09:00";
+      const closingTime = barbershop.closingTime || "19:00";
+      const barberStart = barber.workStartTime || openingTime;
+      const barberEnd = barber.workEndTime || closingTime;
+
+      const startMinutes = timeToMinutes(barberStart);
+      const endMinutes = timeToMinutes(barberEnd);
+
+      const slots: string[] = [];
+      for (let m = startMinutes; m + serviceDuration <= endMinutes; m += 30) {
+        const slotStart = minutesToTime(m);
+        const slotEnd = minutesToTime(m + serviceDuration);
+
+        const hasConflict = bookedSlots.some(booked => {
+          const bookedStart = timeToMinutes(booked.start);
+          const bookedEnd = timeToMinutes(booked.end);
+          return m < bookedEnd && (m + serviceDuration) > bookedStart;
+        });
+
+        if (!hasConflict) {
+          slots.push(slotStart);
+        }
+      }
+
+      res.json({ slots, date, barberId });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar disponibilidade" });
+    }
+  });
+
   app.post("/api/public/appointments", async (req: Request, res: Response) => {
     try {
       const { slug, clientName, clientPhone, date, startTime, endTime, barberId, serviceId } = req.body;
+
+      if (!slug || !clientName || !clientPhone || !date || !startTime || !endTime || !barberId || !serviceId) {
+        return res.status(400).json({ message: "Todos os campos são obrigatórios" });
+      }
 
       const barbershop = await storage.getBarbershopBySlug(slug);
       if (!barbershop) {
@@ -107,6 +180,21 @@ export async function registerRoutes(
       const barber = await storage.getBarber(barberId);
       if (!barber || barber.barbershopId !== barbershop.id) {
         return res.status(404).json({ message: "Barbeiro não encontrado" });
+      }
+
+      const existingAppointments = await storage.getAppointmentsByBarber(barberId, date);
+      const reqStart = timeToMinutes(startTime);
+      const reqEnd = timeToMinutes(endTime);
+      const hasConflict = existingAppointments
+        .filter(a => a.status !== "cancelled")
+        .some(a => {
+          const aStart = timeToMinutes(a.startTime);
+          const aEnd = timeToMinutes(a.endTime);
+          return reqStart < aEnd && reqEnd > aStart;
+        });
+
+      if (hasConflict) {
+        return res.status(409).json({ message: "Horário indisponível. Outro agendamento já existe neste período." });
       }
 
       const appointment = await storage.createAppointment({
@@ -231,6 +319,11 @@ export async function registerRoutes(
     try {
       const barbershop = await getBarbershopForUser((req.user as any).id);
       const date = req.query.date as string | undefined;
+      const detailed = req.query.detailed as string | undefined;
+      if (detailed === "true") {
+        const appointments = await storage.getAppointmentsWithDetails(barbershop.id, date);
+        return res.json(appointments);
+      }
       const appointments = await storage.getAppointments(barbershop.id, date);
       res.json(appointments);
     } catch (error) {
@@ -264,6 +357,11 @@ export async function registerRoutes(
 
   app.patch("/api/appointments/:id/status", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const existing = await storage.getAppointment(req.params.id);
+      if (!existing || existing.barbershopId !== barbershop.id) {
+        return res.status(404).json({ message: "Agendamento não encontrado" });
+      }
       const appointment = await storage.updateAppointmentStatus(req.params.id, req.body.status);
       res.json(appointment);
     } catch (error) {

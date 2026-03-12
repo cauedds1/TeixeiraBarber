@@ -15,6 +15,7 @@ import Services from "@/pages/services";
 import Team from "@/pages/team";
 import Products from "@/pages/products";
 import Settings from "@/pages/settings";
+import Appointments from "@/pages/appointments";
 import Booking from "@/pages/booking";
 import ClientBooking from "@/pages/client-booking";
 import { LogOut } from "lucide-react";
@@ -95,6 +96,7 @@ function AuthenticatedRouter() {
     <AuthenticatedLayout>
       <Switch>
         <Route path="/" component={OwnerDashboard} />
+        <Route path="/agenda" component={Appointments} />
         <Route path="/services" component={Services} />
         <Route path="/team" component={Team} />
         <Route path="/products" component={Products} />

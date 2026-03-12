@@ -51,6 +51,8 @@ export interface IStorage {
 
   // Appointments
   getAppointments(barbershopId: string, date?: string): Promise<Appointment[]>;
+  getAppointmentsWithDetails(barbershopId: string, date?: string): Promise<any[]>;
+  getAppointmentsByBarber(barberId: string, date: string): Promise<Appointment[]>;
   getAppointment(id: string): Promise<Appointment | undefined>;
   createAppointment(data: InsertAppointment): Promise<Appointment>;
   updateAppointmentStatus(id: string, status: string): Promise<Appointment | undefined>;
@@ -227,6 +229,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Appointments
+  async getAppointmentsWithDetails(barbershopId: string, date?: string): Promise<any[]> {
+    const baseAppointments = await this.getAppointments(barbershopId, date);
+    const barbershopBarbers = await this.getBarbers(barbershopId);
+    const barbershopServices = await this.getServices(barbershopId);
+    const barberMap = new Map(barbershopBarbers.map(b => [b.id, b]));
+    const serviceMap = new Map(barbershopServices.map(s => [s.id, s]));
+
+    return baseAppointments.map(apt => ({
+      ...apt,
+      barber: barberMap.get(apt.barberId) || null,
+      service: serviceMap.get(apt.serviceId) || null,
+    }));
+  }
+
+  async getAppointmentsByBarber(barberId: string, date: string): Promise<Appointment[]> {
+    return db.select().from(appointments)
+      .where(and(
+        eq(appointments.barberId, barberId),
+        eq(appointments.date, date),
+      ))
+      .orderBy(appointments.startTime);
+  }
+
   async getAppointments(barbershopId: string, date?: string): Promise<Appointment[]> {
     if (date) {
       return db.select().from(appointments)

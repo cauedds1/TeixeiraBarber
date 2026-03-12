@@ -28,6 +28,7 @@ Full-stack barbershop management system for Teixeira Barbearia (Kobrasol, São J
 
 ### ERP (authenticated)
 - `/` — Owner Dashboard
+- `/agenda` — Agenda (appointment management with date nav, barber filter, status actions)
 - `/team` — Funcionários (staff management with photo upload, commission, edit/delete)
 - `/services` — Serviços (price/duration management, active toggle, edit/delete)
 - `/products` — Produtos (inventory, margin calculation, stock alerts, edit/delete)
@@ -41,8 +42,12 @@ Full-stack barbershop management system for Teixeira Barbearia (Kobrasol, São J
 - `GET/POST/PATCH/DELETE /api/barbers` — Staff CRUD
 - `GET/POST/PATCH/DELETE /api/services` — Services CRUD
 - `GET/POST/PATCH/DELETE /api/products` — Products CRUD
+- `GET /api/appointments?date=YYYY-MM-DD&detailed=true` — Appointments with barber/service details
+- `PATCH /api/appointments/:id/status` — Update status (with ownership check)
 - `GET /api/public/barbershops/:slug/services` — Public services
 - `GET /api/public/barbershops/:slug/barbers` — Public barbers (active only)
+- `GET /api/public/barbershops/:slug/availability?barberId=X&date=Y&serviceId=Z` — Available time slots
+- `POST /api/public/appointments` — Create booking (with server-side overlap validation)
 
 ## Business Info
 - **Address**: Rua Koesa, 430, Sala 03, Kobrasol, São José – SC
@@ -64,6 +69,8 @@ Full-stack barbershop management system for Teixeira Barbearia (Kobrasol, São J
 - `client/src/pages/team.tsx` — Staff management (photo upload via base64)
 - `client/src/pages/services.tsx` — Services management
 - `client/src/pages/products.tsx` — Products/inventory management
+- `client/src/pages/appointments.tsx` — ERP agenda page (dark/gold, date nav, status actions)
+- `client/src/pages/client-booking.tsx` — Public booking page (5-step stepper, availability API)
 
 ## Design Patterns
 - ERP pages use inline dark theme (bg-[#0e0e0e]) matching landing page

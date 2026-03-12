@@ -5,6 +5,7 @@ import {
   Package,
   LayoutDashboard,
   Settings,
+  CalendarDays,
 } from "lucide-react";
 import {
   Sidebar,
@@ -24,6 +25,7 @@ import teixeiraBarberiaLogoPath from "@assets/logo.png";
 
 const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Agenda", url: "/agenda", icon: CalendarDays },
   { title: "Funcionários", url: "/team", icon: Users },
   { title: "Serviços", url: "/services", icon: Scissors },
   { title: "Produtos", url: "/products", icon: Package },
