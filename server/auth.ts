@@ -35,7 +35,7 @@ export async function setupAuth(app: Express) {
 
   app.use(
     session({
-      secret: process.env.SESSION_SECRET || "teixeira-barbearia-secret-key-2024",
+      secret: process.env.SESSION_SECRET || (process.env.NODE_ENV === "production" ? (() => { throw new Error("SESSION_SECRET must be set in production"); })() : "teixeira-dev-secret-key"),
       store: sessionStore,
       resave: false,
       saveUninitialized: false,
