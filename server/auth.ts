@@ -87,8 +87,72 @@ export function registerAuthRoutes(app: Express) {
     });
   };
 
+  const registerHandler: RequestHandler = async (req, res) => {
+    try {
+      const { email, password, firstName, lastName, barbershopName } = req.body;
+
+      if (!email || !password || !firstName || !barbershopName) {
+        return res.status(400).json({ message: "Nome, email, senha e nome da barbearia são obrigatórios" });
+      }
+
+      if (password.length < 6) {
+        return res.status(400).json({ message: "A senha deve ter pelo menos 6 caracteres" });
+      }
+
+      const [existing] = await db.select().from(users).where(eq(users.email, email));
+      if (existing) {
+        return res.status(409).json({ message: "Este email já está cadastrado" });
+      }
+
+      const hash = await hashPassword(password);
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          email,
+          passwordHash: hash,
+          firstName,
+          lastName: lastName || null,
+          role: "owner",
+        })
+        .returning();
+
+      let baseSlug = barbershopName
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      if (!baseSlug) baseSlug = "barbearia";
+
+      let slug = baseSlug;
+      let suffix = 1;
+      while (true) {
+        const [existingShop] = await db.select().from(barbershops).where(eq(barbershops.slug, slug));
+        if (!existingShop) break;
+        slug = `${baseSlug}-${suffix}`;
+        suffix++;
+      }
+
+      await db.insert(barbershops).values({
+        ownerId: newUser.id,
+        name: barbershopName,
+        slug,
+      });
+
+      (req.session as any).userId = newUser.id;
+
+      const { passwordHash: _, ...safeUser } = newUser;
+      res.status(201).json(safeUser);
+    } catch (error) {
+      console.error("Register error:", error);
+      res.status(500).json({ message: "Erro interno ao criar conta" });
+    }
+  };
+
   app.post("/api/auth/login", loginHandler);
   app.post("/api/login", loginHandler);
+  app.post("/api/auth/register", registerHandler);
+  app.post("/api/register", registerHandler);
   app.post("/api/auth/logout", logoutHandler);
   app.post("/api/logout", logoutHandler);
 

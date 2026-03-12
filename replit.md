@@ -10,7 +10,8 @@ Full-stack barbershop management system for Teixeira Barbearia (Kobrasol, São J
 - **Theme**: Dark (#0e0e0e) + Gold (#C9A24D) premium aesthetic throughout
 
 ## Authentication
-- Login via email/password at `/login` page
+- Login and registration via email/password at `/login` page (toggle between modes)
+- Registration creates user + barbershop with auto-generated slug
 - Session stored in PostgreSQL via connect-pg-simple (sessions table)
 - Password hashing uses Node.js crypto.scrypt (no external dependencies)
 - Default owner credentials: admin@teixeira.com / teixeira2024
@@ -34,6 +35,7 @@ Full-stack barbershop management system for Teixeira Barbearia (Kobrasol, São J
 
 ### API Endpoints
 - `POST /api/auth/login` — Email/password login
+- `POST /api/auth/register` — Create account (user + barbershop)
 - `POST /api/auth/logout` — Logout (destroy session)
 - `GET /api/auth/user` — Get current authenticated user
 - `GET/POST/PATCH/DELETE /api/barbers` — Staff CRUD
