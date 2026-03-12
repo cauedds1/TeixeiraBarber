@@ -628,7 +628,7 @@ export default function Landing() {
               <div className="flex items-center gap-3">
                 <p className="text-white/20 text-xs">© 2025 Teixeira Barbearia. Todos os direitos reservados.</p>
                 <span className="text-white/10">·</span>
-                <a href="/api/login" data-testid="link-owner-login" className="inline-flex items-center gap-1 text-white/15 hover:text-white/40 text-[10px] transition-colors">
+                <a href="/login" data-testid="link-owner-login" className="inline-flex items-center gap-1 text-white/15 hover:text-white/40 text-[10px] transition-colors">
                   <Lock className="w-2.5 h-2.5" />
                   Área do Proprietário
                 </a>

@@ -1,15 +1,13 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useAuth } from "@/hooks/useAuth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, Loader2 } from "lucide-react";
-import logoUrl from "@assets/generated_images/teixeira_barbearia_elegant_t_logo.png";
+import { queryClient } from "@/lib/queryClient";
+import { LogIn, Loader2, Lock } from "lucide-react";
+import teixeiraLogoPath from "@assets/logo.png";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -20,15 +18,18 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function Login() {
   const [, navigate] = useLocation();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
+  if (user) {
+    navigate("/");
+    return null;
+  }
+
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
 
   const onSubmit = async (data: LoginForm) => {
@@ -41,12 +42,14 @@ export default function Login() {
       });
 
       if (response.ok) {
+        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
         toast({ title: "Login realizado com sucesso!" });
         navigate("/");
       } else {
+        const err = await response.json();
         toast({
           title: "Erro no login",
-          description: "Email ou senha inválidos",
+          description: err.message || "Email ou senha inválidos",
           variant: "destructive",
         });
       }
@@ -61,138 +64,82 @@ export default function Login() {
     }
   };
 
-  const handleReplicoAuth = () => {
-    window.location.href = "/api/auth/login";
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
-      {/* Background decorative elements */}
+    <div className="min-h-screen flex items-center justify-center bg-[#0e0e0e] px-4">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-[#C9A24D]/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-[#C9A24D]/5 rounded-full blur-3xl" />
       </div>
 
-      <div className="w-full max-w-md relative z-10">
-        {/* Logo and Header */}
+      <div className="w-full max-w-sm relative z-10">
         <div className="flex flex-col items-center mb-8 text-center">
-          <div className="mb-4 flex justify-center">
-            <img
-              src={logoUrl}
-              alt="Teixeira Barbearia"
-              className="h-20 w-20 object-contain"
-              data-testid="img-logo"
-            />
-          </div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Teixeira Barbearia</h1>
-          <p className="text-muted-foreground">Sistema de Gestão</p>
+          <img
+            src={teixeiraLogoPath}
+            alt="Teixeira Barbearia"
+            className="h-20 w-auto mb-4 opacity-90"
+            data-testid="img-logo"
+          />
+          <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-2">Sistema de Gestão</p>
+          <p className="text-white/30 text-xs">Acesso exclusivo para proprietários</p>
         </div>
 
-        {/* Login Card */}
-        <Card className="p-6 md:p-8 shadow-lg">
-          <div className="space-y-6">
-            {/* Email and Password Form */}
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-foreground font-medium">Email</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="email"
-                          placeholder="seu@email.com"
-                          disabled={isLoading}
-                          className="bg-background/50 border-border"
-                          data-testid="input-email"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-foreground font-medium">Senha</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="password"
-                          placeholder="••••••••"
-                          disabled={isLoading}
-                          className="bg-background/50 border-border"
-                          data-testid="input-password"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full mt-6 font-semibold"
-                  data-testid="button-login"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Entrando...
-                    </>
-                  ) : (
-                    <>
-                      <LogIn className="mr-2 h-4 w-4" />
-                      Entrar
-                    </>
-                  )}
-                </Button>
-              </form>
-            </Form>
-
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-card text-muted-foreground">ou</span>
-              </div>
+        <div className="bg-[#151515] border border-white/5 rounded-2xl p-6 shadow-xl shadow-black/20">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-white/60 text-sm font-medium">Email</label>
+              <input
+                {...form.register("email")}
+                type="email"
+                placeholder="seu@email.com"
+                disabled={isLoading}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/20 focus:outline-none focus:border-[#C9A24D]/40 focus:ring-1 focus:ring-[#C9A24D]/20 transition-all text-sm"
+                data-testid="input-email"
+              />
+              {form.formState.errors.email && (
+                <p className="text-red-400 text-xs">{form.formState.errors.email.message}</p>
+              )}
             </div>
 
-            {/* Replit Auth Button */}
-            <Button
-              type="button"
-              onClick={handleReplicoAuth}
-              variant="outline"
+            <div className="space-y-2">
+              <label className="text-white/60 text-sm font-medium">Senha</label>
+              <input
+                {...form.register("password")}
+                type="password"
+                placeholder="••••••••"
+                disabled={isLoading}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/20 focus:outline-none focus:border-[#C9A24D]/40 focus:ring-1 focus:ring-[#C9A24D]/20 transition-all text-sm"
+                data-testid="input-password"
+              />
+              {form.formState.errors.password && (
+                <p className="text-red-400 text-xs">{form.formState.errors.password.message}</p>
+              )}
+            </div>
+
+            <button
+              type="submit"
               disabled={isLoading}
-              className="w-full font-semibold"
-              data-testid="button-replit-auth"
+              className="w-full flex items-center justify-center gap-2 py-3 bg-[#C9A24D] hover:bg-[#b8933f] text-[#0e0e0e] font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              data-testid="button-login"
             >
-              <svg className="mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M4 8v8h4v-4h2v8h4V8H4zm10 0v8h2V8h-2zm4 0v8h4V8h-4z" />
-              </svg>
-              Entrar com Replit
-            </Button>
-          </div>
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Entrando...
+                </>
+              ) : (
+                <>
+                  <LogIn className="h-4 w-4" />
+                  Entrar
+                </>
+              )}
+            </button>
+          </form>
+        </div>
 
-          {/* Footer */}
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>Versão Beta 1.0</p>
-          </div>
-        </Card>
-
-        {/* Security Note */}
-        <p className="text-xs text-muted-foreground text-center mt-4">
-          Seus dados estão protegidos com criptografia SSL
-        </p>
+        <div className="flex items-center justify-center gap-1.5 mt-6 text-white/15 text-[10px]">
+          <Lock className="w-2.5 h-2.5" />
+          <span>Conexão segura · Dados protegidos</span>
+        </div>
       </div>
     </div>
   );

@@ -1,16 +1,16 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, registerAuthRoutes } from "./replit_integrations/auth";
+import { setupAuth, isAuthenticated, registerAuthRoutes, seedOwner } from "./auth";
 import { format } from "date-fns";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Setup authentication
   await setupAuth(app);
   registerAuthRoutes(app);
+  await seedOwner();
 
   // Get or create user's barbershop
   const getBarbershopForUser = async (userId: string) => {
@@ -133,7 +133,7 @@ export async function registerRoutes(
   // Barbershop routes
   app.get("/api/barbershop", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       res.json(barbershop);
     } catch (error) {
       res.status(500).json({ message: "Error fetching barbershop" });
@@ -142,7 +142,7 @@ export async function registerRoutes(
 
   app.patch("/api/barbershop", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const updated = await storage.updateBarbershop(barbershop.id, req.body);
       res.json(updated);
     } catch (error) {
@@ -192,7 +192,7 @@ export async function registerRoutes(
   // Dashboard stats
   app.get("/api/dashboard/stats", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const today = format(new Date(), "yyyy-MM-dd");
       const todayAppointments = await storage.getAppointments(barbershop.id, today);
       const allTransactions = await storage.getTransactions(barbershop.id);
@@ -229,7 +229,7 @@ export async function registerRoutes(
   // Appointments
   app.get("/api/appointments", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const date = req.query.date as string | undefined;
       const appointments = await storage.getAppointments(barbershop.id, date);
       res.json(appointments);
@@ -240,7 +240,7 @@ export async function registerRoutes(
 
   app.get("/api/appointments/today", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const today = format(new Date(), "yyyy-MM-dd");
       const appointments = await storage.getAppointments(barbershop.id, today);
       res.json(appointments);
@@ -251,7 +251,7 @@ export async function registerRoutes(
 
   app.post("/api/appointments", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const appointment = await storage.createAppointment({
         ...req.body,
         barbershopId: barbershop.id,
@@ -274,7 +274,7 @@ export async function registerRoutes(
   // Barbers
   app.get("/api/barbers", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const barbers = await storage.getBarbers(barbershop.id);
       res.json(barbers);
     } catch (error) {
@@ -284,7 +284,7 @@ export async function registerRoutes(
 
   app.post("/api/barbers", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const barber = await storage.createBarber({
         ...req.body,
         barbershopId: barbershop.id,
@@ -297,7 +297,7 @@ export async function registerRoutes(
 
   app.patch("/api/barbers/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const barber = await storage.getBarber(req.params.id);
       if (!barber || barber.barbershopId !== barbershop.id) {
         return res.status(404).json({ message: "Barber not found" });
@@ -311,7 +311,7 @@ export async function registerRoutes(
 
   app.delete("/api/barbers/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const barber = await storage.getBarber(req.params.id);
       if (!barber || barber.barbershopId !== barbershop.id) {
         return res.status(404).json({ message: "Barber not found" });
@@ -326,7 +326,7 @@ export async function registerRoutes(
   // Services
   app.get("/api/services", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const services = await storage.getServices(barbershop.id);
       res.json(services);
     } catch (error) {
@@ -336,7 +336,7 @@ export async function registerRoutes(
 
   app.post("/api/services", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const service = await storage.createService({
         ...req.body,
         barbershopId: barbershop.id,
@@ -349,7 +349,7 @@ export async function registerRoutes(
 
   app.patch("/api/services/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const service = await storage.getService(req.params.id);
       if (!service || service.barbershopId !== barbershop.id) {
         return res.status(404).json({ message: "Service not found" });
@@ -363,7 +363,7 @@ export async function registerRoutes(
 
   app.delete("/api/services/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const service = await storage.getService(req.params.id);
       if (!service || service.barbershopId !== barbershop.id) {
         return res.status(404).json({ message: "Service not found" });
@@ -378,7 +378,7 @@ export async function registerRoutes(
   // Service Categories
   app.get("/api/service-categories", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const categories = await storage.getServiceCategories(barbershop.id);
       res.json(categories);
     } catch (error) {
@@ -388,7 +388,7 @@ export async function registerRoutes(
 
   app.post("/api/service-categories", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const category = await storage.createServiceCategory({
         ...req.body,
         barbershopId: barbershop.id,
@@ -402,7 +402,7 @@ export async function registerRoutes(
   // Clients
   app.get("/api/clients", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const clients = await storage.getClients(barbershop.id);
       res.json(clients);
     } catch (error) {
@@ -412,7 +412,7 @@ export async function registerRoutes(
 
   app.post("/api/clients", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const client = await storage.createClient({
         ...req.body,
         barbershopId: barbershop.id,
@@ -435,7 +435,7 @@ export async function registerRoutes(
   // Products
   app.get("/api/products", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const products = await storage.getProducts(barbershop.id);
       res.json(products);
     } catch (error) {
@@ -445,7 +445,7 @@ export async function registerRoutes(
 
   app.post("/api/products", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const product = await storage.createProduct({
         ...req.body,
         barbershopId: barbershop.id,
@@ -458,7 +458,7 @@ export async function registerRoutes(
 
   app.patch("/api/products/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const product = await storage.getProduct(req.params.id);
       if (!product || product.barbershopId !== barbershop.id) {
         return res.status(404).json({ message: "Product not found" });
@@ -472,7 +472,7 @@ export async function registerRoutes(
 
   app.delete("/api/products/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const product = await storage.getProduct(req.params.id);
       if (!product || product.barbershopId !== barbershop.id) {
         return res.status(404).json({ message: "Product not found" });
@@ -487,7 +487,7 @@ export async function registerRoutes(
   // Transactions
   app.get("/api/transactions", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const transactions = await storage.getTransactions(barbershop.id);
       res.json(transactions);
     } catch (error) {
@@ -497,7 +497,7 @@ export async function registerRoutes(
 
   app.get("/api/transactions/recent", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const transactions = await storage.getTransactions(barbershop.id);
       res.json(transactions.slice(0, 10));
     } catch (error) {
@@ -507,7 +507,7 @@ export async function registerRoutes(
 
   app.post("/api/transactions", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const transaction = await storage.createTransaction({
         ...req.body,
         barbershopId: barbershop.id,
@@ -521,7 +521,7 @@ export async function registerRoutes(
   // Finance stats
   app.get("/api/finances/stats", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const transactions = await storage.getTransactions(barbershop.id);
       const today = format(new Date(), "yyyy-MM-dd");
       const currentMonth = format(new Date(), "yyyy-MM");
@@ -553,7 +553,7 @@ export async function registerRoutes(
   // Loyalty Plans
   app.get("/api/loyalty-plans", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const plans = await storage.getLoyaltyPlans(barbershop.id);
       res.json(plans);
     } catch (error) {
@@ -563,7 +563,7 @@ export async function registerRoutes(
 
   app.post("/api/loyalty-plans", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const plan = await storage.createLoyaltyPlan({
         ...req.body,
         barbershopId: barbershop.id,
@@ -577,7 +577,7 @@ export async function registerRoutes(
   // Subscription Packages
   app.get("/api/packages", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const packages = await storage.getPackages(barbershop.id);
       res.json(packages);
     } catch (error) {
@@ -587,7 +587,7 @@ export async function registerRoutes(
 
   app.post("/api/packages", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const pkg = await storage.createPackage({
         ...req.body,
         barbershopId: barbershop.id,
@@ -601,7 +601,7 @@ export async function registerRoutes(
   // Coupons
   app.get("/api/coupons", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const coupons = await storage.getCoupons(barbershop.id);
       res.json(coupons);
     } catch (error) {
@@ -611,7 +611,7 @@ export async function registerRoutes(
 
   app.post("/api/coupons", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const coupon = await storage.createCoupon({
         ...req.body,
         barbershopId: barbershop.id,
@@ -625,7 +625,7 @@ export async function registerRoutes(
   // Reviews
   app.get("/api/reviews", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const reviews = await storage.getReviews(barbershop.id);
       res.json(reviews);
     } catch (error) {
@@ -635,7 +635,7 @@ export async function registerRoutes(
 
   app.get("/api/reviews/stats", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const reviews = await storage.getReviews(barbershop.id);
       const totalReviews = reviews.length;
       const averageRating = totalReviews > 0
@@ -657,7 +657,7 @@ export async function registerRoutes(
 
   app.post("/api/reviews", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const review = await storage.createReview({
         ...req.body,
         barbershopId: barbershop.id,
@@ -680,7 +680,7 @@ export async function registerRoutes(
   // Reports
   app.get("/api/reports", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barbershop = await getBarbershopForUser((req.user as any).id);
       const transactions = await storage.getTransactions(barbershop.id);
       const appointments = await storage.getAppointments(barbershop.id);
       const clients = await storage.getClients(barbershop.id);

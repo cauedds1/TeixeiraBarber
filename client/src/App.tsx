@@ -1,6 +1,6 @@
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -8,6 +8,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
+import Login from "@/pages/login";
 import Landing from "@/pages/landing";
 import OwnerDashboard from "@/pages/owner-dashboard";
 import Services from "@/pages/services";
@@ -16,11 +17,14 @@ import Products from "@/pages/products";
 import Settings from "@/pages/settings";
 import Booking from "@/pages/booking";
 import ClientBooking from "@/pages/client-booking";
+import { LogOut } from "lucide-react";
 import teixeiraCircleLogoPath from "@assets/image_1766152301102.png";
 import teixeiraBarberiaLogoPath from "@assets/logo.png";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const qc = useQueryClient();
+  const [, navigate] = useLocation();
   const style = {
     "--sidebar-width": "15rem",
     "--sidebar-width-icon": "3rem",
@@ -28,6 +32,12 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
 
   const ownerName = [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Proprietário";
   const ownerInitials = ownerName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    qc.clear();
+    navigate("/");
+  };
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
@@ -61,6 +71,14 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
                   <span className="text-[#C9A24D] text-xs font-semibold">{ownerInitials}</span>
                 </div>
               )}
+              <button
+                onClick={handleLogout}
+                className="p-1.5 rounded-lg text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors"
+                title="Sair"
+                data-testid="button-logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
           </header>
           <main className="flex-1 overflow-auto">
@@ -91,6 +109,7 @@ function PublicRouter() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/login" component={Login} />
       <Route path="/book/:slug" component={Booking} />
       <Route path="/agendar/:slug" component={ClientBooking} />
       <Route component={NotFound} />
@@ -120,11 +139,12 @@ function AppRouter() {
     return <LoadingScreen />;
   }
 
-  const isPublicBookingPage = location.startsWith("/book/") || location.startsWith("/agendar/");
+  const isPublicPage = location.startsWith("/book/") || location.startsWith("/agendar/") || location === "/login";
 
-  if (isPublicBookingPage) {
+  if (isPublicPage) {
     return (
       <Switch>
+        <Route path="/login" component={Login} />
         <Route path="/book/:slug" component={Booking} />
         <Route path="/agendar/:slug" component={ClientBooking} />
         <Route component={NotFound} />

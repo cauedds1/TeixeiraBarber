@@ -6,13 +6,22 @@ Full-stack barbershop management system for Teixeira Barbearia (Kobrasol, São J
 ## Architecture
 - **Frontend**: React + Vite + TanStack Query + Wouter routing + Tailwind CSS + shadcn/ui
 - **Backend**: Express.js REST API with PostgreSQL via Drizzle ORM
-- **Auth**: Replit Auth (session-based)
+- **Auth**: Email/password login with express-session + crypto.scrypt hashing
 - **Theme**: Dark (#0e0e0e) + Gold (#C9A24D) premium aesthetic throughout
+
+## Authentication
+- Login via email/password at `/login` page
+- Session stored in PostgreSQL via connect-pg-simple (sessions table)
+- Password hashing uses Node.js crypto.scrypt (no external dependencies)
+- Default owner credentials: admin@teixeira.com / teixeira2024
+- Owner and barbershop auto-seeded on first startup via `seedOwner()` in `server/auth.ts`
+- Logout clears session and redirects to landing page
 
 ## Key Routes
 
 ### Public (no auth)
 - `/` — Landing page (fetches services/barbers from API with fallback data)
+- `/login` — Owner login page
 - `/book/:slug` — Booking page
 - `/agendar/:slug` — Client booking page
 
@@ -24,6 +33,9 @@ Full-stack barbershop management system for Teixeira Barbearia (Kobrasol, São J
 - `/settings` — Configurações
 
 ### API Endpoints
+- `POST /api/auth/login` — Email/password login
+- `POST /api/auth/logout` — Logout (destroy session)
+- `GET /api/auth/user` — Get current authenticated user
 - `GET/POST/PATCH/DELETE /api/barbers` — Staff CRUD
 - `GET/POST/PATCH/DELETE /api/services` — Services CRUD
 - `GET/POST/PATCH/DELETE /api/products` — Products CRUD
@@ -39,10 +51,13 @@ Full-stack barbershop management system for Teixeira Barbearia (Kobrasol, São J
 
 ## Key Files
 - `shared/schema.ts` — Drizzle schema (all tables, insert schemas, types)
+- `server/auth.ts` — Email/password auth module (setupAuth, isAuthenticated, seedOwner)
 - `server/storage.ts` — IStorage interface + DatabaseStorage implementation
 - `server/routes.ts` — All API routes (public + authenticated)
-- `client/src/App.tsx` — App router with auth-based routing
+- `client/src/App.tsx` — App router with auth-based routing + logout
+- `client/src/hooks/useAuth.ts` — Auth hook using returnNull on 401
 - `client/src/components/app-sidebar.tsx` — ERP sidebar navigation
+- `client/src/pages/login.tsx` — Login page (dark/gold theme)
 - `client/src/pages/landing.tsx` — Public landing page (API-connected)
 - `client/src/pages/team.tsx` — Staff management (photo upload via base64)
 - `client/src/pages/services.tsx` — Services management
@@ -51,6 +66,7 @@ Full-stack barbershop management system for Teixeira Barbearia (Kobrasol, São J
 ## Design Patterns
 - ERP pages use inline dark theme (bg-[#0e0e0e]) matching landing page
 - Photo upload stores base64 data URI in barber.photoUrl field (max 2MB)
-- Landing page fetches from `/api/public/barbershops/teixeira/*` with graceful fallback to hardcoded data when barbershop not found
+- Landing page fetches from `/api/public/barbershops/teixeira/*` with graceful fallback to hardcoded data on network errors only
 - All ERP forms use shadcn Dialog with dark-themed inputs
 - Delete operations use AlertDialog confirmation
+- Auth uses `(req.user as any).id` pattern in routes (set by isAuthenticated middleware)
