@@ -1,295 +1,580 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Scissors,
-  Clock,
-  Star,
-  ArrowRight,
-  MapPin,
-  Phone,
-} from "lucide-react";
-import teixeiraLogoPath from "@assets/image_1766152163278.png";
+import { useState, useEffect, useRef } from "react";
+import { ArrowRight, MapPin, Phone, Clock, Star, Scissors, ChevronDown, Menu, X, Instagram, Facebook, MessageCircle, Calendar, Award, Users } from "lucide-react";
+import teixeiraLogoPath from "@assets/logo.png";
 
-const barbers = [
-  {
-    name: "Fran",
-    bio: "Especialista em cortes modernos",
-    initials: "FR",
-  },
-  {
-    name: "Jefferson",
-    bio: "Mestre em design capilar",
-    initials: "JF",
-  },
-  {
-    name: "Jean",
-    bio: "Artista em barbearia clássica",
-    initials: "JN",
-  },
-];
+const WHATSAPP_NUMBER = "5548999505167";
+const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}`;
+const BOOKING_LINK = "/book/teixeira";
+const INSTAGRAM_LINK = "https://instagram.com/teixeirabarbearia";
+const FACEBOOK_LINK = "https://facebook.com/teixeirabarbearia";
+const MAPS_LINK = "https://maps.google.com/?q=Rua+Koesa+430+Kobrasol+Sao+Jose+SC";
 
 const services = [
-  {
-    name: "Corte Masculino",
-    duration: "30 min",
-    price: "R$ 55",
-  },
-  {
-    name: "Corte e Barba",
-    duration: "1h",
-    price: "R$ 92",
-  },
-  {
-    name: "Barba",
-    duration: "30 min",
-    price: "R$ 49",
-  },
-  {
-    name: "Corte e Máquina",
-    duration: "1h",
-    price: "R$ 75",
-  },
+  { name: "Corte Masculino", duration: "30 min", price: "R$ 60", icon: "✂️" },
+  { name: "Corte e Barba", duration: "1h", price: "R$ 98", icon: "💈" },
+  { name: "Corte e Máquina", duration: "1h", price: "R$ 85", icon: "⚡" },
+  { name: "Barba", duration: "30 min", price: "R$ 50", icon: "🪒" },
+];
+
+const team = [
+  { name: "Franciele", role: "Especialista em cortes modernos", initials: "FR", color: "from-amber-700 to-amber-900" },
+  { name: "Jean Carlos", role: "Mestre em design capilar", initials: "JC", color: "from-stone-600 to-stone-800" },
+  { name: "Jeferson", role: "Artista em barbearia clássica", initials: "JF", color: "from-yellow-700 to-yellow-900" },
+];
+
+const reviews = [
+  { text: "Ótimo atendimento!! Melhor barbearia da região 🙏", author: "José", date: "Jan 2026" },
+  { text: "Nota 10! Profissionais incríveis, ambiente muito agradável.", author: "Edson", date: "Dez 2025" },
+  { text: "Melhor barbearia de Floripa ♡ Sempre saio satisfeito!", author: "Octavio", date: "Dez 2025" },
+  { text: "Simplesmente a melhor profissional do ramo. Recomendo demais!", author: "Davi", date: "Out 2025" },
+  { text: "Serviço impecável, ambiente top. Virei cliente fiel!", author: "Priscila", date: "Out 2025" },
+  { text: "Atendimento perfeito, resultado sempre incrível. 5 estrelas!", author: "Leonardo", date: "Dez 2025" },
+];
+
+const hours = [
+  { day: "Segunda a Sexta", time: "09:00 – 20:00", open: true },
+  { day: "Sábado", time: "08:00 – 14:00", open: true },
+  { day: "Domingo", time: "Fechado", open: false },
 ];
 
 export default function Landing() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [activeReview, setActiveReview] = useState(0);
+  const reviewInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    reviewInterval.current = setInterval(() => {
+      setActiveReview((prev) => (prev + 1) % reviews.length);
+    }, 3500);
+    return () => { if (reviewInterval.current) clearInterval(reviewInterval.current); };
+  }, []);
+
+  const scrollTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    setMenuOpen(false);
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header Premium */}
-      <header className="sticky top-0 z-50 border-b border-primary/10 bg-background/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between gap-4">
-            <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-12 w-auto mix-blend-mode-multiply" style={{ mixBlendMode: 'multiply' }} />
-            <div className="flex gap-3">
-              <Button asChild variant="outline" size="lg" data-testid="button-login">
-                <a href="/api/login">
-                  Entrar
-                </a>
-              </Button>
-              <Button asChild size="lg" className="bg-gradient-to-r from-primary to-primary/80" data-testid="button-booking">
-                <a href="/book/teixeira">
-                  Agendar Agora
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </a>
-              </Button>
+    <div className="min-h-screen bg-[#0e0e0e] text-white overflow-x-hidden">
+
+      {/* ─── HEADER ───────────────────────────────────────────────── */}
+      <header
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          scrolled ? "bg-[#0e0e0e]/95 backdrop-blur-md border-b border-white/5 shadow-xl" : "bg-transparent"
+        }`}
+      >
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+          <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-10 w-auto" />
+
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex items-center gap-8 text-sm text-white/70">
+            <button onClick={() => scrollTo("servicos")} className="hover:text-[#C9A24D] transition-colors">Serviços</button>
+            <button onClick={() => scrollTo("equipe")} className="hover:text-[#C9A24D] transition-colors">Equipe</button>
+            <button onClick={() => scrollTo("avaliacoes")} className="hover:text-[#C9A24D] transition-colors">Avaliações</button>
+            <button onClick={() => scrollTo("contato")} className="hover:text-[#C9A24D] transition-colors">Contato</button>
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <a
+              href={BOOKING_LINK}
+              data-testid="button-header-booking"
+              className="hidden md:flex items-center gap-2 bg-[#C9A24D] hover:bg-[#b8903e] text-black font-semibold text-sm px-5 py-2.5 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
+            >
+              <Calendar className="w-4 h-4" />
+              Agendar
+            </a>
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="md:hidden p-2 text-white/80 hover:text-white transition-colors"
+              data-testid="button-menu-toggle"
+              aria-label="Menu"
+            >
+              {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Menu */}
+        {menuOpen && (
+          <div className="md:hidden bg-[#151515] border-t border-white/5 px-4 py-6 space-y-1">
+            {[
+              { label: "Serviços", id: "servicos" },
+              { label: "Equipe", id: "equipe" },
+              { label: "Avaliações", id: "avaliacoes" },
+              { label: "Contato", id: "contato" },
+            ].map((item) => (
+              <button
+                key={item.id}
+                onClick={() => scrollTo(item.id)}
+                className="w-full text-left px-4 py-3.5 text-white/80 hover:text-white hover:bg-white/5 rounded-xl transition-all text-base font-medium"
+              >
+                {item.label}
+              </button>
+            ))}
+            <div className="pt-3 border-t border-white/10 mt-3">
+              <a
+                href={BOOKING_LINK}
+                className="flex items-center justify-center gap-2 w-full bg-[#C9A24D] text-black font-bold py-4 rounded-2xl text-base"
+              >
+                <Calendar className="w-5 h-5" />
+                Agendar Agora
+              </a>
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* ─── HERO ─────────────────────────────────────────────────── */}
+      <section className="relative min-h-screen flex flex-col items-center justify-center px-4 pt-16 pb-32 overflow-hidden">
+        {/* Background layers */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#1a1408] via-[#0e0e0e] to-[#0e0e0e]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(201,162,77,0.15),transparent)]" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/40 to-transparent" />
+
+        <div className="relative z-10 max-w-2xl mx-auto text-center space-y-8">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 bg-[#C9A24D]/10 border border-[#C9A24D]/20 text-[#C9A24D] text-xs font-semibold px-4 py-2 rounded-full tracking-widest uppercase">
+            <Award className="w-3.5 h-3.5" />
+            Est. 2018 · Kobrasol, São José
+          </div>
+
+          {/* Logo */}
+          <div className="flex justify-center">
+            <img
+              src={teixeiraLogoPath}
+              alt="Teixeira Barbearia"
+              className="w-48 sm:w-64 h-auto drop-shadow-2xl"
+            />
+          </div>
+
+          {/* Headline */}
+          <div className="space-y-3">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
+              Seu visual no{" "}
+              <span className="text-[#C9A24D]">melhor momento</span>
+            </h1>
+            <p className="text-base sm:text-lg text-white/55 max-w-md mx-auto leading-relaxed">
+              A barbearia que transforma seu estilo com tradição, cuidado e o toque que só a Teixeira tem.
+            </p>
+          </div>
+
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <a
+              href={BOOKING_LINK}
+              data-testid="button-hero-booking"
+              className="flex items-center justify-center gap-2 bg-[#C9A24D] hover:bg-[#b8903e] text-black font-bold text-base px-8 py-4 rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg shadow-[#C9A24D]/20"
+            >
+              <Calendar className="w-5 h-5" />
+              Agendar Horário
+            </a>
+            <a
+              href={WHATSAPP_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="button-hero-whatsapp"
+              className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold text-base px-8 py-4 rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95"
+            >
+              <MessageCircle className="w-5 h-5 text-green-400" />
+              WhatsApp
+            </a>
+          </div>
+
+          {/* Stats */}
+          <div className="flex items-center justify-center gap-6 sm:gap-10 pt-4 border-t border-white/5">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1 text-[#C9A24D]">
+                {[...Array(5)].map((_, i) => <Star key={i} className="w-3.5 h-3.5 fill-current" />)}
+              </div>
+              <p className="text-xs text-white/40 mt-1">28 avaliações</p>
+            </div>
+            <div className="w-px h-8 bg-white/10" />
+            <div className="text-center">
+              <p className="text-2xl font-black text-white">3</p>
+              <p className="text-xs text-white/40">profissionais</p>
+            </div>
+            <div className="w-px h-8 bg-white/10" />
+            <div className="text-center">
+              <p className="text-2xl font-black text-white">7+</p>
+              <p className="text-xs text-white/40">anos de história</p>
             </div>
           </div>
         </div>
-      </header>
 
-      <main>
-        {/* Hero Section */}
-        <section className="relative py-20 sm:py-32 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-primary/5" />
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <div className="max-w-3xl mx-auto text-center space-y-8">
-              <div className="flex justify-center mb-6">
-                <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-40 w-auto" style={{ mixBlendMode: 'multiply' }} />
+        {/* Scroll hint */}
+        <button
+          onClick={() => scrollTo("servicos")}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-white/20 hover:text-white/50 transition-colors"
+        >
+          <span className="text-xs tracking-widest uppercase">Ver mais</span>
+          <ChevronDown className="w-4 h-4 animate-bounce" />
+        </button>
+      </section>
+
+      {/* ─── SERVIÇOS ─────────────────────────────────────────────── */}
+      <section id="servicos" className="py-20 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-3">O que oferecemos</p>
+            <h2 className="text-3xl sm:text-4xl font-black">Nossos Serviços</h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {services.map((service) => (
+              <a
+                key={service.name}
+                href={BOOKING_LINK}
+                data-testid={`card-service-${service.name.toLowerCase().replace(/\s+/g, "-")}`}
+                className="group flex items-center justify-between bg-[#151515] hover:bg-[#1a1a1a] border border-white/5 hover:border-[#C9A24D]/20 rounded-2xl p-5 transition-all duration-200 hover:shadow-lg hover:shadow-[#C9A24D]/5 cursor-pointer"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-[#C9A24D]/10 flex items-center justify-center text-xl flex-shrink-0">
+                    {service.icon}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-white">{service.name}</h3>
+                    <div className="flex items-center gap-1.5 mt-1 text-white/40 text-sm">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>{service.duration}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[#C9A24D] font-black text-lg">{service.price}</span>
+                  <div className="w-8 h-8 rounded-full bg-[#C9A24D]/10 group-hover:bg-[#C9A24D] flex items-center justify-center transition-colors">
+                    <ArrowRight className="w-4 h-4 text-[#C9A24D] group-hover:text-black transition-colors" />
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+
+          <div className="mt-8 text-center">
+            <a
+              href={BOOKING_LINK}
+              data-testid="button-services-cta"
+              className="inline-flex items-center gap-2 bg-[#C9A24D] hover:bg-[#b8903e] text-black font-bold px-8 py-4 rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 text-sm"
+            >
+              <Calendar className="w-4 h-4" />
+              Agendar agora
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── EQUIPE ───────────────────────────────────────────────── */}
+      <section id="equipe" className="py-20 px-4 bg-[#111111]">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-3">Quem vai cuidar de você</p>
+            <h2 className="text-3xl sm:text-4xl font-black">Nossa Equipe</h2>
+            <p className="text-white/40 mt-3 text-sm max-w-sm mx-auto">Profissionais apaixonados pelo que fazem, prontos para te atender.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {team.map((barber) => (
+              <div
+                key={barber.name}
+                className="group bg-[#151515] border border-white/5 hover:border-[#C9A24D]/20 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-[#C9A24D]/5"
+                data-testid={`card-barber-${barber.name.toLowerCase().replace(/\s+/g, "-")}`}
+              >
+                <div className={`h-36 bg-gradient-to-br ${barber.color} flex items-center justify-center relative overflow-hidden`}>
+                  <div className="absolute inset-0 bg-[#0e0e0e]/30" />
+                  <div className="relative w-20 h-20 rounded-full bg-white/10 backdrop-blur border-2 border-[#C9A24D]/40 flex items-center justify-center">
+                    <span className="text-2xl font-black text-[#C9A24D]">{barber.initials}</span>
+                  </div>
+                </div>
+                <div className="p-5 space-y-2">
+                  <h3 className="font-bold text-lg text-white">{barber.name}</h3>
+                  <p className="text-white/40 text-sm leading-relaxed">{barber.role}</p>
+                  <div className="flex gap-0.5 pt-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="w-3.5 h-3.5 text-[#C9A24D] fill-current" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── AVALIAÇÕES ───────────────────────────────────────────── */}
+      <section id="avaliacoes" className="py-20 px-4 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_50%,rgba(201,162,77,0.04),transparent)]" />
+        <div className="max-w-3xl mx-auto relative">
+          <div className="text-center mb-12">
+            <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-3">O que dizem nossos clientes</p>
+            <h2 className="text-3xl sm:text-4xl font-black">Avaliações</h2>
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <div className="flex">
+                {[...Array(5)].map((_, i) => <Star key={i} className="w-5 h-5 text-[#C9A24D] fill-current" />)}
+              </div>
+              <span className="text-white font-bold text-lg">5.0</span>
+              <span className="text-white/40 text-sm">· 28 avaliações</span>
+            </div>
+          </div>
+
+          {/* Featured review */}
+          <div className="bg-[#151515] border border-white/5 rounded-3xl p-8 mb-6 min-h-[160px] flex flex-col justify-between transition-all duration-500">
+            <p className="text-white/80 text-base sm:text-lg leading-relaxed italic">
+              "{reviews[activeReview].text}"
+            </p>
+            <div className="flex items-center justify-between mt-6">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-[#C9A24D]/20 flex items-center justify-center">
+                  <span className="text-[#C9A24D] text-sm font-bold">
+                    {reviews[activeReview].author[0]}
+                  </span>
+                </div>
+                <div>
+                  <p className="font-semibold text-sm text-white">{reviews[activeReview].author}</p>
+                  <p className="text-white/30 text-xs">{reviews[activeReview].date}</p>
+                </div>
+              </div>
+              <div className="flex gap-1">
+                {[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 text-[#C9A24D] fill-current" />)}
+              </div>
+            </div>
+          </div>
+
+          {/* Dot indicators */}
+          <div className="flex justify-center gap-2 mb-8">
+            {reviews.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => { setActiveReview(i); if (reviewInterval.current) clearInterval(reviewInterval.current); }}
+                className={`transition-all duration-300 rounded-full ${
+                  i === activeReview ? "w-6 h-2 bg-[#C9A24D]" : "w-2 h-2 bg-white/20 hover:bg-white/40"
+                }`}
+                data-testid={`button-review-dot-${i}`}
+              />
+            ))}
+          </div>
+
+          {/* Mini reviews grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {reviews.slice(0, 3).map((review, i) => (
+              <div
+                key={i}
+                onClick={() => setActiveReview(i)}
+                className="bg-[#151515] border border-white/5 hover:border-[#C9A24D]/15 rounded-2xl p-4 cursor-pointer transition-all hover:bg-[#1a1a1a]"
+                data-testid={`card-review-${i}`}
+              >
+                <div className="flex gap-0.5 mb-2">
+                  {[...Array(5)].map((_, j) => <Star key={j} className="w-3 h-3 text-[#C9A24D] fill-current" />)}
+                </div>
+                <p className="text-white/60 text-xs leading-relaxed line-clamp-2">"{review.text}"</p>
+                <p className="text-white/30 text-xs mt-2 font-medium">— {review.author}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── POR QUÊ AGENDAR ONLINE ───────────────────────────────── */}
+      <section className="py-16 px-4 bg-[#111111]">
+        <div className="max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { icon: "⚡", title: "Rápido", desc: "Agendamento em menos de 1 minuto" },
+              { icon: "📱", title: "Fácil", desc: "Sem cadastro, sem complicação" },
+              { icon: "🕐", title: "24/7", desc: "Agende qualquer hora do dia" },
+              { icon: "💬", title: "WhatsApp", desc: "Confirmação direto no seu celular" },
+            ].map((item) => (
+              <div key={item.title} className="bg-[#151515] border border-white/5 rounded-2xl p-5 text-center">
+                <div className="text-3xl mb-3">{item.icon}</div>
+                <h3 className="font-bold text-white text-sm mb-1">{item.title}</h3>
+                <p className="text-white/35 text-xs leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── CONTATO / LOCALIZAÇÃO ────────────────────────────────── */}
+      <section id="contato" className="py-20 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-3">Onde estamos</p>
+            <h2 className="text-3xl sm:text-4xl font-black">Venha nos visitar</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Info card */}
+            <div className="bg-[#151515] border border-white/5 rounded-3xl p-7 space-y-6">
+              <div className="flex items-start gap-4">
+                <div className="w-11 h-11 rounded-xl bg-[#C9A24D]/10 flex items-center justify-center flex-shrink-0">
+                  <MapPin className="w-5 h-5 text-[#C9A24D]" />
+                </div>
+                <div>
+                  <p className="text-white/40 text-xs uppercase tracking-wide mb-1">Endereço</p>
+                  <p className="font-semibold text-white">Rua Koesa, 430, Sala 03</p>
+                  <p className="text-white/50 text-sm">Kobrasol, São José – SC</p>
+                  <a
+                    href={MAPS_LINK}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[#C9A24D] text-xs mt-2 hover:underline"
+                    data-testid="link-google-maps"
+                  >
+                    Ver no mapa →
+                  </a>
+                </div>
               </div>
 
+              <div className="flex items-start gap-4">
+                <div className="w-11 h-11 rounded-xl bg-[#C9A24D]/10 flex items-center justify-center flex-shrink-0">
+                  <Phone className="w-5 h-5 text-[#C9A24D]" />
+                </div>
+                <div>
+                  <p className="text-white/40 text-xs uppercase tracking-wide mb-1">Telefone</p>
+                  <a
+                    href={`tel:+55${WHATSAPP_NUMBER.slice(2)}`}
+                    className="font-semibold text-white hover:text-[#C9A24D] transition-colors"
+                    data-testid="link-phone"
+                  >
+                    (48) 99950-5167
+                  </a>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="w-11 h-11 rounded-xl bg-[#C9A24D]/10 flex items-center justify-center flex-shrink-0">
+                  <Clock className="w-5 h-5 text-[#C9A24D]" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-white/40 text-xs uppercase tracking-wide mb-2">Horários</p>
+                  <div className="space-y-2">
+                    {hours.map((h) => (
+                      <div key={h.day} className="flex items-center justify-between">
+                        <span className="text-white/60 text-sm">{h.day}</span>
+                        <span className={`text-sm font-medium ${h.open ? "text-white" : "text-white/30"}`}>
+                          {h.time}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Social links */}
+              <div className="flex items-center gap-3 pt-2 border-t border-white/5">
+                <a
+                  href={INSTAGRAM_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="link-instagram"
+                  className="flex items-center gap-2 flex-1 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl px-4 py-3 transition-all"
+                >
+                  <Instagram className="w-4 h-4 text-pink-400" />
+                  <span className="text-sm text-white/70">Instagram</span>
+                </a>
+                <a
+                  href={FACEBOOK_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="link-facebook"
+                  className="flex items-center gap-2 flex-1 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl px-4 py-3 transition-all"
+                >
+                  <Facebook className="w-4 h-4 text-blue-400" />
+                  <span className="text-sm text-white/70">Facebook</span>
+                </a>
+              </div>
+            </div>
+
+            {/* CTA card */}
+            <div className="bg-gradient-to-br from-[#1a1408] to-[#151515] border border-[#C9A24D]/20 rounded-3xl p-7 flex flex-col justify-between">
               <div className="space-y-4">
-                <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight">
-                  Bem-vindo à{" "}
-                  <span className="text-primary">Teixeira</span>
-                </h1>
-                <p className="text-xl sm:text-2xl text-foreground/70 max-w-2xl mx-auto">
-                  Onde a tradição encontra a modernidade. Seus barbeiros preferidos, sempre prontos para transformar seu visual.
+                <div className="w-14 h-14 rounded-2xl bg-[#C9A24D]/10 flex items-center justify-center">
+                  <Scissors className="w-7 h-7 text-[#C9A24D]" />
+                </div>
+                <h3 className="text-2xl font-black text-white">Pronto para o seu novo visual?</h3>
+                <p className="text-white/50 text-sm leading-relaxed">
+                  Escolha seu serviço, seu barbeiro preferido e o horário que funciona pra você. Rápido, fácil e sem fila.
                 </p>
               </div>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-                <Button size="lg" asChild className="bg-gradient-to-r from-primary to-primary/80 text-base h-12 shadow-lg shadow-primary/30" data-testid="button-booking-cta">
-                  <a href="/book/teixeira">
-                    Agendar Agora
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                </Button>
-              </div>
-
-              {/* Quick Info */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-8 border-t border-primary/10">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-primary mb-1">3</div>
-                  <p className="text-sm text-foreground/60">Profissionais</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-primary mb-1">4+</div>
-                  <p className="text-sm text-foreground/60">Serviços</p>
-                </div>
-                <div className="text-center col-span-2 sm:col-span-1">
-                  <div className="text-3xl font-bold text-primary mb-1">24/7</div>
-                  <p className="text-sm text-foreground/60">Agendamento</p>
-                </div>
+              <div className="space-y-3 mt-8">
+                <a
+                  href={BOOKING_LINK}
+                  data-testid="button-contact-booking"
+                  className="flex items-center justify-center gap-2 w-full bg-[#C9A24D] hover:bg-[#b8903e] text-black font-bold py-4 rounded-2xl transition-all hover:scale-105 active:scale-95"
+                >
+                  <Calendar className="w-5 h-5" />
+                  Agendar Horário
+                </a>
+                <a
+                  href={WHATSAPP_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="button-contact-whatsapp"
+                  className="flex items-center justify-center gap-2 w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold py-4 rounded-2xl transition-all"
+                >
+                  <MessageCircle className="w-5 h-5 text-green-400" />
+                  Falar no WhatsApp
+                </a>
               </div>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Barbeiros */}
-        <section className="py-20 bg-card/30 border-y border-primary/10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold mb-4">Conheça Nossa Equipe</h2>
-              <p className="text-lg text-foreground/60 max-w-2xl mx-auto">
-                Profissionais experientes prontos para cuidar do seu visual
-              </p>
+      {/* ─── FOOTER ───────────────────────────────────────────────── */}
+      <footer className="bg-[#0a0a0a] border-t border-white/5 py-10 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex flex-col items-center sm:items-start gap-2">
+              <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-8 w-auto opacity-80" />
+              <p className="text-white/30 text-xs">Rua Koesa, 430 · Kobrasol, São José – SC</p>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {barbers.map((barber) => (
-                <Card key={barber.name} className="overflow-hidden border-primary/20 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 hover-elevate">
-                  <div className="relative h-48 bg-gradient-to-br from-primary/30 to-primary/5 flex items-center justify-center overflow-hidden">
-                    <div className="absolute inset-0 opacity-30" />
-                    <Avatar className="h-32 w-32 relative z-10 border-4 border-background">
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-background text-2xl font-bold text-xl">
-                        {barber.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
-                  <CardContent className="p-6 text-center space-y-3">
-                    <div>
-                      <h3 className="text-2xl font-bold">{barber.name}</h3>
-                      <p className="text-foreground/60 mt-1">{barber.bio}</p>
-                    </div>
-                    <div className="flex items-center justify-center gap-1 text-primary">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="h-4 w-4 fill-current" />
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="flex flex-col items-center sm:items-end gap-2">
+              <div className="flex items-center gap-4">
+                <a href={INSTAGRAM_LINK} target="_blank" rel="noopener noreferrer" data-testid="footer-link-instagram" className="text-white/30 hover:text-white/70 transition-colors">
+                  <Instagram className="w-5 h-5" />
+                </a>
+                <a href={FACEBOOK_LINK} target="_blank" rel="noopener noreferrer" data-testid="footer-link-facebook" className="text-white/30 hover:text-white/70 transition-colors">
+                  <Facebook className="w-5 h-5" />
+                </a>
+                <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" data-testid="footer-link-whatsapp" className="text-white/30 hover:text-white/70 transition-colors">
+                  <MessageCircle className="w-5 h-5" />
+                </a>
+              </div>
+              <p className="text-white/20 text-xs">© 2025 Teixeira Barbearia. Todos os direitos reservados.</p>
             </div>
-          </div>
-        </section>
-
-        {/* Serviços */}
-        <section className="py-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold mb-4">Nossos Serviços</h2>
-              <p className="text-lg text-foreground/60 max-w-2xl mx-auto">
-                Qualidade e excelência em cada detalhe
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {services.map((service) => (
-                <Card key={service.name} className="overflow-hidden border-primary/20 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 hover-elevate">
-                  <div className="h-32 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                    <Scissors className="h-16 w-16 text-primary/40" />
-                  </div>
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      <h3 className="text-xl font-bold">{service.name}</h3>
-                      <div className="flex items-center justify-between pt-4 border-t border-primary/10">
-                        <div className="flex items-center gap-2 text-foreground/60">
-                          <Clock className="h-4 w-4" />
-                          <span className="text-sm">{service.duration}</span>
-                        </div>
-                        <span className="text-2xl font-bold text-primary">{service.price}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Localização */}
-        <section className="relative py-20 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent" />
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <Card className="border-primary/20 overflow-hidden">
-              <div className="h-1 bg-gradient-to-r from-primary to-primary/50" />
-              <CardContent className="p-8 space-y-6">
-                <h2 className="text-3xl font-bold text-center">Visite-nos</h2>
-                
-                <div className="grid sm:grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary flex-shrink-0 mt-1">
-                        <MapPin className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-foreground/60">Localização</p>
-                        <p className="font-semibold text-lg">Rua Rosa, 430, Sala 03</p>
-                        <p className="text-foreground/70">Kobrasol, São José - SC</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary flex-shrink-0 mt-1">
-                        <Phone className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-foreground/60">Contato</p>
-                        <p className="font-semibold text-lg">(48) 3261-2310</p>
-                        <p className="text-foreground/70">Seg-Sab: 09:00 às 20:00</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 space-y-3">
-                      <h3 className="font-semibold text-lg">Por que agendar online?</h3>
-                      <ul className="space-y-2 text-sm text-foreground/70">
-                        <li className="flex gap-2">
-                          <span className="text-primary">✓</span>
-                          <span>Rápido e fácil</span>
-                        </li>
-                        <li className="flex gap-2">
-                          <span className="text-primary">✓</span>
-                          <span>Sem fila de espera</span>
-                        </li>
-                        <li className="flex gap-2">
-                          <span className="text-primary">✓</span>
-                          <span>Confirmação por WhatsApp</span>
-                        </li>
-                        <li className="flex gap-2">
-                          <span className="text-primary">✓</span>
-                          <span>Agendamento 24/7</span>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
-        {/* CTA Final */}
-        <section className="py-20 bg-gradient-to-br from-primary/10 via-transparent to-primary/5">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              Pronto para seu novo visual?
-            </h2>
-            <p className="text-xl text-foreground/70 mb-8">
-              Agende agora mesmo e prepare-se para sair daqui transformado
-            </p>
-            <Button size="lg" asChild className="bg-gradient-to-r from-primary to-primary/80 text-base h-12 shadow-lg shadow-primary/30" data-testid="button-final-cta">
-              <a href="/book/teixeira">
-                Agendar Agora
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
-            </Button>
-          </div>
-        </section>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-primary/10 py-8 bg-card/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-10 w-auto" style={{ mixBlendMode: 'multiply' }} />
-            <p className="text-sm text-foreground/50">
-              © 2024 Teixeira Barbearia. Todos os direitos reservados.
-            </p>
           </div>
         </div>
       </footer>
+
+      {/* ─── WHATSAPP FLOATING BUTTON ─────────────────────────────── */}
+      <a
+        href={WHATSAPP_LINK}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-testid="button-whatsapp-fab"
+        className="fixed bottom-24 right-4 sm:bottom-8 sm:right-6 z-50 w-14 h-14 bg-green-500 hover:bg-green-400 rounded-full flex items-center justify-center shadow-2xl shadow-green-500/30 transition-all duration-200 hover:scale-110 active:scale-95"
+        aria-label="Falar no WhatsApp"
+      >
+        <MessageCircle className="w-7 h-7 text-white" />
+      </a>
+
+      {/* ─── MOBILE STICKY BOTTOM CTA ─────────────────────────────── */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-[#0e0e0e]/95 backdrop-blur-md border-t border-white/5 px-4 py-3 safe-area-bottom">
+        <a
+          href={BOOKING_LINK}
+          data-testid="button-mobile-sticky-booking"
+          className="flex items-center justify-center gap-2 w-full bg-[#C9A24D] hover:bg-[#b8903e] text-black font-bold text-base py-3.5 rounded-2xl transition-all active:scale-95"
+        >
+          <Calendar className="w-5 h-5" />
+          Agendar Agora — é rápido e grátis
+        </a>
+      </div>
     </div>
   );
 }
