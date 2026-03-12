@@ -56,6 +56,8 @@ export interface IStorage {
   getAppointment(id: string): Promise<Appointment | undefined>;
   createAppointment(data: InsertAppointment): Promise<Appointment>;
   updateAppointmentStatus(id: string, status: string): Promise<Appointment | undefined>;
+  getUpcomingUnremindedAppointments(date: string): Promise<Appointment[]>;
+  markReminderSent(id: string): Promise<void>;
 
   // Products
   getProducts(barbershopId: string): Promise<Product[]>;
@@ -285,6 +287,25 @@ export class DatabaseStorage implements IStorage {
       .where(eq(appointments.id, id))
       .returning();
     return appointment;
+  }
+
+  async getUpcomingUnremindedAppointments(date: string): Promise<Appointment[]> {
+    return db.select().from(appointments)
+      .where(
+        and(
+          eq(appointments.date, date),
+          eq(appointments.reminderSent, false),
+          sql`${appointments.status} != 'cancelled'`,
+          sql`${appointments.clientPhone} IS NOT NULL AND ${appointments.clientPhone} != ''`
+        )
+      )
+      .orderBy(appointments.startTime);
+  }
+
+  async markReminderSent(id: string): Promise<void> {
+    await db.update(appointments)
+      .set({ reminderSent: true, updatedAt: new Date() })
+      .where(eq(appointments.id, id));
   }
 
   // Products

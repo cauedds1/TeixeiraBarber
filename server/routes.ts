@@ -3,7 +3,9 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, registerAuthRoutes, seedOwner } from "./auth";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { whatsappService } from "./whatsapp";
+import { BOOKING_URL } from "./reminder";
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
@@ -270,15 +272,19 @@ export async function registerRoutes(
 
       try {
         const barber = await storage.getBarber(barberId);
+        const apptDate = new Date(date + "T12:00:00");
+        const diaSemana = format(apptDate, "EEEE", { locale: ptBR });
+        const diaSemanaCapit = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
+        const dataFmt = format(apptDate, "dd/MM/yyyy");
         const msg =
-          `✂️ *Agendamento Confirmado – Teixeira Barbearia!*\n\n` +
-          `Olá, ${clientName}! Seu horário foi agendado com sucesso.\n\n` +
-          `📋 *Serviço:* ${service.name}\n` +
-          `👤 *Profissional:* ${barber?.name || "A definir"}\n` +
-          `📅 *Data:* ${format(new Date(date + "T12:00:00"), "dd/MM/yyyy")}\n` +
-          `🕐 *Horário:* ${startTime}\n\n` +
-          `📍 Rua Koesa, 430, Sala 03, Kobrasol – São José/SC\n\n` +
-          `Até breve! 💈`;
+          `Olá, *${clientName}*! ✂️\n\n` +
+          `Recebemos seu agendamento aqui na Teixeira Barbearia. Tudo pronto para o seu ritual!\n\n` +
+          `📅 *Data:* ${diaSemanaCapit}, ${dataFmt}\n` +
+          `⏰ *Horário:* ${startTime}\n` +
+          `👤 *Barbeiro:* ${barber?.name || "A definir"}\n` +
+          `🛠️ *Serviço:* ${service.name}\n\n` +
+          `📍 Estamos na Rua Koesa, 430 (Kobrasol).\n` +
+          `☕ O café já está no fogo. Te esperamos!`;
         await whatsappService.sendMessage(clientPhone, msg);
       } catch (_) {}
 
@@ -438,15 +444,12 @@ export async function registerRoutes(
 
       if (req.body.status === "cancelled" && existing.clientPhone) {
         try {
-          const service = existing.serviceId ? await storage.getService(existing.serviceId).catch(() => null) : null;
+          const dataFmt = format(new Date(existing.date + "T12:00:00"), "dd/MM/yyyy");
           const msg =
-            `❌ *Agendamento Cancelado – Teixeira Barbearia*\n\n` +
-            `Olá, ${existing.clientName}! Infelizmente seu agendamento precisou ser cancelado.\n\n` +
-            `📋 *Serviço:* ${service?.name || "N/A"}\n` +
-            `📅 *Data:* ${format(new Date(existing.date + "T12:00:00"), "dd/MM/yyyy")}\n` +
-            `🕐 *Horário:* ${existing.startTime}\n\n` +
-            `Para reagendar, acesse:\nhttps://57963618-5dfb-413a-88eb-ab8ee22cb96d-00-347r04xq55rqy.spock.replit.dev/agendar/teixeira\n\n` +
-            `Pedimos desculpas pelo transtorno. 🙏`;
+            `Olá, *${existing.clientName}*.\n\n` +
+            `Passando para confirmar que o seu agendamento para o dia *${dataFmt}* às *${existing.startTime}* foi cancelado.\n\n` +
+            `Se desejar escolher um novo horário, você pode fazer isso rapidinho por este link:\n${BOOKING_URL}\n\n` +
+            `Esperamos te ver em breve! 👋`;
           await whatsappService.sendMessage(existing.clientPhone, msg);
         } catch (_) {}
       }
