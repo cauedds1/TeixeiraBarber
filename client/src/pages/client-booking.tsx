@@ -10,7 +10,7 @@ import {
 import { format, addDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Barbershop, Service, Barber } from "@shared/schema";
-import teixeiraLogoPath from "@assets/image_1766152163278.png";
+import teixeiraLogoPath from "@assets/logo.png";
 
 const WHATSAPP_NUMBER = "5548999505167";
 const SERVICE_EMOJIS = ["✂️", "💈", "⚡", "🪒", "💇", "🧴", "🎨", "🔥"];
