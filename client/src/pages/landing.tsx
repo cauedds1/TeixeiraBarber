@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, MapPin, Phone, Clock, Star, Scissors, ChevronDown, Menu, X, Instagram, MessageCircle, Calendar, Award, Users } from "lucide-react";
 import teixeiraLogoPath from "@assets/logo.png";
+import type { Service, Barber } from "@shared/schema";
 
 const WHATSAPP_NUMBER = "5548999505167";
 const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}`;
@@ -8,18 +10,21 @@ const BOOKING_LINK = "/book/teixeira";
 const INSTAGRAM_LINK = "https://instagram.com/teixeirabarbeariaoficial";
 const MAPS_LINK = "https://maps.google.com/?q=Rua+Koesa+430+Kobrasol+Sao+Jose+SC";
 
-const services = [
-  { name: "Corte Masculino", duration: "30 min", price: "R$ 60", icon: "✂️" },
-  { name: "Corte e Barba", duration: "1h", price: "R$ 98", icon: "💈" },
-  { name: "Corte e Máquina", duration: "1h", price: "R$ 85", icon: "⚡" },
-  { name: "Barba", duration: "30 min", price: "R$ 50", icon: "🪒" },
+const fallbackServices = [
+  { name: "Corte Masculino", duration: 30, price: "60", icon: "✂️" },
+  { name: "Corte e Barba", duration: 60, price: "98", icon: "💈" },
+  { name: "Corte e Máquina", duration: 60, price: "85", icon: "⚡" },
+  { name: "Barba", duration: 30, price: "50", icon: "🪒" },
 ];
 
-const team = [
-  { name: "Franciele", role: "Especialista em cortes modernos", initials: "FR", color: "from-amber-700 to-amber-900" },
-  { name: "Jean Carlos", role: "Mestre em design capilar", initials: "JC", color: "from-stone-600 to-stone-800" },
-  { name: "Jeferson", role: "Artista em barbearia clássica", initials: "JF", color: "from-yellow-700 to-yellow-900" },
+const fallbackTeam = [
+  { name: "Franciele", bio: "Especialista em cortes modernos", photoUrl: null as string | null, initials: "FR", color: "from-amber-700 to-amber-900" },
+  { name: "Jean Carlos", bio: "Mestre em design capilar", photoUrl: null as string | null, initials: "JC", color: "from-stone-600 to-stone-800" },
+  { name: "Jeferson", bio: "Artista em barbearia clássica", photoUrl: null as string | null, initials: "JF", color: "from-yellow-700 to-yellow-900" },
 ];
+
+const serviceIcons = ["✂️", "💈", "⚡", "🪒", "💇", "🧴"];
+const teamColors = ["from-amber-700 to-amber-900", "from-stone-600 to-stone-800", "from-yellow-700 to-yellow-900"];
 
 const reviews = [
   { text: "Ótimo atendimento!! Melhor barbearia da região 🙏", author: "José", date: "Jan 2026" },
@@ -36,11 +41,75 @@ const hours = [
   { day: "Domingo", time: "Fechado", open: false },
 ];
 
+const formatCurrency = (value: number | string | null) => {
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  return `R$ ${(num || 0).toFixed(0)}`;
+};
+
+const formatDuration = (mins: number) => {
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}min` : `${h}h`;
+};
+
 export default function Landing() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeReview, setActiveReview] = useState(0);
   const reviewInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { data: apiServices } = useQuery<Service[]>({
+    queryKey: ["/api/public/barbershops/teixeira/services"],
+    queryFn: async () => {
+      const res = await fetch("/api/public/barbershops/teixeira/services");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 60000,
+    retry: false,
+  });
+
+  const { data: apiBarbers } = useQuery<Barber[]>({
+    queryKey: ["/api/public/barbershops/teixeira/barbers"],
+    queryFn: async () => {
+      const res = await fetch("/api/public/barbershops/teixeira/barbers");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 60000,
+    retry: false,
+  });
+
+  const services = apiServices && apiServices.length > 0
+    ? apiServices.filter(s => s.isActive).map((s, i) => ({
+        name: s.name,
+        duration: formatDuration(s.duration),
+        price: formatCurrency(s.price),
+        icon: serviceIcons[i % serviceIcons.length],
+      }))
+    : fallbackServices.map(s => ({
+        name: s.name,
+        duration: formatDuration(s.duration),
+        price: formatCurrency(s.price),
+        icon: s.icon,
+      }));
+
+  const team = apiBarbers && apiBarbers.length > 0
+    ? apiBarbers.map((b, i) => ({
+        name: b.name,
+        role: b.bio || "Profissional",
+        photoUrl: b.photoUrl,
+        initials: b.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(),
+        color: teamColors[i % teamColors.length],
+      }))
+    : fallbackTeam.map(b => ({
+        name: b.name,
+        role: b.bio || "Profissional",
+        photoUrl: b.photoUrl,
+        initials: b.initials,
+        color: b.color,
+      }));
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -196,7 +265,7 @@ export default function Landing() {
             </div>
             <div className="w-px h-8 bg-white/10" />
             <div className="text-center">
-              <p className="text-2xl font-black text-white">3</p>
+              <p className="text-2xl font-black text-white">{team.length}</p>
               <p className="text-xs text-white/40">profissionais</p>
             </div>
             <div className="w-px h-8 bg-white/10" />
@@ -286,9 +355,17 @@ export default function Landing() {
               >
                 <div className={`h-36 bg-gradient-to-br ${barber.color} flex items-center justify-center relative overflow-hidden`}>
                   <div className="absolute inset-0 bg-[#0e0e0e]/30" />
-                  <div className="relative w-20 h-20 rounded-full bg-white/10 backdrop-blur border-2 border-[#C9A24D]/40 flex items-center justify-center">
-                    <span className="text-2xl font-black text-[#C9A24D]">{barber.initials}</span>
-                  </div>
+                  {barber.photoUrl ? (
+                    <img
+                      src={barber.photoUrl}
+                      alt={barber.name}
+                      className="relative w-20 h-20 rounded-full object-cover border-2 border-[#C9A24D]/40 shadow-lg"
+                    />
+                  ) : (
+                    <div className="relative w-20 h-20 rounded-full bg-white/10 backdrop-blur border-2 border-[#C9A24D]/40 flex items-center justify-center">
+                      <span className="text-2xl font-black text-[#C9A24D]">{barber.initials}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="p-5 space-y-2">
                   <h3 className="font-bold text-lg text-white">{barber.name}</h3>

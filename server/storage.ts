@@ -60,6 +60,7 @@ export interface IStorage {
   getProduct(id: string): Promise<Product | undefined>;
   createProduct(data: InsertProduct): Promise<Product>;
   updateProduct(id: string, data: Partial<InsertProduct>): Promise<Product | undefined>;
+  deleteProduct(id: string): Promise<void>;
 
   // Transactions
   getTransactions(barbershopId: string): Promise<Transaction[]>;
@@ -283,6 +284,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(products.id, id))
       .returning();
     return product;
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    await db.delete(products).where(eq(products.id, id));
   }
 
   // Transactions

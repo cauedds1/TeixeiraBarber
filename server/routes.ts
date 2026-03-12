@@ -297,8 +297,13 @@ export async function registerRoutes(
 
   app.patch("/api/barbers/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const barber = await storage.updateBarber(req.params.id, req.body);
-      res.json(barber);
+      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barber = await storage.getBarber(req.params.id);
+      if (!barber || barber.barbershopId !== barbershop.id) {
+        return res.status(404).json({ message: "Barber not found" });
+      }
+      const updated = await storage.updateBarber(req.params.id, req.body);
+      res.json(updated);
     } catch (error) {
       res.status(500).json({ message: "Error updating barber" });
     }
@@ -306,6 +311,11 @@ export async function registerRoutes(
 
   app.delete("/api/barbers/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const barber = await storage.getBarber(req.params.id);
+      if (!barber || barber.barbershopId !== barbershop.id) {
+        return res.status(404).json({ message: "Barber not found" });
+      }
       await storage.deleteBarber(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -339,8 +349,13 @@ export async function registerRoutes(
 
   app.patch("/api/services/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const service = await storage.updateService(req.params.id, req.body);
-      res.json(service);
+      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const service = await storage.getService(req.params.id);
+      if (!service || service.barbershopId !== barbershop.id) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+      const updated = await storage.updateService(req.params.id, req.body);
+      res.json(updated);
     } catch (error) {
       res.status(500).json({ message: "Error updating service" });
     }
@@ -348,6 +363,11 @@ export async function registerRoutes(
 
   app.delete("/api/services/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const service = await storage.getService(req.params.id);
+      if (!service || service.barbershopId !== barbershop.id) {
+        return res.status(404).json({ message: "Service not found" });
+      }
       await storage.deleteService(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -438,10 +458,29 @@ export async function registerRoutes(
 
   app.patch("/api/products/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const product = await storage.updateProduct(req.params.id, req.body);
-      res.json(product);
+      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const product = await storage.getProduct(req.params.id);
+      if (!product || product.barbershopId !== barbershop.id) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      const updated = await storage.updateProduct(req.params.id, req.body);
+      res.json(updated);
     } catch (error) {
       res.status(500).json({ message: "Error updating product" });
+    }
+  });
+
+  app.delete("/api/products/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).claims.sub);
+      const product = await storage.getProduct(req.params.id);
+      if (!product || product.barbershopId !== barbershop.id) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      await storage.deleteProduct(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting product" });
     }
   });
 

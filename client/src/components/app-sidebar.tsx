@@ -1,17 +1,10 @@
 import { Link, useLocation } from "wouter";
 import {
-  Calendar,
   Users,
   Scissors,
-  LayoutDashboard,
-  DollarSign,
   Package,
-  Gift,
+  LayoutDashboard,
   Settings,
-  BarChart3,
-  Clock,
-  Star,
-  CreditCard,
 } from "lucide-react";
 import {
   Sidebar,
@@ -27,28 +20,13 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
-import teixeiraCircleLogoPath from "@assets/image_1766152301102.png";
 import teixeiraBarberiaLogoPath from "@assets/logo.png";
 
-const ownerMenuItems = [
+const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Agenda", url: "/appointments", icon: Calendar },
-  { title: "Clientes", url: "/clients", icon: Users },
+  { title: "Funcionários", url: "/team", icon: Users },
   { title: "Serviços", url: "/services", icon: Scissors },
-  { title: "Equipe", url: "/team", icon: Users },
-  { title: "Financeiro", url: "/finances", icon: DollarSign },
   { title: "Produtos", url: "/products", icon: Package },
-  { title: "Fidelidade", url: "/loyalty", icon: Gift },
-  { title: "Planos", url: "/packages", icon: CreditCard },
-  { title: "Avaliações", url: "/reviews", icon: Star },
-  { title: "Relatórios", url: "/reports", icon: BarChart3 },
-  { title: "Configurações", url: "/settings", icon: Settings },
-];
-
-const barberMenuItems = [
-  { title: "Minha Agenda", url: "/", icon: Calendar },
-  { title: "Histórico", url: "/history", icon: Clock },
-  { title: "Comissões", url: "/commissions", icon: DollarSign },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
@@ -56,21 +34,15 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
 
-  const isBarber = user?.role === "barber";
-  const menuItems = isBarber ? barberMenuItems : ownerMenuItems;
-
   return (
-    <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border p-4 flex flex-col items-center justify-center">
-        <img src={teixeiraBarberiaLogoPath} alt="Teixeira Barbearia" className="h-16 w-auto mb-2 opacity-90" />
-        <div className="flex flex-col text-center">
-          <span className="font-semibold text-sidebar-foreground text-sm">Teixeira</span>
-          <span className="text-xs text-muted-foreground">Barbearia</span>
-        </div>
+    <Sidebar className="border-r border-white/5 bg-[#0e0e0e]">
+      <SidebarHeader className="border-b border-white/5 p-4 flex flex-col items-center justify-center">
+        <img src={teixeiraBarberiaLogoPath} alt="Teixeira Barbearia" className="h-14 w-auto mb-2 opacity-90" />
+        <span className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase">Gestão</span>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-white/30 text-xs uppercase tracking-wider px-4">Menu Principal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
@@ -87,19 +59,19 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="border-t border-sidebar-border p-4">
+      <SidebarFooter className="border-t border-white/5 p-4">
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9">
             <AvatarImage src={user?.profileImageUrl || ""} alt={user?.firstName || "User"} />
-            <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+            <AvatarFallback className="bg-[#C9A24D]/10 text-[#C9A24D] text-sm font-bold">
               {user?.firstName?.[0] || user?.email?.[0]?.toUpperCase() || "U"}
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col flex-1 min-w-0">
-            <span className="text-sm font-medium text-sidebar-foreground truncate">
+            <span className="text-sm font-medium text-white truncate">
               {user?.firstName || user?.email || "Usuário"}
             </span>
-            <span className="text-xs text-muted-foreground truncate">
+            <span className="text-xs text-white/30 truncate">
               {user?.email || ""}
             </span>
           </div>

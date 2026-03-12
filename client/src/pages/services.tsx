@@ -1,56 +1,33 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import {
-  Plus,
-  Search,
-  Clock,
-  Scissors,
-  MoreVertical,
-  Edit,
-  Trash2,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import {
+  Plus, Search, Clock, Scissors, Pencil, Trash2, ArrowRight,
 } from "lucide-react";
 import { z } from "zod";
-import type { Service, ServiceCategory } from "@shared/schema";
+import type { Service } from "@shared/schema";
 
 const serviceFormSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   description: z.string().optional(),
   price: z.string().min(1, "Preço é obrigatório"),
   duration: z.string().min(1, "Duração é obrigatória"),
-  categoryId: z.string().optional(),
   isCombo: z.boolean().default(false),
   isActive: z.boolean().default(true),
 });
@@ -59,32 +36,23 @@ type ServiceFormData = z.infer<typeof serviceFormSchema>;
 
 export default function Services() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [isNewDialogOpen, setIsNewDialogOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
   const { toast } = useToast();
 
   const form = useForm<ServiceFormData>({
     resolver: zodResolver(serviceFormSchema),
     defaultValues: {
-      name: "",
-      description: "",
-      price: "",
-      duration: "30",
-      categoryId: "",
-      isCombo: false,
-      isActive: true,
+      name: "", description: "", price: "", duration: "30", isCombo: false, isActive: true,
     },
   });
 
-  const { data: services, isLoading: servicesLoading } = useQuery<Service[]>({
+  const { data: services, isLoading } = useQuery<Service[]>({
     queryKey: ["/api/services"],
   });
 
-  const { data: categories } = useQuery<ServiceCategory[]>({
-    queryKey: ["/api/service-categories"],
-  });
-
-  const createServiceMutation = useMutation({
+  const createMutation = useMutation({
     mutationFn: async (data: ServiceFormData) => {
       await apiRequest("POST", "/api/services", {
         ...data,
@@ -94,8 +62,7 @@ export default function Services() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
-      setIsNewDialogOpen(false);
-      form.reset();
+      closeDialog();
       toast({ title: "Serviço cadastrado com sucesso" });
     },
     onError: () => {
@@ -103,328 +70,335 @@ export default function Services() {
     },
   });
 
-  const deleteServiceMutation = useMutation({
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: ServiceFormData }) => {
+      await apiRequest("PATCH", `/api/services/${id}`, {
+        ...data,
+        price: data.price,
+        duration: parseInt(data.duration),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+      closeDialog();
+      toast({ title: "Serviço atualizado" });
+    },
+    onError: () => {
+      toast({ title: "Erro ao atualizar serviço", variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       await apiRequest("DELETE", `/api/services/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+      setDeleteTarget(null);
       toast({ title: "Serviço removido" });
+    },
+    onError: () => {
+      toast({ title: "Erro ao remover serviço", variant: "destructive" });
     },
   });
 
-  const filteredServices = services?.filter((service) => {
-    const matchesSearch =
-      !searchQuery ||
-      service.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "all" || service.categoryId === selectedCategory;
-    return matchesSearch && matchesCategory;
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      await apiRequest("PATCH", `/api/services/${id}`, { isActive });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+    },
   });
 
-  const formatCurrency = (value: number | string | null) => {
-    const num = typeof value === "string" ? parseFloat(value) : value;
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(num || 0);
+  const closeDialog = () => {
+    setDialogOpen(false);
+    setEditingService(null);
+    form.reset({ name: "", description: "", price: "", duration: "30", isCombo: false, isActive: true });
+  };
+
+  const openEdit = (service: Service) => {
+    setEditingService(service);
+    form.reset({
+      name: service.name,
+      description: service.description || "",
+      price: service.price?.toString() || "",
+      duration: service.duration?.toString() || "30",
+      isCombo: service.isCombo ?? false,
+      isActive: service.isActive ?? true,
+    });
+    setDialogOpen(true);
   };
 
   const onSubmit = (data: ServiceFormData) => {
-    createServiceMutation.mutate(data);
+    if (editingService) {
+      updateMutation.mutate({ id: editingService.id, data });
+    } else {
+      createMutation.mutate(data);
+    }
   };
 
-  const groupedServices = categories?.map((category) => ({
-    ...category,
-    services: filteredServices?.filter((s) => s.categoryId === category.id) || [],
-  }));
+  const formatCurrency = (value: number | string | null) => {
+    const num = typeof value === "string" ? parseFloat(value) : value;
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(num || 0);
+  };
 
-  const uncategorizedServices = filteredServices?.filter((s) => !s.categoryId);
+  const formatDuration = (mins: number) => {
+    if (mins < 60) return `${mins} min`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}h ${m}min` : `${h}h`;
+  };
+
+  const filtered = services?.filter((s) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return s.name?.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q);
+  });
+
+  const activeCount = services?.filter((s) => s.isActive).length || 0;
+  const isPending = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-services-title">Serviços</h1>
-          <p className="text-muted-foreground">
-            Gerencie sua tabela de preços e serviços
-          </p>
+    <div className="min-h-screen bg-[#0e0e0e] p-4 sm:p-6 lg:p-8">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-black text-white" data-testid="text-services-title">Serviços</h1>
+            <p className="text-white/40 text-sm mt-1">
+              {activeCount} {activeCount === 1 ? "serviço ativo" : "serviços ativos"} · Gerencie sua tabela de preços
+            </p>
+          </div>
+          <button
+            onClick={() => { setEditingService(null); setDialogOpen(true); }}
+            data-testid="button-new-service"
+            className="flex items-center gap-2 bg-[#C9A24D] hover:bg-[#b8903e] text-black font-semibold px-5 py-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Novo Serviço
+          </button>
         </div>
-        <Dialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-new-service">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Serviço
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Novo Serviço</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome *</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Nome do serviço" data-testid="input-service-name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Descrição</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} placeholder="Descrição do serviço..." data-testid="input-service-description" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="price"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Preço *</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-service-price" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="duration"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Duração (min) *</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" placeholder="30" data-testid="input-service-duration" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="categoryId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Categoria</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-category">
-                            <SelectValue placeholder="Selecione uma categoria" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {categories?.map((category) => (
-                            <SelectItem key={category.id} value={category.id}>
-                              {category.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex items-center gap-4">
-                  <FormField
-                    control={form.control}
-                    name="isCombo"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center gap-2">
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-combo" />
-                        </FormControl>
-                        <FormLabel className="!mt-0">É combo</FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="isActive"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center gap-2">
-                        <FormControl>
-                          <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-active" />
-                        </FormControl>
-                        <FormLabel className="!mt-0">Ativo</FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setIsNewDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={createServiceMutation.isPending} data-testid="button-save-service">
-                    {createServiceMutation.isPending ? "Salvando..." : "Salvar"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </div>
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        <div className="relative flex-1 w-full sm:max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+          <input
             placeholder="Buscar serviço..."
-            className="pl-9"
+            className="w-full bg-[#151515] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#C9A24D]/50 transition-colors"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             data-testid="input-search"
           />
         </div>
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-full sm:w-48" data-testid="filter-category">
-            <SelectValue placeholder="Categoria" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas categorias</SelectItem>
-            {categories?.map((category) => (
-              <SelectItem key={category.id} value={category.id}>
-                {category.name}
-              </SelectItem>
+
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-[#151515] border border-white/5 rounded-2xl p-5 animate-pulse">
+                <div className="flex justify-between">
+                  <div className="space-y-2">
+                    <div className="h-5 w-36 bg-white/10 rounded" />
+                    <div className="h-3 w-24 bg-white/5 rounded" />
+                  </div>
+                  <div className="h-6 w-20 bg-white/10 rounded" />
+                </div>
+              </div>
             ))}
-          </SelectContent>
-        </Select>
+          </div>
+        ) : filtered && filtered.length > 0 ? (
+          <div className="space-y-3">
+            {filtered.map((service) => (
+              <div
+                key={service.id}
+                className={`group bg-[#151515] border hover:border-[#C9A24D]/20 rounded-2xl p-5 transition-all duration-200 hover:shadow-lg hover:shadow-[#C9A24D]/5 ${
+                  service.isActive ? "border-white/5" : "border-white/5 opacity-60"
+                }`}
+                data-testid={`card-service-${service.id}`}
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="w-12 h-12 rounded-xl bg-[#C9A24D]/10 flex items-center justify-center flex-shrink-0">
+                      <Scissors className="w-5 h-5 text-[#C9A24D]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-white">{service.name}</h3>
+                        {service.isCombo && (
+                          <span className="text-[10px] uppercase tracking-wider font-semibold bg-[#C9A24D]/10 text-[#C9A24D] px-2 py-0.5 rounded-full">Combo</span>
+                        )}
+                        {!service.isActive && (
+                          <span className="text-[10px] uppercase tracking-wider font-semibold bg-white/5 text-white/30 px-2 py-0.5 rounded-full">Inativo</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 mt-1">
+                        <div className="flex items-center gap-1 text-white/40 text-sm">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>{formatDuration(service.duration)}</span>
+                        </div>
+                        {service.description && (
+                          <span className="text-white/30 text-sm truncate hidden sm:inline">· {service.description}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className="text-[#C9A24D] font-black text-lg">{formatCurrency(service.price)}</span>
+
+                    <div className="flex items-center gap-1">
+                      <Switch
+                        checked={service.isActive ?? true}
+                        onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: service.id, isActive: checked })}
+                        data-testid={`switch-active-${service.id}`}
+                        className="data-[state=checked]:bg-[#C9A24D]"
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => openEdit(service)}
+                      data-testid={`button-edit-${service.id}`}
+                      className="p-2 text-white/30 hover:text-[#C9A24D] hover:bg-[#C9A24D]/10 rounded-lg transition-all"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(service)}
+                      data-testid={`button-delete-${service.id}`}
+                      className="p-2 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-[#151515] border border-white/5 rounded-2xl py-16 text-center">
+            <Scissors className="w-12 h-12 text-white/10 mx-auto mb-3" />
+            <p className="text-white/40 mb-4">Nenhum serviço encontrado</p>
+            <button
+              onClick={() => setDialogOpen(true)}
+              data-testid="button-empty-new"
+              className="inline-flex items-center gap-2 bg-[#C9A24D] hover:bg-[#b8903e] text-black font-semibold px-5 py-2.5 rounded-xl transition-all text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Adicionar Serviço
+            </button>
+          </div>
+        )}
       </div>
 
-      {servicesLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <Skeleton className="h-6 w-32 mb-2" />
-                <Skeleton className="h-4 w-full mb-4" />
-                <div className="flex justify-between">
-                  <Skeleton className="h-6 w-20" />
-                  <Skeleton className="h-6 w-16" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : filteredServices && filteredServices.length > 0 ? (
-        <div className="space-y-8">
-          {groupedServices?.filter((g) => g.services.length > 0).map((group) => (
-            <div key={group.id}>
-              <h2 className="text-lg font-semibold mb-4">{group.name}</h2>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {group.services.map((service) => (
-                  <Card key={service.id} className="hover-elevate" data-testid={`card-service-${service.id}`}>
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold">{service.name}</h3>
-                          {service.isCombo && (
-                            <Badge size="sm" className="bg-primary/10 text-primary">Combo</Badge>
-                          )}
-                          {!service.isActive && (
-                            <Badge size="sm" variant="secondary">Inativo</Badge>
-                          )}
-                        </div>
-                        <Button variant="ghost" size="icon" data-testid={`button-more-${service.id}`}>
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      {service.description && (
-                        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                          {service.description}
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between">
-                        <span className="text-xl font-bold text-primary">
-                          {formatCurrency(service.price)}
-                        </span>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          {service.duration} min
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          ))}
+      <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); else setDialogOpen(true); }}>
+        <DialogContent className="max-w-lg bg-[#1a1a1a] border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              {editingService ? "Editar Serviço" : "Novo Serviço"}
+            </DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField control={form.control} name="name" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-white/70">Nome *</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Ex: Corte Masculino" className="bg-[#0e0e0e] border-white/10 text-white" data-testid="input-service-name" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
-          {uncategorizedServices && uncategorizedServices.length > 0 && (
-            <div>
-              <h2 className="text-lg font-semibold mb-4">Outros</h2>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {uncategorizedServices.map((service) => (
-                  <Card key={service.id} className="hover-elevate" data-testid={`card-service-${service.id}`}>
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold">{service.name}</h3>
-                          {service.isCombo && (
-                            <Badge size="sm" className="bg-primary/10 text-primary">Combo</Badge>
-                          )}
-                        </div>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      {service.description && (
-                        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                          {service.description}
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between">
-                        <span className="text-xl font-bold text-primary">
-                          {formatCurrency(service.price)}
-                        </span>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          {service.duration} min
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+              <FormField control={form.control} name="description" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-white/70">Descrição</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} placeholder="Descrição opcional do serviço..." className="bg-[#0e0e0e] border-white/10 text-white resize-none" data-testid="input-service-description" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="price" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white/70">Preço (R$) *</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" step="0.01" min="0" placeholder="0.00" className="bg-[#0e0e0e] border-white/10 text-white" data-testid="input-service-price" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="duration" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-white/70">Duração (min) *</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" min="5" step="5" placeholder="30" className="bg-[#0e0e0e] border-white/10 text-white" data-testid="input-service-duration" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
               </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center">
-              <Scissors className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
-              <p className="text-muted-foreground">Nenhum serviço encontrado</p>
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={() => setIsNewDialogOpen(true)}
-                data-testid="button-empty-new"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Serviço
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
+              <div className="flex items-center gap-6">
+                <FormField control={form.control} name="isCombo" render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-combo" />
+                    </FormControl>
+                    <FormLabel className="!mt-0 text-white/70">É combo</FormLabel>
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="isActive" render={({ field }) => (
+                  <FormItem className="flex items-center gap-2">
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-active" />
+                    </FormControl>
+                    <FormLabel className="!mt-0 text-white/70">Ativo</FormLabel>
+                  </FormItem>
+                )} />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={closeDialog}
+                  className="px-4 py-2.5 text-sm text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  data-testid="button-save-service"
+                  className="px-5 py-2.5 text-sm font-semibold bg-[#C9A24D] hover:bg-[#b8903e] text-black rounded-xl transition-all disabled:opacity-50"
+                >
+                  {isPending ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent className="bg-[#1a1a1a] border-white/10 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Remover serviço?</AlertDialogTitle>
+            <AlertDialogDescription className="text-white/50">
+              Tem certeza que deseja remover <strong className="text-white">{deleteTarget?.name}</strong>? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-white/5 border-white/10 text-white hover:bg-white/10">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? "Removendo..." : "Remover"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
