@@ -59,56 +59,58 @@ export default function Landing() {
   const [activeReview, setActiveReview] = useState(0);
   const reviewInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const { data: apiServices } = useQuery<Service[]>({
+  const { data: apiServices, isError: servicesError } = useQuery<Service[]>({
     queryKey: ["/api/public/barbershops/teixeira/services"],
     queryFn: async () => {
       const res = await fetch("/api/public/barbershops/teixeira/services");
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error("Failed to fetch services");
       return res.json();
     },
     staleTime: 60000,
     retry: false,
   });
 
-  const { data: apiBarbers } = useQuery<Barber[]>({
+  const { data: apiBarbers, isError: barbersError } = useQuery<Barber[]>({
     queryKey: ["/api/public/barbershops/teixeira/barbers"],
     queryFn: async () => {
       const res = await fetch("/api/public/barbershops/teixeira/barbers");
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error("Failed to fetch barbers");
       return res.json();
     },
     staleTime: 60000,
     retry: false,
   });
 
-  const services = apiServices && apiServices.length > 0
-    ? apiServices.filter(s => s.isActive).map((s, i) => ({
-        name: s.name,
-        duration: formatDuration(s.duration),
-        price: formatCurrency(s.price),
-        icon: serviceIcons[i % serviceIcons.length],
-      }))
-    : fallbackServices.map(s => ({
+  const activeApiServices = apiServices?.filter(s => s.isActive) || [];
+
+  const services = servicesError
+    ? fallbackServices.map(s => ({
         name: s.name,
         duration: formatDuration(s.duration),
         price: formatCurrency(s.price),
         icon: s.icon,
+      }))
+    : activeApiServices.map((s, i) => ({
+        name: s.name,
+        duration: formatDuration(s.duration),
+        price: formatCurrency(s.price),
+        icon: serviceIcons[i % serviceIcons.length],
       }));
 
-  const team = apiBarbers && apiBarbers.length > 0
-    ? apiBarbers.map((b, i) => ({
-        name: b.name,
-        role: b.bio || "Profissional",
-        photoUrl: b.photoUrl,
-        initials: b.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(),
-        color: teamColors[i % teamColors.length],
-      }))
-    : fallbackTeam.map(b => ({
+  const team = barbersError
+    ? fallbackTeam.map(b => ({
         name: b.name,
         role: b.bio || "Profissional",
         photoUrl: b.photoUrl,
         initials: b.initials,
         color: b.color,
+      }))
+    : (apiBarbers || []).map((b, i) => ({
+        name: b.name,
+        role: b.bio || "Profissional",
+        photoUrl: b.photoUrl,
+        initials: b.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(),
+        color: teamColors[i % teamColors.length],
       }));
 
   useEffect(() => {
@@ -295,6 +297,15 @@ export default function Landing() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {services.length === 0 && (
+              <div className="col-span-full text-center py-12">
+                <p className="text-white/40 text-sm">Nossos serviços serão listados em breve.</p>
+                <a href={BOOKING_LINK} className="inline-flex items-center gap-2 mt-4 text-[#C9A24D] text-sm font-semibold hover:underline" data-testid="link-services-booking">
+                  <Calendar className="w-4 h-4" />
+                  Agende pelo WhatsApp
+                </a>
+              </div>
+            )}
             {services.map((service) => (
               <a
                 key={service.name}
@@ -347,6 +358,11 @@ export default function Landing() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {team.length === 0 && (
+              <div className="col-span-full text-center py-12">
+                <p className="text-white/40 text-sm">Nossa equipe será apresentada em breve.</p>
+              </div>
+            )}
             {team.map((barber) => (
               <div
                 key={barber.name}
