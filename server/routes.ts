@@ -138,9 +138,9 @@ export async function registerRoutes(
       const endMinutes = timeToMinutes(barberEnd);
 
       const slots: string[] = [];
+      const allSlots: string[] = [];
       for (let m = startMinutes; m + serviceDuration <= endMinutes; m += 30) {
         const slotStart = minutesToTime(m);
-        const slotEnd = minutesToTime(m + serviceDuration);
 
         const hasConflict = bookedSlots.some(booked => {
           const bookedStart = timeToMinutes(booked.start);
@@ -148,12 +148,13 @@ export async function registerRoutes(
           return m < bookedEnd && (m + serviceDuration) > bookedStart;
         });
 
+        allSlots.push(slotStart);
         if (!hasConflict) {
           slots.push(slotStart);
         }
       }
 
-      res.json({ slots, date, barberId });
+      res.json({ slots, allSlots, date, barberId });
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar disponibilidade" });
     }

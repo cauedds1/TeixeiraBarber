@@ -301,45 +301,51 @@ export default function Appointments() {
                 </Badge>
 
                 <div className="flex items-center gap-0.5 flex-shrink-0">
-                  {apt.status === "pending" && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
-                        onClick={() => updateStatusMutation.mutate({ id: apt.id, status: "confirmed" })}
-                        disabled={updateStatusMutation.isPending}
-                        title="Confirmar"
-                        data-testid={`button-confirm-${apt.id}`}
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-red-400 hover:bg-red-500/10 hover:text-red-300"
-                        onClick={() => updateStatusMutation.mutate({ id: apt.id, status: "cancelled" })}
-                        disabled={updateStatusMutation.isPending}
-                        title="Cancelar"
-                        data-testid={`button-cancel-${apt.id}`}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                  {apt.status === "confirmed" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-[#C9A24D] hover:bg-[#C9A24D]/10 hover:text-[#C9A24D]"
-                      onClick={() => updateStatusMutation.mutate({ id: apt.id, status: "completed" })}
-                      disabled={updateStatusMutation.isPending}
-                      title="Concluir"
-                      data-testid={`button-complete-${apt.id}`}
-                    >
-                      <CheckCheck className="h-4 w-4" />
-                    </Button>
-                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`h-8 w-8 ${
+                      apt.status === "confirmed" || apt.status === "completed" || apt.status === "cancelled"
+                        ? "text-white/10 cursor-not-allowed"
+                        : "text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+                    }`}
+                    onClick={() => updateStatusMutation.mutate({ id: apt.id, status: "confirmed" })}
+                    disabled={updateStatusMutation.isPending || apt.status === "confirmed" || apt.status === "completed" || apt.status === "cancelled"}
+                    title="Confirmar"
+                    data-testid={`button-confirm-${apt.id}`}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`h-8 w-8 ${
+                      apt.status === "completed" || apt.status === "cancelled" || apt.status === "pending"
+                        ? "text-white/10 cursor-not-allowed"
+                        : "text-[#C9A24D] hover:bg-[#C9A24D]/10 hover:text-[#C9A24D]"
+                    }`}
+                    onClick={() => updateStatusMutation.mutate({ id: apt.id, status: "completed" })}
+                    disabled={updateStatusMutation.isPending || apt.status === "completed" || apt.status === "cancelled" || apt.status === "pending"}
+                    title="Concluir"
+                    data-testid={`button-complete-${apt.id}`}
+                  >
+                    <CheckCheck className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`h-8 w-8 ${
+                      apt.status === "completed" || apt.status === "cancelled"
+                        ? "text-white/10 cursor-not-allowed"
+                        : "text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                    }`}
+                    onClick={() => updateStatusMutation.mutate({ id: apt.id, status: "cancelled" })}
+                    disabled={updateStatusMutation.isPending || apt.status === "completed" || apt.status === "cancelled"}
+                    title="Cancelar"
+                    data-testid={`button-cancel-${apt.id}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             ))}

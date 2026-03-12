@@ -71,7 +71,7 @@ export default function ClientBooking() {
     enabled: !!slug,
   });
 
-  const { data: availability, isLoading: slotsLoading } = useQuery<{ slots: string[] }>({
+  const { data: availability, isLoading: slotsLoading } = useQuery<{ slots: string[]; allSlots: string[] }>({
     queryKey: ["/api/public/barbershops", slug, "availability", selectedBarber?.id, selectedDate, selectedService?.id],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -355,7 +355,7 @@ export default function ClientBooking() {
         {step === 3 && (
           <div data-testid="step-date-content">
             <h2 className="text-lg font-semibold text-white mb-4">Escolha a data</h2>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
               {calendarDays.map(({ date, day }) => {
                 const dayOfWeek = format(day, "EEEEEE", { locale: ptBR });
                 const dayNum = format(day, "dd");
@@ -364,16 +364,16 @@ export default function ClientBooking() {
                   <button
                     key={date}
                     onClick={() => { setSelectedDate(date); setSelectedTime(""); setStep(4); }}
-                    className={`p-3 rounded-xl border text-center transition-all ${
+                    className={`flex-shrink-0 w-[72px] p-3 rounded-xl border text-center transition-all snap-start ${
                       selectedDate === date
-                        ? "bg-[#C9A24D]/10 border-[#C9A24D]/40"
-                        : "bg-[#1a1a1a] border-white/5 hover:border-white/15"
+                        ? "bg-[#C9A24D] border-[#C9A24D] text-black"
+                        : "bg-[#1a1a1a] border-white/5 hover:border-[#C9A24D]/30"
                     }`}
                     data-testid={`date-${date}`}
                   >
-                    <p className="text-xs text-white/40 capitalize">{dayOfWeek}</p>
-                    <p className="text-xl font-bold text-white mt-0.5">{dayNum}</p>
-                    <p className="text-[10px] text-white/30 capitalize">{monthName}</p>
+                    <p className={`text-xs capitalize ${selectedDate === date ? "text-black/60" : "text-white/40"}`}>{dayOfWeek}</p>
+                    <p className={`text-xl font-bold mt-0.5 ${selectedDate === date ? "text-black" : "text-white"}`}>{dayNum}</p>
+                    <p className={`text-[10px] capitalize ${selectedDate === date ? "text-black/50" : "text-white/30"}`}>{monthName}</p>
                   </button>
                 );
               })}
@@ -391,22 +391,28 @@ export default function ClientBooking() {
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" />
               </div>
-            ) : availability && availability.slots.length > 0 ? (
+            ) : availability && availability.allSlots.length > 0 ? (
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                {availability.slots.map((time) => (
-                  <button
-                    key={time}
-                    onClick={() => { setSelectedTime(time); setStep(5); }}
-                    className={`py-3 px-2 rounded-xl border text-center font-mono font-medium transition-all ${
-                      selectedTime === time
-                        ? "bg-[#C9A24D] text-black border-[#C9A24D]"
-                        : "bg-[#1a1a1a] border-white/5 text-white hover:border-[#C9A24D]/30 hover:text-[#C9A24D]"
-                    }`}
-                    data-testid={`time-${time}`}
-                  >
-                    {time}
-                  </button>
-                ))}
+                {availability.allSlots.map((time) => {
+                  const isAvailable = availability.slots.includes(time);
+                  return (
+                    <button
+                      key={time}
+                      onClick={() => { if (isAvailable) { setSelectedTime(time); setStep(5); } }}
+                      disabled={!isAvailable}
+                      className={`py-3 px-2 rounded-xl border text-center font-mono font-medium transition-all ${
+                        !isAvailable
+                          ? "bg-white/[0.02] border-white/5 text-white/15 cursor-not-allowed line-through"
+                          : selectedTime === time
+                          ? "bg-[#C9A24D] text-black border-[#C9A24D]"
+                          : "bg-[#1a1a1a] border-white/5 text-white hover:border-[#C9A24D]/30 hover:text-[#C9A24D]"
+                      }`}
+                      data-testid={`time-${time}`}
+                    >
+                      {time}
+                    </button>
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-12">
