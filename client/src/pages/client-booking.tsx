@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Scissors, User, CalendarDays, Clock,
@@ -51,6 +51,7 @@ function SectionHeader({
 export default function ClientBooking() {
   const [, params] = useRoute("/agendar/:slug");
   const slug = params?.slug || "";
+  const [, navigate] = useLocation();
   const { toast } = useToast();
 
   const todayStr = format(startOfDay(new Date()), "yyyy-MM-dd");
@@ -192,7 +193,13 @@ export default function ClientBooking() {
       <div className="min-h-screen bg-[#0e0e0e] flex flex-col">
         <header className="border-b border-white/5 bg-[#0e0e0e]">
           <div className="max-w-2xl mx-auto px-6 py-4 flex justify-center">
-            <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-10 w-auto" />
+            <img
+              src={teixeiraLogoPath}
+              alt="Teixeira Barbearia"
+              className="h-10 w-auto cursor-pointer"
+              onClick={() => navigate("/")}
+              data-testid="img-logo-success"
+            />
           </div>
         </header>
         <div className="flex-1 flex items-center justify-center p-6">
@@ -263,7 +270,13 @@ export default function ClientBooking() {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-[#0e0e0e]/97 backdrop-blur-sm border-b border-white/5">
         <div className="max-w-2xl mx-auto px-6 py-3 flex items-center justify-between">
-          <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-9 w-auto" />
+          <img
+            src={teixeiraLogoPath}
+            alt="Teixeira Barbearia"
+            className="h-9 w-auto cursor-pointer"
+            onClick={() => navigate("/")}
+            data-testid="img-logo-booking"
+          />
           {barbershop.phone && (
             <a href={`tel:${barbershop.phone}`} className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors">
               <Phone className="h-3 w-3" />
