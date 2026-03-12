@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowRight, MapPin, Phone, Clock, Star, Scissors, ChevronDown, Menu, X, Instagram, Facebook, MessageCircle, Calendar, Award, Users } from "lucide-react";
+import { ArrowRight, MapPin, Phone, Clock, Star, Scissors, ChevronDown, Menu, X, Instagram, MessageCircle, Calendar, Award, Users } from "lucide-react";
 import teixeiraLogoPath from "@assets/logo.png";
 
 const WHATSAPP_NUMBER = "5548999505167";
 const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}`;
 const BOOKING_LINK = "/book/teixeira";
 const INSTAGRAM_LINK = "https://instagram.com/teixeirabarbeariaoficial";
-const FACEBOOK_LINK = "https://facebook.com/teixeirabarbearia";
 const MAPS_LINK = "https://maps.google.com/?q=Rua+Koesa+430+Kobrasol+Sao+Jose+SC";
 
 const services = [
@@ -475,17 +474,7 @@ export default function Landing() {
                   className="flex items-center gap-2 flex-1 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl px-4 py-3 transition-all"
                 >
                   <Instagram className="w-4 h-4 text-pink-400" />
-                  <span className="text-sm text-white/70">Instagram</span>
-                </a>
-                <a
-                  href={FACEBOOK_LINK}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  data-testid="link-facebook"
-                  className="flex items-center gap-2 flex-1 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl px-4 py-3 transition-all"
-                >
-                  <Facebook className="w-4 h-4 text-blue-400" />
-                  <span className="text-sm text-white/70">Facebook</span>
+                  <span className="text-sm text-white/70">@teixeirabarbeariaoficial</span>
                 </a>
               </div>
             </div>
@@ -538,9 +527,6 @@ export default function Landing() {
               <div className="flex items-center gap-4">
                 <a href={INSTAGRAM_LINK} target="_blank" rel="noopener noreferrer" data-testid="footer-link-instagram" className="text-white/30 hover:text-white/70 transition-colors">
                   <Instagram className="w-5 h-5" />
-                </a>
-                <a href={FACEBOOK_LINK} target="_blank" rel="noopener noreferrer" data-testid="footer-link-facebook" className="text-white/30 hover:text-white/70 transition-colors">
-                  <Facebook className="w-5 h-5" />
                 </a>
                 <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" data-testid="footer-link-whatsapp" className="text-white/30 hover:text-white/70 transition-colors">
                   <MessageCircle className="w-5 h-5" />
