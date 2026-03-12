@@ -1,0 +1,56 @@
+Para criar uma agenda de nível premium que realmente funcione e não seja apenas um formulário bobo, você precisa de um fluxo que passe confiança. Como você já tem os módulos de Funcionários e Serviços no ERP, a agenda será o lugar onde tudo se une.
+
+Aqui está a estratégia técnica e de design para essa funcionalidade:
+
+1. O Fluxo de UI (User Experience)
+No mobile, em vez de uma tabela gigante, use um fluxo de passo a passo (Stepper). Isso evita que o cliente se sinta sobrecarregado:
+
+Passo 1: Selecionar o Serviço (Puxado da sua API de Serviços).
+
+Passo 2: Selecionar o Barbeiro (Puxado da sua API de Funcionários). Dica: Mostre a foto que você cadastrou no ERP.
+
+Passo 3: Escolher o Dia (Um calendário horizontal deslizante, estilo "semana").
+
+Passo 4: Escolher o Horário (Grid de "chips" com os horários disponíveis).
+
+2. A Lógica de "Horários Disponíveis" (O Backend)
+Para o cliente ver apenas o que está livre, seu backend precisa calcular os espaços vazios.
+
+Duração do Serviço: Se o cliente escolheu "Corte e Barba" (1h), o sistema precisa buscar no banco de dados janelas de 1h livre na agenda do barbeiro escolhido.
+
+Horário de Funcionamento: O sistema deve respeitar o horário da barbearia (ex: 09h às 20h).
+
+Bloqueio de Conflitos: Sempre que um agendamento for feito, esse horário é "travado" para aquele barbeiro específico.
+
+3. Sugestão de Design Premium para a Agenda
+Para manter o visual "Dark & Gold" da sua landing page:
+
+Calendário Horizontal: Em vez de um calendário quadrado antigo, use uma linha de datas que o usuário desliza para os lados. O dia selecionado fica com uma borda dourada.
+
+Filtro de Barbeiro: Se o cliente não tem preferência, coloque uma opção "Qualquer Barbeiro" – isso ajuda a barbearia a preencher os buracos na agenda de quem estiver mais livre.
+
+Status de Horário:
+
+Disponível: Borda dourada fina.
+
+Ocupado: Texto riscado ou opacidade baixa (nem deixe clicar).
+
+Selecionado: Fundo dourado com texto preto.
+
+4. Implementação Técnica (Stack)
+Como você está usando React/Next.js:
+
+Date-fns: Uma biblioteca excelente para manipular datas e horas no JavaScript.
+
+API Endpoint: Crie uma rota como /api/public/barbers/:id/availability?date=2026-03-12.
+
+Essa rota vai olhar os agendamentos já existentes para aquele barber_id naquela data e retornar os horários que sobraram.
+
+Componente de Agendamento: Use o Framer Motion para que, quando o cliente clicar em um dia, os horários apareçam com um efeito de "slide-up" suave.
+
+Exemplo de como os dados viriam da API:
+JSON
+{
+  "barber": "Jean Carlos",
+  "available_slots": ["09:00", "09:30", "11:00", "14:30", "15:00"]
+}
