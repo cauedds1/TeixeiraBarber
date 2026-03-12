@@ -5,7 +5,7 @@ import teixeiraLogoPath from "@assets/logo.png";
 const WHATSAPP_NUMBER = "5548999505167";
 const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}`;
 const BOOKING_LINK = "/book/teixeira";
-const INSTAGRAM_LINK = "https://instagram.com/teixeirabarbearia";
+const INSTAGRAM_LINK = "https://instagram.com/teixeirabarbeariaoficial";
 const FACEBOOK_LINK = "https://facebook.com/teixeirabarbearia";
 const MAPS_LINK = "https://maps.google.com/?q=Rua+Koesa+430+Kobrasol+Sao+Jose+SC";
 
