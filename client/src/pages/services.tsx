@@ -225,9 +225,7 @@ export default function Services() {
                         {service.isCombo && (
                           <span className="text-[10px] uppercase tracking-wider font-semibold bg-[#C9A24D]/10 text-[#C9A24D] px-2 py-0.5 rounded-full">Combo</span>
                         )}
-                        {!service.isActive && (
-                          <span className="text-[10px] uppercase tracking-wider font-semibold bg-white/5 text-white/30 px-2 py-0.5 rounded-full">Inativo</span>
-                        )}
+                        <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${service.isActive ? "bg-emerald-500/10 text-emerald-400" : "bg-white/5 text-white/30"}`} data-testid={`badge-status-${service.id}`}>{service.isActive ? "Ativo" : "Inativo"}</span>
                       </div>
                       <div className="flex items-center gap-3 mt-1">
                         <div className="flex items-center gap-1 text-white/40 text-sm">
