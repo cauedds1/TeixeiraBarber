@@ -7,6 +7,13 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+function handleUnauthorized() {
+  queryClient.clear();
+  if (!window.location.pathname.startsWith("/login") && !window.location.pathname.startsWith("/agendar") && !window.location.pathname.startsWith("/book")) {
+    window.location.href = "/login";
+  }
+}
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -18,6 +25,10 @@ export async function apiRequest(
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
+
+  if (res.status === 401) {
+    handleUnauthorized();
+  }
 
   await throwIfResNotOk(res);
   return res;
@@ -35,6 +46,10 @@ export const getQueryFn: <T>(options: {
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
+    }
+
+    if (res.status === 401 && unauthorizedBehavior === "throw") {
+      handleUnauthorized();
     }
 
     await throwIfResNotOk(res);
