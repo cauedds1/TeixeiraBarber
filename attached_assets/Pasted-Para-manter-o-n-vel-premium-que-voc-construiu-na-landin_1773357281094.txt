@@ -1,0 +1,58 @@
+Para manter o nível premium que você construiu na landing page, as mensagens do bot não podem ser "robóticas" ou secas demais. Elas precisam transmitir exclusividade, organização e hospitalidade.
+
+Como a barbearia fica no Kobrasol (São José) e tem essa pegada Heritage/Vintage, a linguagem deve ser polida, mas com a "voz" de um barbeiro de confiança.
+
+Aqui estão os modelos de mensagens divididos por situação:
+
+1. Confirmação de Agendamento (O "Boas-vindas")
+Esta mensagem deve ser disparada assim que o cliente finaliza o agendamento no site.
+
+"Olá, [Nome do Cliente]! ✂️
+
+Recebemos seu agendamento aqui na Teixeira Barbearia. Tudo pronto para o seu ritual!
+
+📅 Data: [Dia da Semana], [Data]
+⏰ Horário: [Horas]
+👤 Barbeiro: [Nome do Barbeiro]
+🛠️ Serviço: [Nome do Serviço]
+
+📍 Estamos localizados na Rua Koesa, 430 (Kobrasol).
+☕ O café já está no fogo. Te esperamos!"
+
+2. Lembrete (Enviado 1h ou 2h antes)
+Essencial para reduzir faltas (o famoso "no-show").
+
+"Fala, [Nome do Cliente]! Passando para lembrar do seu horário hoje às [Horas].
+
+O [Nome do Barbeiro] já está preparando a bancada para te receber. Se tiver algum imprevisto, por favor, nos avise o quanto antes.
+
+Até logo! 💈"
+
+3. Notificação de Cancelamento
+Deve ser cordial, sem parecer "bravo".
+
+"Olá, [Nome do Cliente].
+
+Passando para confirmar que o seu agendamento para o dia [Data] às [Horas] foi cancelado.
+
+Se desejar escolher um novo horário, você pode fazer isso rapidinho por este link: [Link do Site]
+
+Esperamos te ver em breve! 👋"
+
+4. Resposta da IA (Quando o cliente pergunta algo)
+Se o cliente mandar um "Quais os preços?" ou "Vocês abrem sábado?", o bot (GPT-4o-mini) deve responder seguindo este estilo:
+
+"Olá! Sou o assistente virtual da Teixeira Barbearia. 🎩
+
+[Resposta curta da IA].
+
+Para garantir seu lugar na cadeira e conferir todos os nossos serviços, você pode acessar nossa agenda em tempo real aqui: [Link do Site]"
+
+💡 Detalhes que tornam a mensagem "Premium":
+Uso de Negrito: Use o *texto* do WhatsApp para destacar o que é mais importante (Data, Hora e Barbeiro). Isso facilita a leitura rápida.
+
+Emojis Estratégicos: Não exagere. Use apenas os que remetem ao ambiente (✂️, 💈, ☕, 📅). Evite emojis muito coloridos ou infantis.
+
+Localização: Sempre que confirmar um agendamento, dar uma breve referência de local (ex: "Rua Koesa") ajuda muito o cliente.
+
+A Palavra "Ritual": Substituir "atendimento" ou "serviço" por "ritual" ou "experiência" eleva a percepção de valor da barbearia.

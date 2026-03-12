@@ -41,3 +41,8 @@ waitForPort = 5000
 [agent]
 integrations = ["javascript_log_in_with_replit:2.0.0", "javascript_database:1.0.0"]
 expertMode = true
+
+[userenv]
+
+[userenv.shared]
+OPENAI_API_KEY = "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"
