@@ -130,10 +130,15 @@ export default function Products() {
   };
 
   const onSubmit = (data: ProductFormData) => {
+    const normalized = {
+      ...data,
+      costPrice: data.costPrice && data.costPrice.trim() !== "" ? data.costPrice : null,
+      price: data.price && data.price.trim() !== "" ? data.price : "0",
+    };
     if (editingProduct) {
-      updateMutation.mutate({ id: editingProduct.id, data });
+      updateMutation.mutate({ id: editingProduct.id, data: normalized });
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate(normalized);
     }
   };
 
