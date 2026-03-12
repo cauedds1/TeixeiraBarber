@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, registerAuthRoutes, seedOwner } from "./auth";
 import { format } from "date-fns";
+import { whatsappService } from "./whatsapp";
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
@@ -267,6 +268,20 @@ export async function registerRoutes(
         status: "pending",
       });
 
+      try {
+        const barber = await storage.getBarber(barberId);
+        const msg =
+          `✂️ *Agendamento Confirmado – Teixeira Barbearia!*\n\n` +
+          `Olá, ${clientName}! Seu horário foi agendado com sucesso.\n\n` +
+          `📋 *Serviço:* ${service.name}\n` +
+          `👤 *Profissional:* ${barber?.name || "A definir"}\n` +
+          `📅 *Data:* ${format(new Date(date + "T12:00:00"), "dd/MM/yyyy")}\n` +
+          `🕐 *Horário:* ${startTime}\n\n` +
+          `📍 Rua Koesa, 430, Sala 03, Kobrasol – São José/SC\n\n` +
+          `Até breve! 💈`;
+        await whatsappService.sendMessage(clientPhone, msg);
+      } catch (_) {}
+
       res.status(201).json(appointment);
     } catch (error) {
       res.status(500).json({ message: "Erro ao criar agendamento" });
@@ -420,6 +435,22 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Agendamento não encontrado" });
       }
       const appointment = await storage.updateAppointmentStatus(req.params.id, req.body.status);
+
+      if (req.body.status === "cancelled" && existing.clientPhone) {
+        try {
+          const service = existing.serviceId ? await storage.getService(existing.serviceId).catch(() => null) : null;
+          const msg =
+            `❌ *Agendamento Cancelado – Teixeira Barbearia*\n\n` +
+            `Olá, ${existing.clientName}! Infelizmente seu agendamento precisou ser cancelado.\n\n` +
+            `📋 *Serviço:* ${service?.name || "N/A"}\n` +
+            `📅 *Data:* ${format(new Date(existing.date + "T12:00:00"), "dd/MM/yyyy")}\n` +
+            `🕐 *Horário:* ${existing.startTime}\n\n` +
+            `Para reagendar, acesse:\nhttps://57963618-5dfb-413a-88eb-ab8ee22cb96d-00-347r04xq55rqy.spock.replit.dev/agendar/teixeira\n\n` +
+            `Pedimos desculpas pelo transtorno. 🙏`;
+          await whatsappService.sendMessage(existing.clientPhone, msg);
+        } catch (_) {}
+      }
+
       res.json(appointment);
     } catch (error) {
       res.status(500).json({ message: "Error updating appointment" });
@@ -881,6 +912,20 @@ export async function registerRoutes(
       });
     } catch (error) {
       res.status(500).json({ message: "Error fetching reports" });
+    }
+  });
+
+  // ===== WHATSAPP ROUTES =====
+  app.get("/api/whatsapp/status", isAuthenticated, (_req: Request, res: Response) => {
+    res.json({ status: whatsappService.getStatus(), qr: whatsappService.getQR() });
+  });
+
+  app.post("/api/whatsapp/reconnect", isAuthenticated, async (_req: Request, res: Response) => {
+    try {
+      whatsappService.reconnect();
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao reconectar WhatsApp" });
     }
   });
 

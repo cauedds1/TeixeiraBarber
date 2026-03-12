@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Settings,
   CalendarDays,
+  MessageCircle,
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,6 +30,7 @@ const menuItems = [
   { title: "Funcionários", url: "/team", icon: Users },
   { title: "Serviços", url: "/services", icon: Scissors },
   { title: "Produtos", url: "/products", icon: Package },
+  { title: "WhatsApp", url: "/whatsapp", icon: MessageCircle },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
 

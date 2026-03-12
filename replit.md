@@ -32,6 +32,7 @@ Full-stack barbershop management system for Teixeira Barbearia (Kobrasol, São J
 - `/team` — Funcionários (staff management with photo upload, commission, edit/delete)
 - `/services` — Serviços (price/duration management, active toggle, edit/delete)
 - `/products` — Produtos (inventory, margin calculation, stock alerts, edit/delete)
+- `/whatsapp` — WhatsApp Bot (Baileys QR connection, AI chat, auto notifications)
 - `/settings` — Configurações
 
 ### API Endpoints
@@ -47,7 +48,9 @@ Full-stack barbershop management system for Teixeira Barbearia (Kobrasol, São J
 - `GET /api/public/barbershops/:slug/services` — Public services
 - `GET /api/public/barbershops/:slug/barbers` — Public barbers (active only)
 - `GET /api/public/barbershops/:slug/availability?barberId=X&date=Y&serviceId=Z` — Available time slots
-- `POST /api/public/appointments` — Create booking (with server-side overlap validation)
+- `POST /api/public/appointments` — Create booking (with server-side overlap validation, sends WhatsApp notification)
+- `GET /api/whatsapp/status` — WhatsApp connection status + QR code (authenticated)
+- `POST /api/whatsapp/reconnect` — Trigger WhatsApp reconnect (authenticated)
 
 ## Business Info
 - **Address**: Rua Koesa, 430, Sala 03, Kobrasol, São José – SC
@@ -71,6 +74,9 @@ Full-stack barbershop management system for Teixeira Barbearia (Kobrasol, São J
 - `client/src/pages/products.tsx` — Products/inventory management
 - `client/src/pages/appointments.tsx` — ERP agenda page (dark/gold, date nav, status actions)
 - `client/src/pages/client-booking.tsx` — Public booking page (5-step stepper, availability API)
+- `server/whatsapp.ts` — Baileys WhatsApp singleton (QR, send, reconnect, session persistence)
+- `server/whatsapp-ai.ts` — OpenAI gpt-4o-mini handler for auto-replies (OPENAI_API_KEY required)
+- `client/src/pages/whatsapp-bot.tsx` — ERP WhatsApp management page
 
 ## Design Patterns
 - ERP pages use inline dark theme (bg-[#0e0e0e]) matching landing page
