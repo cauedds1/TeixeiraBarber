@@ -20,17 +20,21 @@ import teixeiraCircleLogoPath from "@assets/image_1766152301102.png";
 import teixeiraBarberiaLogoPath from "@assets/logo.png";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const style = {
     "--sidebar-width": "15rem",
     "--sidebar-width-icon": "3rem",
   };
+
+  const ownerName = [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Proprietário";
+  const ownerInitials = ownerName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-screen w-full bg-[#0e0e0e]">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between gap-4 p-3 border-b border-white/5 bg-[#0e0e0e]/95 backdrop-blur sticky top-0 z-40">
+          <header className="flex items-center justify-between gap-4 px-4 py-3 border-b border-white/5 bg-[#0e0e0e]/95 backdrop-blur sticky top-0 z-40">
             <div className="flex items-center gap-4">
               <SidebarTrigger data-testid="button-sidebar-toggle" className="text-white/60 hover:text-white" />
               <img
@@ -38,6 +42,25 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
                 alt="Teixeira Barbearia"
                 className="h-10 w-auto opacity-80 hidden sm:block"
               />
+              <div className="hidden md:block h-6 w-px bg-white/10" />
+              <span className="hidden md:block text-[#C9A24D] font-semibold text-sm tracking-wide" data-testid="text-barbershop-name">
+                Teixeira Barbearia
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-white/60 text-sm hidden sm:block" data-testid="text-owner-name">{ownerName}</span>
+              {user?.profileImageUrl ? (
+                <img
+                  src={user.profileImageUrl}
+                  alt={ownerName}
+                  className="h-8 w-8 rounded-full border border-[#C9A24D]/30 object-cover"
+                  data-testid="img-owner-avatar"
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-[#C9A24D]/20 border border-[#C9A24D]/30 flex items-center justify-center" data-testid="img-owner-avatar">
+                  <span className="text-[#C9A24D] text-xs font-semibold">{ownerInitials}</span>
+                </div>
+              )}
             </div>
           </header>
           <main className="flex-1 overflow-auto">
