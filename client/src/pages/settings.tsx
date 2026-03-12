@@ -95,8 +95,9 @@ export default function Settings() {
     toast({ title: "Link copiado para a área de transferência" });
   };
 
-  const handleLogout = () => {
-    window.location.href = "/api/logout";
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    window.location.href = "/login";
   };
 
   return (

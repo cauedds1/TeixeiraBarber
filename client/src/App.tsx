@@ -34,7 +34,7 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const ownerInitials = ownerName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     qc.clear();
     navigate("/");
   };
