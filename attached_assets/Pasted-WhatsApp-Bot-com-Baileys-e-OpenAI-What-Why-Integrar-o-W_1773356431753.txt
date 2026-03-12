@@ -1,0 +1,33 @@
+WhatsApp Bot com Baileys e OpenAI
+What & Why
+Integrar o WhatsApp à barbearia usando a biblioteca Baileys (conexão via QR Code, estilo WhatsApp Web) combinada com a OpenAI para criar um bot inteligente. O bot envia notificações automáticas de agendamento e responde clientes com linguagem natural.
+
+Done looks like
+No ERP, existe uma página "WhatsApp Bot" onde o administrador escaneia o QR Code para conectar o número da barbearia
+O status da conexão é visível (Conectado / Aguardando QR / Desconectado)
+Quando um agendamento é criado publicamente, o cliente recebe uma mensagem no WhatsApp confirmando os detalhes (data, horário, barbeiro, serviço)
+Quando um agendamento é cancelado, o cliente recebe uma mensagem informando o cancelamento
+Clientes que mandarem mensagem para o número da barbearia recebem respostas automáticas do bot (com IA da OpenAI), que conhece os serviços, horários e pode orientar sobre como agendar
+A sessão do Baileys é persistida para que o bot não desconecte ao reiniciar o servidor
+Out of scope
+Agendamento completo feito 100% via WhatsApp (o bot orienta a usar o link de agendamento)
+Múltiplos números de WhatsApp por barbearia
+Histórico de conversas salvo no banco de dados
+Tasks
+Instalar e configurar Baileys — Instalar @whiskeysockets/baileys e dependências necessárias. Criar um serviço singleton no backend (server/whatsapp.ts) que gerencia a conexão com Baileys, gera o QR Code, persiste a sessão em disco (pasta whatsapp-session/) e expõe métodos para enviar mensagens.
+
+Rotas de API para o bot — Criar rotas autenticadas em server/routes.ts para: obter status da conexão e QR Code atual (GET /api/whatsapp/status), reconectar manualmente (POST /api/whatsapp/reconnect) e um webhook interno que recebe mensagens recebidas do Baileys e as encaminha para o handler do OpenAI.
+
+Handler OpenAI para mensagens recebidas — Criar server/whatsapp-ai.ts que recebe mensagens dos clientes e usa a OpenAI (gpt-4o-mini) para responder com contexto da barbearia (serviços disponíveis, link de agendamento, horário de funcionamento). A chave da OpenAI é lida de OPENAI_API_KEY.
+
+Disparar notificações automáticas — Nos pontos do backend onde agendamentos são criados (POST /api/public/appointments) e cancelados, chamar o serviço Baileys para enviar mensagem formatada ao clientPhone. Mensagem de confirmação inclui nome do cliente, serviço, barbeiro, data e hora. Mensagem de cancelamento informa o cancelamento com cordialidade.
+
+Página de gerenciamento no ERP — Criar página /erp/whatsapp com: exibição do QR Code (atualiza automaticamente a cada 30s enquanto aguarda conexão), badge de status (Conectado em verde, Aguardando QR em amarelo, Desconectado em vermelho), botão de reconectar, e instruções claras de como escanear. Adicionar link para esta página no menu lateral do ERP. Armazenar OPENAI_API_KEY como variável de ambiente (solicitar ao usuário se não existir).
+
+Relevant files
+shared/schema.ts
+server/routes.ts
+server/storage.ts
+client/src/App.tsx
+Dependencies
+Redesign premium da experiência de agendamento público
