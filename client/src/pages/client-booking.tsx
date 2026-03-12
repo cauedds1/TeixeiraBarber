@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Scissors, User, CalendarDays, Clock,
   CheckCircle2, Phone, MessageCircle, Sparkles, ChevronRight,
+  ChevronDown, XCircle, AlertCircle,
 } from "lucide-react";
 import { format, addDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -14,28 +15,61 @@ import teixeiraLogoPath from "@assets/image_1766152163278.png";
 const WHATSAPP_NUMBER = "5548999505167";
 const SERVICE_EMOJIS = ["✂️", "💈", "⚡", "🪒", "💇", "🧴", "🎨", "🔥"];
 
+type BarberWithAvailability = Barber & { available: boolean; nextSlots: string[] };
+
+function timeToMinutes(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+function minutesToTime(m: number) {
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+function generateSlots(open: string, close: string, duration: number) {
+  const start = timeToMinutes(open);
+  const end = timeToMinutes(close);
+  const slots: string[] = [];
+  for (let m = start; m + duration <= end; m += 30) slots.push(minutesToTime(m));
+  return slots;
+}
+
+function SectionHeader({
+  icon, title, done, doneLabel,
+}: { icon: React.ReactNode; title: string; done?: boolean; doneLabel?: string }) {
+  return (
+    <div className="flex items-center gap-3 mb-4">
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${done ? "bg-[#C9A24D] text-black" : "bg-white/8 text-white/40"}`}>
+        {done ? <CheckCircle2 className="h-4 w-4" /> : icon}
+      </div>
+      <div>
+        <p className="text-white font-semibold text-sm leading-none">{title}</p>
+        {done && doneLabel && <p className="text-[#C9A24D] text-xs mt-0.5">{doneLabel}</p>}
+      </div>
+    </div>
+  );
+}
+
 export default function ClientBooking() {
   const [, params] = useRoute("/agendar/:slug");
   const slug = params?.slug || "";
   const { toast } = useToast();
 
+  const todayStr = format(startOfDay(new Date()), "yyyy-MM-dd");
+
   const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedTime, setSelectedTime] = useState("");
+  const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
+  const [expandedBarber, setExpandedBarber] = useState<string | null>(null);
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [booked, setBooked] = useState(false);
 
-  const barberRef = useRef<HTMLDivElement>(null);
-  const dateRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLDivElement>(null);
+  const barberRef = useRef<HTMLDivElement>(null);
   const infoRef = useRef<HTMLDivElement>(null);
 
   const scrollTo = (ref: React.RefObject<HTMLDivElement>) => {
-    setTimeout(() => {
-      ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 150);
+    setTimeout(() => ref.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
   };
 
   const { data: barbershop, isLoading: barbershopLoading } = useQuery<Barbershop>({
@@ -58,29 +92,19 @@ export default function ClientBooking() {
     enabled: !!slug,
   });
 
-  const { data: barbers = [], isLoading: barbersLoading } = useQuery<Barber[]>({
-    queryKey: ["/api/public/barbershops", slug, "barbers"],
-    queryFn: async () => {
-      const res = await fetch(`/api/public/barbershops/${slug}/barbers`);
-      if (!res.ok) throw new Error("Err");
-      return res.json();
-    },
-    enabled: !!slug,
-  });
-
-  const { data: availability, isLoading: slotsLoading } = useQuery<{ slots: string[]; allSlots: string[] }>({
-    queryKey: ["/api/public/barbershops", slug, "availability", selectedBarber?.id, selectedDate, selectedService?.id],
+  const { data: barbersForSlot = [], isLoading: barbersLoading } = useQuery<BarberWithAvailability[]>({
+    queryKey: ["/api/public/barbershops", slug, "barbers-for-slot", selectedDate, selectedTime, selectedService?.id],
     queryFn: async () => {
       const p = new URLSearchParams({
-        barberId: selectedBarber!.id,
         date: selectedDate,
+        time: selectedTime,
         ...(selectedService ? { serviceId: selectedService.id } : {}),
       });
-      const res = await fetch(`/api/public/barbershops/${slug}/availability?${p}`);
+      const res = await fetch(`/api/public/barbershops/${slug}/barbers-for-slot?${p}`);
       if (!res.ok) throw new Error("Err");
       return res.json();
     },
-    enabled: !!slug && !!selectedBarber && !!selectedDate,
+    enabled: !!slug && !!selectedDate && !!selectedTime,
   });
 
   const createMutation = useMutation({
@@ -105,19 +129,21 @@ export default function ClientBooking() {
   const calendarDays = useMemo(() => {
     const today = startOfDay(new Date());
     return Array.from({ length: 30 }, (_, i) => {
-      const d = addDays(today, i + 1);
-      return { date: format(d, "yyyy-MM-dd"), day: d };
+      const d = addDays(today, i);
+      return { date: format(d, "yyyy-MM-dd"), day: d, isToday: i === 0 };
     });
   }, []);
 
+  const generalTimeSlots = useMemo(() => {
+    if (!barbershop) return [];
+    return generateSlots(
+      barbershop.openingTime || "09:00",
+      barbershop.closingTime || "19:00",
+      selectedService?.duration || 30
+    );
+  }, [barbershop, selectedService]);
+
   const activeServices = services.filter((s) => s.isActive);
-
-  const calculateEndTime = (startTime: string, durationMinutes: number) => {
-    const [h, m] = startTime.split(":").map(Number);
-    const total = h * 60 + m + durationMinutes;
-    return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
-  };
-
   const canConfirm = selectedService && selectedBarber && selectedDate && selectedTime && clientName.trim() && clientPhone.trim();
 
   const handleConfirm = () => {
@@ -125,7 +151,10 @@ export default function ClientBooking() {
       toast({ title: "Complete todas as seleções acima", variant: "destructive" });
       return;
     }
-    const endTime = calculateEndTime(selectedTime, selectedService!.duration || 30);
+    const duration = selectedService!.duration || 30;
+    const [h, m] = selectedTime.split(":").map(Number);
+    const total = h * 60 + m + duration;
+    const endTime = `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
     createMutation.mutate({
       slug,
       serviceId: selectedService!.id,
@@ -145,7 +174,6 @@ export default function ClientBooking() {
       </div>
     );
   }
-
   if (!barbershop) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#0e0e0e] gap-3 p-8">
@@ -162,11 +190,11 @@ export default function ClientBooking() {
     );
     return (
       <div className="min-h-screen bg-[#0e0e0e] flex flex-col">
-        <div className="border-b border-white/5 bg-[#0e0e0e]">
-          <div className="max-w-lg mx-auto px-4 py-4 flex justify-center">
+        <header className="border-b border-white/5 bg-[#0e0e0e]">
+          <div className="max-w-2xl mx-auto px-6 py-4 flex justify-center">
             <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-10 w-auto" />
           </div>
-        </div>
+        </header>
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-md text-center space-y-8">
             <div className="flex justify-center">
@@ -212,9 +240,9 @@ export default function ClientBooking() {
                 onClick={() => {
                   setBooked(false);
                   setSelectedService(null);
-                  setSelectedBarber(null);
-                  setSelectedDate("");
+                  setSelectedDate(todayStr);
                   setSelectedTime("");
+                  setSelectedBarber(null);
                   setClientName("");
                   setClientPhone("");
                 }}
@@ -232,8 +260,9 @@ export default function ClientBooking() {
 
   return (
     <div className="min-h-screen bg-[#0e0e0e]">
-      <div className="sticky top-0 z-40 bg-[#0e0e0e]/97 backdrop-blur-sm border-b border-white/5">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-[#0e0e0e]/97 backdrop-blur-sm border-b border-white/5">
+        <div className="max-w-2xl mx-auto px-6 py-3 flex items-center justify-between">
           <img src={teixeiraLogoPath} alt="Teixeira Barbearia" className="h-9 w-auto" />
           {barbershop.phone && (
             <a href={`tel:${barbershop.phone}`} className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors">
@@ -242,39 +271,54 @@ export default function ClientBooking() {
             </a>
           )}
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-8 pb-10">
+      {/* Content */}
+      <div className="max-w-2xl mx-auto px-6 py-8 space-y-10 pb-14">
 
-        {/* ─── SERVIÇO ─────────────────────────────────────────── */}
+        {/* ─── 1. SERVIÇO ──────────────────────────────────────────── */}
         <section data-testid="step-service-content">
-          <SectionHeader number={1} icon={<Scissors className="h-4 w-4" />} title="Serviço" done={!!selectedService} doneLabel={selectedService?.name} />
+          <SectionHeader
+            icon={<Scissors className="h-4 w-4" />}
+            title="Serviço"
+            done={!!selectedService}
+            doneLabel={selectedService ? `${selectedService.name} · R$ ${Number(selectedService.price).toFixed(2)} · ${selectedService.duration} min` : undefined}
+          />
           {servicesLoading ? (
-            <div className="space-y-2.5 mt-4">
+            <div className="space-y-2.5">
               {[1, 2, 3].map(i => <div key={i} className="h-20 rounded-2xl bg-white/5 animate-pulse" />)}
             </div>
           ) : activeServices.length === 0 ? (
-            <div className="mt-4 py-10 text-center text-white/30 text-sm">Nenhum serviço disponível no momento</div>
+            <p className="text-white/25 text-sm py-6">Nenhum serviço disponível no momento.</p>
           ) : (
-            <div className="space-y-2.5 mt-4">
+            <div className="space-y-2.5">
               {activeServices.map((service, i) => {
                 const sel = selectedService?.id === service.id;
                 return (
                   <button
                     key={service.id}
-                    onClick={() => { setSelectedService(service); scrollTo(barberRef); }}
-                    className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group active:scale-[0.99] ${sel ? "bg-[#C9A24D]/12 border-[#C9A24D]/45" : "bg-[#141414] border-white/6 hover:border-white/15 active:border-[#C9A24D]/30"}`}
+                    onClick={() => {
+                      setSelectedService(service);
+                      if (!selectedTime) scrollTo(timeRef);
+                    }}
+                    className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group active:scale-[0.99] ${sel ? "bg-[#C9A24D]/12 border-[#C9A24D]/45" : "bg-[#141414] border-white/6 hover:border-white/15"}`}
                     data-testid={`card-service-${service.id}`}
                   >
                     <div className="flex items-center gap-3.5">
-                      <span className="text-2xl w-11 h-11 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">{SERVICE_EMOJIS[i % SERVICE_EMOJIS.length]}</span>
+                      <span className="text-2xl w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
+                        {SERVICE_EMOJIS[i % SERVICE_EMOJIS.length]}
+                      </span>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white text-sm leading-tight">{service.name}</p>
+                        <p className="font-semibold text-white text-sm">{service.name}</p>
                         {service.description && <p className="text-xs text-white/30 mt-0.5 line-clamp-1">{service.description}</p>}
-                        <p className="text-xs text-white/25 mt-1 flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{service.duration} min</p>
+                        <p className="text-xs text-white/25 mt-1 flex items-center gap-1">
+                          <Clock className="h-2.5 w-2.5" />{service.duration} min
+                        </p>
                       </div>
                       <div className="flex-shrink-0 text-right">
-                        <p className={`font-bold text-base ${sel ? "text-[#C9A24D]" : "text-white"}`}>R$ {Number(service.price).toFixed(0)}</p>
+                        <p className={`font-bold text-base ${sel ? "text-[#C9A24D]" : "text-white"}`}>
+                          R$ {Number(service.price).toFixed(0)}
+                        </p>
                         <ChevronRight className={`h-4 w-4 ml-auto mt-1 transition-colors ${sel ? "text-[#C9A24D]" : "text-white/15 group-hover:text-white/30"}`} />
                       </div>
                     </div>
@@ -285,57 +329,74 @@ export default function ClientBooking() {
           )}
         </section>
 
-        {/* ─── PROFISSIONAL ────────────────────────────────────── */}
-        <section ref={barberRef} data-testid="step-barber-content">
-          <SectionHeader number={2} icon={<User className="h-4 w-4" />} title="Profissional" done={!!selectedBarber} doneLabel={selectedBarber?.name} />
-          {barbersLoading ? (
-            <div className="space-y-2.5 mt-4">
-              {[1, 2].map(i => <div key={i} className="h-20 rounded-2xl bg-white/5 animate-pulse" />)}
-            </div>
+        {/* ─── 2. DATA ─────────────────────────────────────────────── */}
+        <section data-testid="step-date-content">
+          <SectionHeader
+            icon={<CalendarDays className="h-4 w-4" />}
+            title="Data"
+            done={!!selectedDate}
+            doneLabel={selectedDate ? format(new Date(selectedDate + "T12:00:00"), "EEEE, dd/MM/yyyy", { locale: ptBR }) : undefined}
+          />
+          <div
+            className="flex gap-2.5 overflow-x-auto pb-3 snap-x snap-mandatory"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
+            {calendarDays.map(({ date, day, isToday }) => {
+              const sel = selectedDate === date;
+              return (
+                <button
+                  key={date}
+                  onClick={() => {
+                    setSelectedDate(date);
+                    setSelectedTime("");
+                    setSelectedBarber(null);
+                    if (!selectedTime) scrollTo(timeRef);
+                  }}
+                  className={`flex-shrink-0 snap-start w-[70px] py-3.5 px-1.5 rounded-2xl border text-center transition-all duration-200 active:scale-95 ${sel ? "bg-[#C9A24D] border-[#C9A24D] shadow-[0_4px_16px_rgba(201,162,77,0.3)]" : "bg-[#141414] border-white/6 hover:border-[#C9A24D]/35"}`}
+                  data-testid={`date-${date}`}
+                >
+                  <p className={`text-[10px] capitalize font-medium ${sel ? "text-black/60" : isToday ? "text-[#C9A24D]/70" : "text-white/30"}`}>
+                    {isToday ? "hoje" : format(day, "EEE", { locale: ptBR })}
+                  </p>
+                  <p className={`text-xl font-bold mt-0.5 leading-none ${sel ? "text-black" : "text-white"}`}>
+                    {format(day, "dd")}
+                  </p>
+                  <p className={`text-[9px] capitalize mt-0.5 ${sel ? "text-black/50" : "text-white/20"}`}>
+                    {format(day, "MMM", { locale: ptBR })}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ─── 3. HORÁRIO ──────────────────────────────────────────── */}
+        <section ref={timeRef} data-testid="step-time-content">
+          <SectionHeader
+            icon={<Clock className="h-4 w-4" />}
+            title="Horário"
+            done={!!selectedTime}
+            doneLabel={selectedTime || undefined}
+          />
+          {generalTimeSlots.length === 0 ? (
+            <p className="text-white/25 text-sm py-4">Carregando horários...</p>
           ) : (
-            <div className="space-y-2.5 mt-4">
-              <button
-                onClick={() => {
-                  const r = barbers[Math.floor(Math.random() * barbers.length)];
-                  if (r) { setSelectedBarber(r); scrollTo(dateRef); }
-                }}
-                className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group active:scale-[0.99] bg-[#141414] border-[#C9A24D]/15 hover:border-[#C9A24D]/35 active:border-[#C9A24D]/50`}
-                data-testid="card-barber-any"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-11 h-11 rounded-full bg-[#C9A24D]/12 border border-[#C9A24D]/20 flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="h-5 w-5 text-[#C9A24D]" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-white text-sm">Qualquer profissional</p>
-                    <p className="text-xs text-white/30 mt-0.5">Próximo disponível</p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-[#C9A24D]/30 group-hover:text-[#C9A24D]/60 transition-colors flex-shrink-0" />
-                </div>
-              </button>
-              {barbers.map((barber) => {
-                const sel = selectedBarber?.id === barber.id;
+            <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-2" data-testid="time-grid">
+              {generalTimeSlots.map((time) => {
+                const sel = selectedTime === time;
                 return (
                   <button
-                    key={barber.id}
-                    onClick={() => { setSelectedBarber(barber); scrollTo(dateRef); }}
-                    className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group active:scale-[0.99] ${sel ? "bg-[#C9A24D]/12 border-[#C9A24D]/45" : "bg-[#141414] border-white/6 hover:border-white/15"}`}
-                    data-testid={`card-barber-${barber.id}`}
+                    key={time}
+                    onClick={() => {
+                      setSelectedTime(time);
+                      setSelectedBarber(null);
+                      setExpandedBarber(null);
+                      scrollTo(barberRef);
+                    }}
+                    className={`py-3 px-1 rounded-xl border text-center font-mono font-semibold text-xs transition-all duration-150 active:scale-95 ${sel ? "bg-[#C9A24D] text-black border-[#C9A24D] shadow-[0_2px_12px_rgba(201,162,77,0.3)]" : "bg-[#141414] border-white/8 text-white hover:border-[#C9A24D]/40 hover:text-[#C9A24D]"}`}
+                    data-testid={`time-${time}`}
                   >
-                    <div className="flex items-center gap-3.5">
-                      {barber.photoUrl ? (
-                        <img src={barber.photoUrl} alt={barber.name} className="w-11 h-11 rounded-full object-cover border border-[#C9A24D]/20 flex-shrink-0" />
-                      ) : (
-                        <div className="w-11 h-11 rounded-full bg-[#C9A24D]/12 border border-[#C9A24D]/20 flex items-center justify-center flex-shrink-0">
-                          <span className="text-[#C9A24D] font-bold">{barber.name[0].toUpperCase()}</span>
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white text-sm">{barber.name}</p>
-                        {barber.bio && <p className="text-xs text-white/30 mt-0.5 line-clamp-1">{barber.bio}</p>}
-                      </div>
-                      <ChevronRight className={`h-4 w-4 flex-shrink-0 transition-colors ${sel ? "text-[#C9A24D]" : "text-white/15 group-hover:text-white/30"}`} />
-                    </div>
+                    {time}
                   </button>
                 );
               })}
@@ -343,121 +404,165 @@ export default function ClientBooking() {
           )}
         </section>
 
-        {/* ─── DATA ────────────────────────────────────────────── */}
-        <section ref={dateRef} data-testid="step-date-content">
+        {/* ─── 4. PROFISSIONAL ─────────────────────────────────────── */}
+        <section ref={barberRef} data-testid="step-barber-content">
           <SectionHeader
-            number={3}
-            icon={<CalendarDays className="h-4 w-4" />}
-            title="Data"
-            done={!!selectedDate}
-            doneLabel={selectedDate ? format(new Date(selectedDate + "T12:00:00"), "EEEE, dd/MM", { locale: ptBR }) : undefined}
+            icon={<User className="h-4 w-4" />}
+            title="Profissional"
+            done={!!selectedBarber}
+            doneLabel={selectedBarber?.name}
           />
-          <div
-            className="flex gap-2.5 overflow-x-auto pb-3 mt-4 -mx-4 px-4 snap-x snap-mandatory"
-            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-          >
-            {calendarDays.map(({ date, day }) => {
-              const sel = selectedDate === date;
-              return (
-                <button
-                  key={date}
-                  onClick={() => { setSelectedDate(date); setSelectedTime(""); scrollTo(timeRef); }}
-                  className={`flex-shrink-0 snap-start w-[68px] py-3.5 px-1.5 rounded-2xl border text-center transition-all duration-200 active:scale-95 ${sel ? "bg-[#C9A24D] border-[#C9A24D] shadow-[0_4px_16px_rgba(201,162,77,0.3)]" : "bg-[#141414] border-white/6 hover:border-[#C9A24D]/35"}`}
-                  data-testid={`date-${date}`}
-                >
-                  <p className={`text-[10px] capitalize font-medium ${sel ? "text-black/60" : "text-white/30"}`}>{format(day, "EEE", { locale: ptBR })}</p>
-                  <p className={`text-xl font-bold mt-0.5 leading-none ${sel ? "text-black" : "text-white"}`}>{format(day, "dd")}</p>
-                  <p className={`text-[9px] capitalize mt-0.5 ${sel ? "text-black/50" : "text-white/20"}`}>{format(day, "MMM", { locale: ptBR })}</p>
-                </button>
-              );
-            })}
-          </div>
-        </section>
 
-        {/* ─── HORÁRIO ─────────────────────────────────────────── */}
-        <section ref={timeRef} data-testid="step-time-content">
-          <SectionHeader
-            number={4}
-            icon={<Clock className="h-4 w-4" />}
-            title="Horário"
-            done={!!selectedTime}
-            doneLabel={selectedTime || undefined}
-          />
-          <div className="mt-4">
-            {!selectedBarber || !selectedDate ? (
-              <p className="text-white/20 text-sm py-4">Selecione profissional e data para ver os horários.</p>
-            ) : slotsLoading ? (
-              <div className="grid grid-cols-4 gap-2">
-                {Array.from({ length: 12 }).map((_, i) => <div key={i} className="h-12 rounded-xl bg-white/5 animate-pulse" />)}
-              </div>
-            ) : availability && availability.allSlots.length > 0 ? (
-              <div className="grid grid-cols-4 gap-2" data-testid="time-grid">
-                {availability.allSlots.map((time) => {
-                  const avail = availability.slots.includes(time);
-                  const sel = selectedTime === time;
-                  return (
+          {!selectedDate || !selectedTime ? (
+            <p className="text-white/25 text-sm py-4">Selecione a data e horário acima para ver os profissionais disponíveis.</p>
+          ) : barbersLoading ? (
+            <div className="space-y-2.5">
+              {[1, 2].map(i => <div key={i} className="h-20 rounded-2xl bg-white/5 animate-pulse" />)}
+            </div>
+          ) : barbersForSlot.length === 0 ? (
+            <p className="text-white/25 text-sm py-4">Nenhum profissional cadastrado.</p>
+          ) : (
+            <div className="space-y-2.5">
+              {/* Sort: available first */}
+              {[...barbersForSlot].sort((a, b) => (b.available ? 1 : 0) - (a.available ? 1 : 0)).map((barber) => {
+                const sel = selectedBarber?.id === barber.id;
+                const isExpanded = expandedBarber === barber.id;
+
+                return (
+                  <div key={barber.id}>
                     <button
-                      key={time}
-                      onClick={() => { if (avail) { setSelectedTime(time); scrollTo(infoRef); } }}
-                      disabled={!avail}
-                      className={`py-3 px-1 rounded-xl border text-center font-mono font-semibold text-xs transition-all duration-150 active:scale-95 ${!avail ? "bg-white/[0.02] border-white/5 text-white/12 cursor-not-allowed line-through" : sel ? "bg-[#C9A24D] text-black border-[#C9A24D] shadow-[0_2px_12px_rgba(201,162,77,0.3)]" : "bg-[#141414] border-white/8 text-white hover:border-[#C9A24D]/40 hover:text-[#C9A24D]"}`}
-                      data-testid={`time-${time}`}
+                      onClick={() => {
+                        if (!barber.available) return;
+                        setSelectedBarber(barber);
+                        scrollTo(infoRef);
+                      }}
+                      className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group ${barber.available
+                        ? sel
+                          ? "bg-[#C9A24D]/12 border-[#C9A24D]/45 active:scale-[0.99]"
+                          : "bg-[#141414] border-white/6 hover:border-white/15 active:scale-[0.99] cursor-pointer"
+                        : "bg-[#141414]/60 border-white/4 cursor-default"
+                        }`}
+                      data-testid={`card-barber-${barber.id}`}
                     >
-                      {time}
+                      <div className="flex items-center gap-3.5">
+                        {barber.photoUrl ? (
+                          <img src={barber.photoUrl} alt={barber.name}
+                            className={`w-12 h-12 rounded-full object-cover border flex-shrink-0 ${barber.available ? "border-[#C9A24D]/25" : "border-white/8 opacity-50 grayscale"}`} />
+                        ) : (
+                          <div className={`w-12 h-12 rounded-full border flex items-center justify-center flex-shrink-0 ${barber.available ? "bg-[#C9A24D]/12 border-[#C9A24D]/20" : "bg-white/5 border-white/8"}`}>
+                            <span className={`font-bold text-base ${barber.available ? "text-[#C9A24D]" : "text-white/20"}`}>
+                              {barber.name[0].toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-semibold text-sm ${barber.available ? "text-white" : "text-white/35"}`}>{barber.name}</p>
+                          {barber.bio && <p className="text-xs text-white/25 mt-0.5 line-clamp-1">{barber.bio}</p>}
+                          {barber.available ? (
+                            <span className="inline-flex items-center gap-1 mt-1.5 text-[10px] text-emerald-400 bg-emerald-400/10 rounded-full px-2 py-0.5 font-medium">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              Disponível às {selectedTime}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 mt-1.5 text-[10px] text-white/30 bg-white/5 rounded-full px-2 py-0.5 font-medium">
+                              <XCircle className="h-2.5 w-2.5" />
+                              Indisponível neste horário
+                            </span>
+                          )}
+                        </div>
+                        {barber.available ? (
+                          <ChevronRight className={`h-4 w-4 flex-shrink-0 transition-colors ${sel ? "text-[#C9A24D]" : "text-white/15 group-hover:text-white/30"}`} />
+                        ) : barber.nextSlots.length > 0 ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setExpandedBarber(isExpanded ? null : barber.id); }}
+                            className="flex-shrink-0 flex items-center gap-1 text-[10px] text-[#C9A24D] border border-[#C9A24D]/25 rounded-full px-2.5 py-1 hover:bg-[#C9A24D]/10 transition-colors whitespace-nowrap"
+                            data-testid={`button-next-slots-${barber.id}`}
+                          >
+                            Ver próximos
+                            <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-white/20 flex-shrink-0">Sem vagas hoje</span>
+                        )}
+                      </div>
                     </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="py-6 text-center">
-                <p className="text-white/40 text-sm">Nenhum horário disponível nesta data.</p>
-                <button onClick={() => setSelectedDate("")} className="mt-3 text-xs text-[#C9A24D] hover:underline" data-testid="button-change-date">
-                  Escolher outra data
-                </button>
-              </div>
-            )}
-          </div>
+
+                    {/* Próximos horários expandido */}
+                    {!barber.available && isExpanded && barber.nextSlots.length > 0 && (
+                      <div className="mt-1.5 bg-[#0e0e0e] border border-[#C9A24D]/20 rounded-2xl p-4">
+                        <p className="text-xs text-white/40 mb-3 flex items-center gap-1.5">
+                          <AlertCircle className="h-3 w-3 text-[#C9A24D]" />
+                          Próximos horários disponíveis com {barber.name}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {barber.nextSlots.map((slot) => (
+                            <button
+                              key={slot}
+                              onClick={() => {
+                                setSelectedTime(slot);
+                                setSelectedBarber(barber);
+                                setExpandedBarber(null);
+                                scrollTo(infoRef);
+                              }}
+                              className="px-4 py-2 rounded-xl bg-[#C9A24D]/12 border border-[#C9A24D]/30 text-[#C9A24D] font-mono font-semibold text-sm hover:bg-[#C9A24D]/20 transition-colors"
+                              data-testid={`next-slot-${barber.id}-${slot}`}
+                            >
+                              {slot}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
-        {/* ─── DADOS + CONFIRMAR ───────────────────────────────── */}
+        {/* ─── 5. DADOS + CONFIRMAR ────────────────────────────────── */}
         <section ref={infoRef} data-testid="step-confirm-content">
-          <SectionHeader number={5} icon={<CheckCircle2 className="h-4 w-4" />} title="Seus dados" done={!!(clientName && clientPhone)} />
+          <SectionHeader
+            icon={<CheckCircle2 className="h-4 w-4" />}
+            title="Confirmar agendamento"
+            done={!!(clientName && clientPhone && canConfirm)}
+          />
 
-          {(selectedService || selectedBarber || selectedDate || selectedTime) && (
-            <div className="bg-[#141414] border border-white/6 rounded-2xl overflow-hidden mb-5 mt-4">
+          {(selectedService || selectedBarber || selectedTime) && (
+            <div className="bg-[#141414] border border-white/6 rounded-2xl overflow-hidden mb-5">
               <div className="px-4 py-3 border-b border-white/5">
-                <p className="text-[10px] text-white/25 uppercase tracking-widest font-medium">Resumo do agendamento</p>
+                <p className="text-[10px] text-white/25 uppercase tracking-widest font-medium">Resumo</p>
               </div>
               <div className="divide-y divide-white/5">
                 {selectedService && (
-                  <div className="px-4 py-2.5 flex justify-between items-center">
+                  <div className="px-4 py-2.5 flex justify-between">
                     <span className="text-white/35 text-xs">Serviço</span>
                     <span className="text-white text-xs font-medium">{selectedService.name} · R$ {Number(selectedService.price).toFixed(2)}</span>
                   </div>
                 )}
-                {selectedBarber && (
-                  <div className="px-4 py-2.5 flex justify-between items-center">
-                    <span className="text-white/35 text-xs">Profissional</span>
-                    <span className="text-white text-xs font-medium">{selectedBarber.name}</span>
-                  </div>
-                )}
                 {selectedDate && (
-                  <div className="px-4 py-2.5 flex justify-between items-center">
+                  <div className="px-4 py-2.5 flex justify-between">
                     <span className="text-white/35 text-xs">Data</span>
                     <span className="text-white text-xs font-medium capitalize">{format(new Date(selectedDate + "T12:00:00"), "EEEE, dd/MM/yyyy", { locale: ptBR })}</span>
                   </div>
                 )}
                 {selectedTime && (
-                  <div className="px-4 py-2.5 flex justify-between items-center">
+                  <div className="px-4 py-2.5 flex justify-between">
                     <span className="text-white/35 text-xs">Horário</span>
                     <span className="text-[#C9A24D] text-xs font-bold">{selectedTime}</span>
+                  </div>
+                )}
+                {selectedBarber && (
+                  <div className="px-4 py-2.5 flex justify-between">
+                    <span className="text-white/35 text-xs">Profissional</span>
+                    <span className="text-white text-xs font-medium">{selectedBarber.name}</span>
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          <div className="space-y-3 mt-4">
+          <div className="space-y-3">
             <input
               type="text"
               value={clientName}
@@ -482,7 +587,7 @@ export default function ClientBooking() {
           <button
             onClick={handleConfirm}
             disabled={createMutation.isPending || !canConfirm}
-            className="w-full mt-5 py-4 bg-[#C9A24D] hover:bg-[#b8912f] disabled:opacity-35 disabled:cursor-not-allowed text-black font-bold text-base rounded-xl transition-all shadow-[0_4px_20px_rgba(201,162,77,0.2)] hover:shadow-[0_4px_28px_rgba(201,162,77,0.35)] flex items-center justify-center gap-2"
+            className="w-full mt-5 py-4 bg-[#C9A24D] hover:bg-[#b8912f] disabled:opacity-30 disabled:cursor-not-allowed text-black font-bold text-base rounded-xl transition-all shadow-[0_4px_20px_rgba(201,162,77,0.2)] hover:shadow-[0_4px_28px_rgba(201,162,77,0.35)] flex items-center justify-center gap-2"
             data-testid="button-confirm-booking"
           >
             {createMutation.isPending ? (
@@ -493,31 +598,6 @@ export default function ClientBooking() {
           </button>
         </section>
       </div>
-    </div>
-  );
-}
-
-function SectionHeader({
-  number, icon, title, done, doneLabel,
-}: {
-  number: number;
-  icon: React.ReactNode;
-  title: string;
-  done?: boolean;
-  doneLabel?: string;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${done ? "bg-[#C9A24D] text-black" : "bg-white/8 text-white/40"}`}>
-        {done ? <CheckCircle2 className="h-4 w-4" /> : icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-white font-semibold text-sm leading-none">{title}</p>
-        {done && doneLabel && (
-          <p className="text-[#C9A24D] text-xs mt-0.5 truncate">{doneLabel}</p>
-        )}
-      </div>
-      {!done && <div className="h-px flex-1 bg-white/6 max-w-[80px]" />}
     </div>
   );
 }

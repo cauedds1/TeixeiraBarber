@@ -160,6 +160,62 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/public/barbershops/:slug/barbers-for-slot", async (req: Request, res: Response) => {
+    try {
+      const barbershop = await storage.getBarbershopBySlug(req.params.slug);
+      if (!barbershop) return res.status(404).json({ message: "Barbearia não encontrada" });
+
+      const { date, time, serviceId } = req.query as { date?: string; time?: string; serviceId?: string };
+      if (!date || !time) return res.status(400).json({ message: "date e time são obrigatórios" });
+
+      let serviceDuration = 30;
+      if (serviceId) {
+        const service = await storage.getService(serviceId);
+        if (service) serviceDuration = service.duration;
+      }
+
+      const allBarbers = await storage.getBarbers(barbershop.id);
+      const reqStart = timeToMinutes(time);
+      const reqEnd = reqStart + serviceDuration;
+
+      const result = await Promise.all(allBarbers.map(async (barber) => {
+        const barberStart = timeToMinutes(barber.workStartTime || barbershop.openingTime || "09:00");
+        const barberEnd = timeToMinutes(barber.workEndTime || barbershop.closingTime || "19:00");
+
+        if (reqStart < barberStart || reqEnd > barberEnd) {
+          return { ...barber, available: false, nextSlots: [] as string[] };
+        }
+
+        const appointments = await storage.getAppointmentsByBarber(barber.id, date);
+        const bookedSlots = appointments
+          .filter(a => a.status !== "cancelled")
+          .map(a => ({ start: a.startTime, end: a.endTime }));
+
+        const hasConflict = bookedSlots.some(b =>
+          reqStart < timeToMinutes(b.end) && reqEnd > timeToMinutes(b.start)
+        );
+
+        if (!hasConflict) return { ...barber, available: true, nextSlots: [] as string[] };
+
+        const nextSlots: string[] = [];
+        for (let m = barberStart; m + serviceDuration <= barberEnd; m += 30) {
+          if (m === reqStart) continue;
+          const conflict = bookedSlots.some(b =>
+            m < timeToMinutes(b.end) && (m + serviceDuration) > timeToMinutes(b.start)
+          );
+          if (!conflict) nextSlots.push(minutesToTime(m));
+          if (nextSlots.length >= 4) break;
+        }
+
+        return { ...barber, available: false, nextSlots };
+      }));
+
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar disponibilidade dos barbeiros" });
+    }
+  });
+
   app.post("/api/public/appointments", async (req: Request, res: Response) => {
     try {
       const { slug, clientName, clientPhone, date, startTime, endTime, barberId, serviceId } = req.body;
