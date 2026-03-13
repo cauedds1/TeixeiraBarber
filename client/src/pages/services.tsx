@@ -42,6 +42,104 @@ const serviceFormSchema = z.object({
 
 type ServiceFormData = z.infer<typeof serviceFormSchema>;
 
+function ServiceCard({
+  service,
+  formatCurrency,
+  formatDuration,
+  onToggleActive,
+  onToggleFeatured,
+  onEdit,
+  onDelete,
+}: {
+  service: Service;
+  formatCurrency: (v: number | string | null) => string;
+  formatDuration: (m: number) => string;
+  onToggleActive: (id: string, v: boolean) => void;
+  onToggleFeatured: (id: string, v: boolean) => void;
+  onEdit: (s: Service) => void;
+  onDelete: (s: Service) => void;
+}) {
+  return (
+    <div
+      className={`group bg-[#151515] border hover:border-[#C9A24D]/20 rounded-2xl p-5 transition-all duration-200 hover:shadow-lg hover:shadow-[#C9A24D]/5 ${
+        service.isActive ? "border-white/5" : "border-white/5 opacity-60"
+      }`}
+      data-testid={`card-service-${service.id}`}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className="w-12 h-12 rounded-xl bg-[#C9A24D]/10 flex items-center justify-center flex-shrink-0 text-2xl">
+            {service.emoji || "✂️"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-bold text-white">{service.name}</h3>
+              {service.isFeatured && (
+                <span className="text-[10px] uppercase tracking-wider font-semibold bg-[#C9A24D]/15 text-[#C9A24D] px-2 py-0.5 rounded-full flex items-center gap-1" data-testid={`badge-featured-${service.id}`}>
+                  <Star className="w-2.5 h-2.5 fill-[#C9A24D]" />
+                  Principal
+                </span>
+              )}
+              {service.isCombo && (
+                <span className="text-[10px] uppercase tracking-wider font-semibold bg-[#C9A24D]/10 text-[#C9A24D] px-2 py-0.5 rounded-full">Combo</span>
+              )}
+              <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${service.isActive ? "bg-emerald-500/10 text-emerald-400" : "bg-white/5 text-white/30"}`} data-testid={`badge-status-${service.id}`}>{service.isActive ? "Ativo" : "Inativo"}</span>
+            </div>
+            <div className="flex items-center gap-3 mt-1">
+              <div className="flex items-center gap-1 text-white/40 text-sm">
+                <Clock className="w-3.5 h-3.5" />
+                <span>{formatDuration(service.duration)}</span>
+              </div>
+              {service.description && (
+                <span className="text-white/30 text-sm truncate hidden sm:inline">· {service.description}</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <span className="text-[#C9A24D] font-black text-lg">{formatCurrency(service.price)}</span>
+
+          <div className="flex items-center gap-1">
+            <Switch
+              checked={service.isActive ?? true}
+              onCheckedChange={(checked) => onToggleActive(service.id, checked)}
+              data-testid={`switch-active-${service.id}`}
+              className="data-[state=checked]:bg-[#C9A24D]"
+            />
+          </div>
+
+          <button
+            onClick={() => onEdit(service)}
+            data-testid={`button-edit-${service.id}`}
+            className="p-2 text-white/30 hover:text-[#C9A24D] hover:bg-[#C9A24D]/10 rounded-lg transition-all"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onToggleFeatured(service.id, !service.isFeatured)}
+            data-testid={`button-featured-${service.id}`}
+            className={`p-2 rounded-lg transition-all ${
+              service.isFeatured
+                ? "text-[#C9A24D] hover:bg-[#C9A24D]/10"
+                : "text-white/30 hover:text-[#C9A24D] hover:bg-[#C9A24D]/10"
+            }`}
+          >
+            <Star className={`w-4 h-4 ${service.isFeatured ? "fill-[#C9A24D]" : ""}`} />
+          </button>
+          <button
+            onClick={() => onDelete(service)}
+            data-testid={`button-delete-${service.id}`}
+            className="p-2 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Services() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -119,6 +217,15 @@ export default function Services() {
     },
   });
 
+  const toggleFeaturedMutation = useMutation({
+    mutationFn: async ({ id, isFeatured }: { id: string; isFeatured: boolean }) => {
+      await apiRequest("PATCH", `/api/services/${id}`, { isFeatured });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/services"] });
+    },
+  });
+
   const closeDialog = () => {
     setDialogOpen(false);
     setEditingService(null);
@@ -166,6 +273,8 @@ export default function Services() {
     return s.name?.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q);
   });
 
+  const filteredFeatured = filtered?.filter((s) => s.isFeatured) || [];
+  const filteredOthers = filtered?.filter((s) => !s.isFeatured) || [];
   const activeCount = services?.filter((s) => s.isActive).length || 0;
   const featuredCount = services?.filter((s) => s.isFeatured).length || 0;
   const isPending = createMutation.isPending || updateMutation.isPending;
@@ -217,74 +326,42 @@ export default function Services() {
           </div>
         ) : filtered && filtered.length > 0 ? (
           <div className="space-y-3">
-            {filtered.map((service) => (
-              <div
+            {filteredFeatured.length > 0 && (
+              <>
+                <p className="text-xs font-semibold text-[#C9A24D]/80 uppercase tracking-widest flex items-center gap-1.5">
+                  <Star className="w-3 h-3 fill-[#C9A24D] text-[#C9A24D]" />
+                  Serviços Principais
+                </p>
+                {filteredFeatured.map((service) => (
+                  <ServiceCard
+                    key={service.id}
+                    service={service}
+                    formatCurrency={formatCurrency}
+                    formatDuration={formatDuration}
+                    onToggleActive={(id, v) => toggleActiveMutation.mutate({ id, isActive: v })}
+                    onToggleFeatured={(id, v) => toggleFeaturedMutation.mutate({ id, isFeatured: v })}
+                    onEdit={openEdit}
+                    onDelete={setDeleteTarget}
+                  />
+                ))}
+              </>
+            )}
+
+            {filteredFeatured.length > 0 && filteredOthers.length > 0 && (
+              <p className="text-xs font-semibold text-white/30 uppercase tracking-widest pt-2">Outros Serviços</p>
+            )}
+
+            {filteredOthers.map((service) => (
+              <ServiceCard
                 key={service.id}
-                className={`group bg-[#151515] border hover:border-[#C9A24D]/20 rounded-2xl p-5 transition-all duration-200 hover:shadow-lg hover:shadow-[#C9A24D]/5 ${
-                  service.isActive ? "border-white/5" : "border-white/5 opacity-60"
-                }`}
-                data-testid={`card-service-${service.id}`}
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="w-12 h-12 rounded-xl bg-[#C9A24D]/10 flex items-center justify-center flex-shrink-0 text-2xl">
-                      {service.emoji || "✂️"}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-bold text-white">{service.name}</h3>
-                        {service.isFeatured && (
-                          <span className="text-[10px] uppercase tracking-wider font-semibold bg-[#C9A24D]/15 text-[#C9A24D] px-2 py-0.5 rounded-full flex items-center gap-1" data-testid={`badge-featured-${service.id}`}>
-                            <Star className="w-2.5 h-2.5 fill-[#C9A24D]" />
-                            Principal
-                          </span>
-                        )}
-                        {service.isCombo && (
-                          <span className="text-[10px] uppercase tracking-wider font-semibold bg-[#C9A24D]/10 text-[#C9A24D] px-2 py-0.5 rounded-full">Combo</span>
-                        )}
-                        <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full ${service.isActive ? "bg-emerald-500/10 text-emerald-400" : "bg-white/5 text-white/30"}`} data-testid={`badge-status-${service.id}`}>{service.isActive ? "Ativo" : "Inativo"}</span>
-                      </div>
-                      <div className="flex items-center gap-3 mt-1">
-                        <div className="flex items-center gap-1 text-white/40 text-sm">
-                          <Clock className="w-3.5 h-3.5" />
-                          <span>{formatDuration(service.duration)}</span>
-                        </div>
-                        {service.description && (
-                          <span className="text-white/30 text-sm truncate hidden sm:inline">· {service.description}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="text-[#C9A24D] font-black text-lg">{formatCurrency(service.price)}</span>
-
-                    <div className="flex items-center gap-1">
-                      <Switch
-                        checked={service.isActive ?? true}
-                        onCheckedChange={(checked) => toggleActiveMutation.mutate({ id: service.id, isActive: checked })}
-                        data-testid={`switch-active-${service.id}`}
-                        className="data-[state=checked]:bg-[#C9A24D]"
-                      />
-                    </div>
-
-                    <button
-                      onClick={() => openEdit(service)}
-                      data-testid={`button-edit-${service.id}`}
-                      className="p-2 text-white/30 hover:text-[#C9A24D] hover:bg-[#C9A24D]/10 rounded-lg transition-all"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(service)}
-                      data-testid={`button-delete-${service.id}`}
-                      className="p-2 text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+                service={service}
+                formatCurrency={formatCurrency}
+                formatDuration={formatDuration}
+                onToggleActive={(id, v) => toggleActiveMutation.mutate({ id, isActive: v })}
+                onToggleFeatured={(id, v) => toggleFeaturedMutation.mutate({ id, isFeatured: v })}
+                onEdit={openEdit}
+                onDelete={setDeleteTarget}
+              />
             ))}
           </div>
         ) : (
