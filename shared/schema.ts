@@ -147,6 +147,8 @@ export const appointments = pgTable("appointments", {
   endTime: time("end_time").notNull(),
   status: varchar("status", { length: 20 }).default("pending"), // pending, confirmed, completed, cancelled, no_show
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  finalPrice: decimal("final_price", { precision: 10, scale: 2 }),
+  paymentMethod: varchar("payment_method", { length: 20 }), // cash, pix, credit, debit
   notes: text("notes"),
   clientName: varchar("client_name", { length: 255 }),
   clientPhone: varchar("client_phone", { length: 20 }),
@@ -154,6 +156,7 @@ export const appointments = pgTable("appointments", {
   reviewRequestSent: boolean("review_request_sent").default(false),
   reviewRequestSentAt: timestamp("review_request_sent_at"),
   reviewCompleted: boolean("review_completed").default(false),
+  checkoutFollowUpSent: boolean("checkout_follow_up_sent").default(false),
   confirmedAt: timestamp("confirmed_at"),
   completedAt: timestamp("completed_at"),
   cancelledAt: timestamp("cancelled_at"),
@@ -167,6 +170,15 @@ export const appointmentExtras = pgTable("appointment_extras", {
   appointmentId: varchar("appointment_id").references(() => appointments.id).notNull(),
   serviceId: varchar("service_id").references(() => services.id).notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+});
+
+// Appointment products (products sold during an appointment)
+export const appointmentProducts = pgTable("appointment_products", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  appointmentId: varchar("appointment_id").references(() => appointments.id).notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
 });
 
 // Wait list
@@ -460,6 +472,7 @@ export const insertRevenueGoalSchema = createInsertSchema(revenueGoals).omit({ i
 export const insertFixedExpenseSchema = createInsertSchema(fixedExpenses).omit({ id: true, createdAt: true });
 export const insertCommissionPaymentSchema = createInsertSchema(commissionPayments).omit({ id: true, createdAt: true });
 export const insertBillSchema = createInsertSchema(bills).omit({ id: true, createdAt: true });
+export const insertAppointmentProductSchema = createInsertSchema(appointmentProducts).omit({ id: true });
 
 // Types
 export type UpsertUser = typeof users.$inferInsert;
@@ -500,3 +513,5 @@ export type InsertCommissionPayment = z.infer<typeof insertCommissionPaymentSche
 export type CommissionPayment = typeof commissionPayments.$inferSelect;
 export type InsertBill = z.infer<typeof insertBillSchema>;
 export type Bill = typeof bills.$inferSelect;
+export type InsertAppointmentProduct = z.infer<typeof insertAppointmentProductSchema>;
+export type AppointmentProduct = typeof appointmentProducts.$inferSelect;

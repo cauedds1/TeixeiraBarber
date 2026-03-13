@@ -65,8 +65,9 @@ app.use((req, res, next) => {
   const { whatsappService } = await import("./whatsapp");
   whatsappService.connect().catch((e) => log(`[WhatsApp] Falha na inicialização: ${e}`));
 
-  const { startReminderScheduler } = await import("./reminder");
+  const { startReminderScheduler, startCheckoutFollowUpScheduler } = await import("./reminder");
   startReminderScheduler();
+  startCheckoutFollowUpScheduler();
 
   const { startReviewScheduler } = await import("./review-scheduler");
   startReviewScheduler();

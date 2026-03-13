@@ -525,28 +525,6 @@ export async function registerRoutes(
       }
       const appointment = await storage.updateAppointmentStatus(req.params.id, req.body.status);
 
-      if (req.body.status === "completed" && existing.status !== "completed") {
-        const price = parseFloat(existing.price?.toString() || "0");
-        const barber = await storage.getBarber(existing.barberId);
-        const service = await storage.getService(existing.serviceId);
-        const rate = parseFloat(barber?.commissionRate?.toString() || "0");
-        const commissionAmount = (price * rate) / 100;
-
-        await storage.createTransaction({
-          barbershopId: barbershop.id,
-          appointmentId: existing.id,
-          barberId: existing.barberId,
-          clientId: existing.clientId || undefined,
-          type: "service",
-          category: service?.name || "Serviço",
-          description: `${service?.name || "Serviço"} — ${existing.clientName || "Cliente"}`,
-          amount: existing.price,
-          commissionAmount: commissionAmount > 0 ? commissionAmount.toFixed(2) : undefined,
-          paymentMethod: req.body.paymentMethod || undefined,
-          date: existing.date,
-        });
-      }
-
       if (req.body.status === "cancelled" && existing.clientPhone) {
         try {
           const dataFmt = format(new Date(existing.date + "T12:00:00"), "dd/MM/yyyy");
@@ -562,6 +540,55 @@ export async function registerRoutes(
       res.json(appointment);
     } catch (error) {
       res.status(500).json({ message: "Error updating appointment" });
+    }
+  });
+
+  app.post("/api/appointments/:id/checkout", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const existing = await storage.getAppointment(req.params.id);
+      if (!existing || existing.barbershopId !== barbershop.id) {
+        return res.status(404).json({ message: "Agendamento não encontrado" });
+      }
+      if (existing.status === "completed") {
+        return res.status(400).json({ message: "Agendamento já foi finalizado" });
+      }
+
+      const { paymentMethod, finalPrice, extraServiceIds = [], products: soldProducts = [] } = req.body;
+      if (!paymentMethod) {
+        return res.status(400).json({ message: "Forma de pagamento é obrigatória" });
+      }
+
+      const extraServices: { serviceId: string; price: number }[] = [];
+      for (const serviceId of extraServiceIds) {
+        const svc = await storage.getService(serviceId);
+        if (svc) extraServices.push({ serviceId, price: parseFloat(svc.price?.toString() || "0") });
+      }
+
+      const productsData: { productId: string; quantity: number; unitPrice: number }[] = [];
+      for (const p of soldProducts) {
+        const prod = await storage.getProduct(p.productId);
+        if (prod) productsData.push({ productId: p.productId, quantity: p.quantity || 1, unitPrice: parseFloat(prod.price?.toString() || "0") });
+      }
+
+      const basePrice = parseFloat(existing.price?.toString() || "0");
+      const calculatedTotal = basePrice
+        + extraServices.reduce((s, e) => s + e.price, 0)
+        + productsData.reduce((s, p) => s + p.unitPrice * p.quantity, 0);
+      const effectiveFinalPrice = typeof finalPrice === "number" ? finalPrice : calculatedTotal;
+
+      const appointment = await storage.completeAppointmentCheckout(req.params.id, {
+        paymentMethod,
+        finalPrice: effectiveFinalPrice,
+        extraServices,
+        products: productsData,
+        barbershopId: barbershop.id,
+      });
+
+      res.json(appointment);
+    } catch (error) {
+      console.error("Checkout error:", error);
+      res.status(500).json({ message: "Erro ao finalizar atendimento" });
     }
   });
 

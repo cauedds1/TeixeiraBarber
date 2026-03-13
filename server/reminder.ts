@@ -7,13 +7,28 @@ function log(msg: string) {
   console.log(`${t} [express] ${msg}`);
 }
 
-const BOOKING_URL = process.env.REPLIT_DEV_DOMAIN
+export const BOOKING_URL = process.env.REPLIT_DEV_DOMAIN
   ? `https://${process.env.REPLIT_DEV_DOMAIN}/agendar/teixeira`
   : "https://57963618-5dfb-413a-88eb-ab8ee22cb96d-00-347r04xq55rqy.spock.replit.dev/agendar/teixeira";
 
 function timeToMs(timeStr: string): number {
   const [h, m] = timeStr.split(":").map(Number);
   return (h * 60 + m) * 60 * 1000;
+}
+
+function paymentEmoji(method: string | null): string {
+  switch (method) {
+    case "pix": return "📱 Pix";
+    case "credit": return "💳 Cartão Crédito";
+    case "debit": return "💳 Cartão Débito";
+    case "cash": return "💵 Dinheiro";
+    default: return "💰 Outro";
+  }
+}
+
+function formatCurrency(value: string | number | null): string {
+  const n = parseFloat(String(value || "0"));
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);
 }
 
 export function startReminderScheduler(): void {
@@ -63,4 +78,55 @@ export function startReminderScheduler(): void {
   }, 60 * 1000);
 }
 
-export { BOOKING_URL };
+export function startCheckoutFollowUpScheduler(): void {
+  log("[Pós-Atendimento] Scheduler iniciado — verificando a cada 60s");
+
+  setInterval(async () => {
+    try {
+      const pending = await storage.getCompletedWithoutFollowUp();
+      if (!pending.length) return;
+
+      for (const appt of pending) {
+        if (!appt.clientPhone) continue;
+
+        try {
+          const serviceLine = [
+            appt.service?.name || "Serviço",
+            ...(appt.extraServices || []).map((e: any) => e.name),
+          ].join(" + ");
+
+          const productLines = (appt.productDetails || [])
+            .map((p: any) => `🧴 ${p.name}${p.quantity > 1 ? ` (x${p.quantity})` : ""}`)
+            .join("\n");
+
+          const totalValue = appt.finalPrice ?? appt.price;
+          const payLine = paymentEmoji(appt.paymentMethod);
+
+          let msg =
+            `Valeu pela preferência, *${appt.clientName}*! ✂️\n\n` +
+            `Aqui está o resumo do seu ritual de hoje:\n` +
+            `🛠️ ${serviceLine}\n`;
+
+          if (productLines) {
+            msg += `${productLines}\n`;
+          }
+
+          msg +=
+            `💰 Total: ${formatCurrency(totalValue)}\n\n` +
+            `${payLine}\n\n` +
+            `Seu visual está renovado! Se curtiu, avalia a gente abaixo, ajuda muito o nosso trabalho. 👇\n` +
+            `${BOOKING_URL}`;
+
+          await whatsappService.sendMessage(appt.clientPhone, msg);
+          await storage.markCheckoutFollowUpSent(appt.id);
+          await storage.markReviewRequestSent(appt.id);
+          log(`[Pós-Atendimento] Mensagem enviada para ${appt.clientName}`);
+        } catch (e) {
+          log(`[Pós-Atendimento] Erro ao enviar para ${appt.id}: ${e}`);
+        }
+      }
+    } catch (e) {
+      log(`[Pós-Atendimento] Erro no scheduler: ${e}`);
+    }
+  }, 60 * 1000);
+}

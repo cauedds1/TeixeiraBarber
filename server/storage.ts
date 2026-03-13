@@ -2,7 +2,7 @@ import { eq, and, gte, lte, desc, sql, count, sum, isNull, lt, isNotNull, or } f
 import { db } from "./db";
 import {
   users, barbershops, barbers, services, serviceCategories,
-  clients, appointments, products, transactions, loyaltyPlans,
+  clients, appointments, appointmentExtras, appointmentProducts, products, transactions, loyaltyPlans,
   subscriptionPackages, coupons, reviews, barberTimeOff, notifications,
   fixedExpenses, commissionPayments, bills,
   type User, type UpsertUser, type Barbershop, type InsertBarbershop,
@@ -65,6 +65,15 @@ export interface IStorage {
   getAppointmentsForReview(): Promise<Appointment[]>;
   markReviewRequestSent(id: string): Promise<void>;
   markReviewCompleted(id: string): Promise<void>;
+  completeAppointmentCheckout(id: string, data: {
+    paymentMethod: string;
+    finalPrice: number;
+    extraServices: { serviceId: string; price: number }[];
+    products: { productId: string; quantity: number; unitPrice: number }[];
+    barbershopId: string;
+  }): Promise<Appointment | undefined>;
+  getCompletedWithoutFollowUp(): Promise<any[]>;
+  markCheckoutFollowUpSent(id: string): Promise<void>;
 
   // Products
   getProducts(barbershopId: string): Promise<Product[]>;
@@ -384,6 +393,169 @@ export class DatabaseStorage implements IStorage {
   async markReviewCompleted(id: string): Promise<void> {
     await db.update(appointments)
       .set({ reviewCompleted: true, updatedAt: new Date() })
+      .where(eq(appointments.id, id));
+  }
+
+  async completeAppointmentCheckout(id: string, data: {
+    paymentMethod: string;
+    finalPrice: number;
+    extraServices: { serviceId: string; price: number }[];
+    products: { productId: string; quantity: number; unitPrice: number }[];
+    barbershopId: string;
+  }): Promise<Appointment | undefined> {
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+
+    const [appointment] = await db.update(appointments)
+      .set({
+        status: "completed",
+        completedAt: now,
+        paymentMethod: data.paymentMethod,
+        finalPrice: data.finalPrice.toFixed(2),
+        updatedAt: now,
+      })
+      .where(eq(appointments.id, id))
+      .returning();
+
+    if (!appointment) return undefined;
+
+    if (data.extraServices.length > 0) {
+      await db.insert(appointmentExtras).values(
+        data.extraServices.map(es => ({
+          appointmentId: id,
+          serviceId: es.serviceId,
+          price: es.price.toFixed(2),
+        }))
+      );
+    }
+
+    if (data.products.length > 0) {
+      await db.insert(appointmentProducts).values(
+        data.products.map(p => ({
+          appointmentId: id,
+          productId: p.productId,
+          quantity: p.quantity,
+          unitPrice: p.unitPrice.toFixed(2),
+        }))
+      );
+
+      for (const p of data.products) {
+        await db.update(products)
+          .set({ stockQuantity: sql`${products.stockQuantity} - ${p.quantity}`, updatedAt: now })
+          .where(eq(products.id, p.productId));
+      }
+    }
+
+    const barber = await this.getBarber(appointment.barberId).catch(() => null);
+    const service = await this.getService(appointment.serviceId).catch(() => null);
+    const rate = parseFloat(barber?.commissionRate?.toString() || "0");
+    const servicePrice = data.finalPrice;
+    const commissionAmount = (servicePrice * rate) / 100;
+
+    await this.createTransaction({
+      barbershopId: data.barbershopId,
+      appointmentId: id,
+      barberId: appointment.barberId,
+      clientId: appointment.clientId || undefined,
+      type: "service",
+      category: service?.name || "Serviço",
+      description: `${service?.name || "Serviço"} — ${appointment.clientName || "Cliente"}`,
+      amount: data.finalPrice.toFixed(2),
+      paymentMethod: data.paymentMethod,
+      commissionAmount: commissionAmount > 0 ? commissionAmount.toFixed(2) : undefined,
+      date: today,
+    });
+
+    for (const p of data.products) {
+      const product = await this.getProduct(p.productId).catch(() => null);
+      await this.createTransaction({
+        barbershopId: data.barbershopId,
+        appointmentId: id,
+        barberId: appointment.barberId,
+        clientId: appointment.clientId || undefined,
+        type: "product",
+        category: "Produto",
+        description: `${product?.name || "Produto"} (x${p.quantity}) — ${appointment.clientName || "Cliente"}`,
+        amount: (p.unitPrice * p.quantity).toFixed(2),
+        paymentMethod: data.paymentMethod,
+        date: today,
+      });
+    }
+
+    return appointment;
+  }
+
+  async getCompletedWithoutFollowUp(): Promise<any[]> {
+    const now = new Date();
+    const min14 = new Date(now.getTime() - 16 * 60 * 1000);
+    const min16 = new Date(now.getTime() - 14 * 60 * 1000);
+
+    const rows = await db
+      .select({
+        id: appointments.id,
+        clientName: appointments.clientName,
+        clientPhone: appointments.clientPhone,
+        barbershopId: appointments.barbershopId,
+        barberId: appointments.barberId,
+        serviceId: appointments.serviceId,
+        completedAt: appointments.completedAt,
+        finalPrice: appointments.finalPrice,
+        price: appointments.price,
+        paymentMethod: appointments.paymentMethod,
+        date: appointments.date,
+      })
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.status, "completed"),
+          eq(appointments.checkoutFollowUpSent, false),
+          sql`${appointments.clientPhone} IS NOT NULL AND ${appointments.clientPhone} != ''`,
+          gte(appointments.completedAt, min14),
+          lte(appointments.completedAt, min16),
+        )
+      );
+
+    const enriched = await Promise.all(rows.map(async (appt) => {
+      const service = await this.getService(appt.serviceId).catch(() => null);
+      const barber = appt.barberId ? await this.getBarber(appt.barberId).catch(() => null) : null;
+
+      const extras = await db
+        .select({ serviceId: appointmentExtras.serviceId, price: appointmentExtras.price })
+        .from(appointmentExtras)
+        .where(eq(appointmentExtras.appointmentId, appt.id));
+
+      const extraServices = await Promise.all(
+        extras.map(async (e) => {
+          const svc = await this.getService(e.serviceId).catch(() => null);
+          return { name: svc?.name || "Adicional", price: e.price };
+        })
+      );
+
+      const soldProducts = await db
+        .select({
+          productId: appointmentProducts.productId,
+          quantity: appointmentProducts.quantity,
+          unitPrice: appointmentProducts.unitPrice,
+        })
+        .from(appointmentProducts)
+        .where(eq(appointmentProducts.appointmentId, appt.id));
+
+      const productDetails = await Promise.all(
+        soldProducts.map(async (p) => {
+          const prod = await this.getProduct(p.productId).catch(() => null);
+          return { name: prod?.name || "Produto", quantity: p.quantity, unitPrice: p.unitPrice };
+        })
+      );
+
+      return { ...appt, service, barber, extraServices, productDetails };
+    }));
+
+    return enriched;
+  }
+
+  async markCheckoutFollowUpSent(id: string): Promise<void> {
+    await db.update(appointments)
+      .set({ checkoutFollowUpSent: true, updatedAt: new Date() })
       .where(eq(appointments.id, id));
   }
 
