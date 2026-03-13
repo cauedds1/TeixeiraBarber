@@ -410,11 +410,19 @@ export async function registerRoutes(
       const activeAppts = todayAppointments.filter(a => a.status !== "cancelled");
       const occupancyRate = totalSlots > 0 ? Math.round((activeAppts.length / totalSlots) * 100) : 0;
 
+      const normalizePayment = (method: string | null | undefined): string => {
+        const m = (method || "").toLowerCase();
+        if (m === "pix") return "PIX";
+        if (m === "cash" || m === "dinheiro") return "Dinheiro";
+        if (m === "credit" || m === "debit" || m === "crédito" || m === "débito" || m === "cartão") return "Cartão";
+        return "Outro";
+      };
+
       const paymentBreakdown: Record<string, number> = {};
       todayTransactions
         .filter(t => t.type !== "expense" && t.type !== "refund")
         .forEach(t => {
-          const method = t.paymentMethod || "Outro";
+          const method = normalizePayment(t.paymentMethod);
           paymentBreakdown[method] = (paymentBreakdown[method] || 0) + parseFloat(t.amount?.toString() || "0");
         });
 

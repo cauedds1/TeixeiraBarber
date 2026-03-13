@@ -427,10 +427,25 @@ export default function OwnerDashboard() {
                             <Scissors className="h-3 w-3" />
                             <span className="truncate">{apt.service?.name || "Serviço"}</span>
                           </div>
-                          <p className="text-white/25 text-xs mt-0.5">
-                            {apt.barber?.name || "Barbeiro"}
-                            {apt.price ? ` • ${fmtBRL(parseFloat(apt.price.toString()))}` : ""}
-                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <p className="text-white/25 text-xs">
+                              {apt.barber?.name || "Barbeiro"}
+                              {apt.price ? ` • ${fmtBRL(parseFloat(apt.price.toString()))}` : ""}
+                            </p>
+                            {apt.clientPhone && (
+                              <span
+                                className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${
+                                  apt.reminderSent
+                                    ? "text-green-400 bg-green-500/10 border-green-500/20"
+                                    : "text-white/20 bg-white/[0.03] border-white/10"
+                                }`}
+                                data-testid={`badge-whatsapp-${apt.id}`}
+                                title={apt.reminderSent ? "Lembrete enviado" : "Lembrete não enviado"}
+                              >
+                                {apt.reminderSent ? "ZAP ✓" : "ZAP"}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
@@ -526,15 +541,10 @@ export default function OwnerDashboard() {
                   ) : (
                     Object.entries(stats?.paymentBreakdown || {}).map(([method, value]) => {
                       const icons: Record<string, LucideIcon> = {
-                        pix: Smartphone,
                         PIX: Smartphone,
-                        cash: Banknote,
                         Dinheiro: Banknote,
-                        dinheiro: Banknote,
-                        credit: CreditCard,
-                        Crédito: CreditCard,
-                        debit: CreditCard,
-                        Débito: CreditCard,
+                        Cartão: CreditCard,
+                        Outro: CircleDollarSign,
                       };
                       const Icon = icons[method] ?? CircleDollarSign;
                       return (
