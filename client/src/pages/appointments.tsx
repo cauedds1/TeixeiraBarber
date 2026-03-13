@@ -26,6 +26,10 @@ import type { CheckoutAppointment } from "@/components/checkout-dialog";
 
 type AppointmentWithDetails = CheckoutAppointment;
 
+function formatCurrency(value: number | string | null | undefined) {
+  const num = typeof value === "string" ? parseFloat(value) : (value ?? 0);
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(num || 0);
+}
 
 export default function Appointments() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
