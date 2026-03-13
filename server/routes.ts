@@ -793,8 +793,9 @@ export async function registerRoutes(
         barbershopId: barbershop.id,
       });
       res.status(201).json(product);
-    } catch (error) {
-      res.status(500).json({ message: "Error creating product" });
+    } catch (error: any) {
+      console.error("[Products] Erro ao criar produto:", error?.message ?? error);
+      res.status(500).json({ message: "Error creating product", detail: error?.message });
     }
   });
 

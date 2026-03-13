@@ -19,6 +19,21 @@ export type WhatsAppStatus = "connected" | "waiting_qr" | "disconnected";
 
 const SESSION_DIR = path.join(process.cwd(), "whatsapp-session");
 
+// Prevent Baileys internal unhandled rejections from crashing the server
+process.on("unhandledRejection", (reason: any) => {
+  const msg = reason?.message || String(reason);
+  if (
+    msg.includes("Connection Closed") ||
+    msg.includes("Stream Errored") ||
+    msg.includes("Connection Lost") ||
+    msg.includes("Timed Out")
+  ) {
+    log(`[WhatsApp] Rejeição interna ignorada: ${msg}`);
+    return;
+  }
+  log(`[Unhandled Rejection] ${msg}`);
+});
+
 class WhatsAppService {
   private sock: WASocket | null = null;
   private status: WhatsAppStatus = "disconnected";
@@ -33,56 +48,54 @@ class WhatsAppService {
     return this.qrDataUrl;
   }
 
-  private async resolveJid(digits: string): Promise<string | null> {
-    if (!this.sock) return null;
+  /**
+   * Build candidate JIDs for a phone number.
+   * Ensures the country code 55 is present and generates both
+   * the 12-digit (without extra 9) and 13-digit (with extra 9) variants
+   * used by Brazilian mobile numbers.
+   */
+  private buildCandidates(phone: string): string[] {
+    let base = phone.replace(/\D/g, "");
+    if (!base.startsWith("55")) base = "55" + base;
 
-    // Normalise: ensure the number starts with Brazil country code 55
-    let base = digits;
-    if (!base.startsWith("55")) {
-      base = "55" + base;
-    }
-
-    // Build candidates handling the extra 9th digit used in Brazilian mobile numbers
     const candidates: string[] = [base];
     if (base.length === 13) {
-      // e.g. 5548999186712 → 554899186712 (without the extra 9)
+      // 5548999186712 → 554899186712 (drop the extra 9 at position 4)
       candidates.push(base.slice(0, 4) + base.slice(5));
     } else if (base.length === 12) {
-      // e.g. 554899186712 → 5548999186712 (with the extra 9)
+      // 554899186712 → 5548999186712 (insert extra 9 at position 4)
       candidates.push(base.slice(0, 4) + "9" + base.slice(4));
     }
 
-    for (const candidate of candidates) {
-      try {
-        const [result] = await this.sock.onWhatsApp(`${candidate}@s.whatsapp.net`);
-        if (result?.exists) {
-          log(`[WhatsApp] Número verificado: ${result.jid}`);
-          return result.jid;
-        }
-      } catch {}
-    }
-
-    // Fallback: use the normalised number unverified
-    log(`[WhatsApp] Número não verificado no WA, enviando para: ${base}`);
-    return `${base}@s.whatsapp.net`;
+    return candidates;
   }
 
+  /**
+   * Send a WhatsApp message to the given phone number.
+   * Tries both BR number formats (with/without the extra 9th digit).
+   * Does NOT call onWhatsApp() to avoid Baileys internal crashes.
+   */
   async sendMessage(phone: string, text: string): Promise<boolean> {
     if (!this.sock || this.status !== "connected") {
       log("[WhatsApp] Não conectado — mensagem não enviada");
       return false;
     }
-    try {
-      const digits = phone.replace(/\D/g, "");
-      const jid = await this.resolveJid(digits);
-      if (!jid) return false;
-      await this.sock.sendMessage(jid, { text });
-      log(`[WhatsApp] Mensagem enviada para ${jid}`);
-      return true;
-    } catch (e) {
-      log(`[WhatsApp] Erro ao enviar mensagem: ${e}`);
-      return false;
+
+    const candidates = this.buildCandidates(phone);
+
+    for (const candidate of candidates) {
+      const jid = `${candidate}@s.whatsapp.net`;
+      try {
+        await this.sock.sendMessage(jid, { text });
+        log(`[WhatsApp] Mensagem enviada para ${jid}`);
+        return true;
+      } catch (e: any) {
+        log(`[WhatsApp] Falha com ${jid}: ${e?.message ?? e}`);
+      }
     }
+
+    log(`[WhatsApp] Nenhum formato funcionou para ${phone}`);
+    return false;
   }
 
   async connect(): Promise<void> {
@@ -146,14 +159,18 @@ class WhatsAppService {
           const phone = from.replace("@s.whatsapp.net", "");
           let reply: string | null = null;
 
-          if (isInReviewConversation(phone)) {
-            reply = await handleReviewResponse(phone, text);
-          } else {
-            reply = await handleIncomingMessage(text, this.barbershopSlug);
-          }
+          try {
+            if (isInReviewConversation(phone)) {
+              reply = await handleReviewResponse(phone, text);
+            } else {
+              reply = await handleIncomingMessage(text, this.barbershopSlug);
+            }
 
-          if (reply) {
-            await sock.sendMessage(from, { text: reply });
+            if (reply) {
+              await sock.sendMessage(from, { text: reply });
+            }
+          } catch (e) {
+            log(`[WhatsApp] Erro ao processar mensagem: ${e}`);
           }
         }
       });
