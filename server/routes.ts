@@ -296,21 +296,26 @@ export async function registerRoutes(
       });
 
       try {
-        const barber = await storage.getBarber(barberId);
+        const barberInfo = await storage.getBarber(barberId);
         const apptDate = new Date(date + "T12:00:00");
         const diaSemana = format(apptDate, "EEEE", { locale: ptBR });
         const diaSemanaCapit = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
         const dataFmt = format(apptDate, "dd/MM/yyyy");
         const msg =
           `Olá, *${clientName}*! ✂️\n\n` +
-          `Recebemos seu agendamento aqui na Teixeira Barbearia. Tudo pronto para o seu ritual!\n\n` +
+          `Recebemos seu agendamento aqui na *Teixeira Barbearia*. Tudo pronto para o seu ritual!\n\n` +
           `📅 *Data:* ${diaSemanaCapit}, ${dataFmt}\n` +
           `⏰ *Horário:* ${startTime}\n` +
-          `👤 *Barbeiro:* ${barber?.name || "A definir"}\n` +
+          `👤 *Barbeiro:* ${barberInfo?.name || "A definir"}\n` +
           `🛠️ *Serviço:* ${service.name}\n\n` +
           `📍 Estamos na Rua Koesa, 430 (Kobrasol).\n` +
-          `☕ O café já está no fogo. Te esperamos!`;
-        await whatsappService.sendMessage(clientPhone, msg);
+          `☕ O café já está no fogo. Te esperamos!\n\n` +
+          `_Responda esta mensagem se precisar remarcar ou cancelar._`;
+        const sent = await whatsappService.sendMessage(clientPhone, msg);
+        if (sent) {
+          await storage.markReminderSent(appointment.id);
+          await storage.updateAppointmentStatus(appointment.id, "confirmed");
+        }
       } catch (_) {}
 
       res.status(201).json(appointment);

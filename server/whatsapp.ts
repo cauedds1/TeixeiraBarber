@@ -33,18 +33,20 @@ class WhatsAppService {
     return this.qrDataUrl;
   }
 
-  async sendMessage(phone: string, text: string): Promise<void> {
+  async sendMessage(phone: string, text: string): Promise<boolean> {
     if (!this.sock || this.status !== "connected") {
       log("[WhatsApp] Não conectado — mensagem não enviada");
-      return;
+      return false;
     }
     try {
       const digits = phone.replace(/\D/g, "");
       const jid = digits.includes("@") ? digits : `${digits}@s.whatsapp.net`;
       await this.sock.sendMessage(jid, { text });
       log(`[WhatsApp] Mensagem enviada para ${digits}`);
+      return true;
     } catch (e) {
       log(`[WhatsApp] Erro ao enviar mensagem: ${e}`);
+      return false;
     }
   }
 
