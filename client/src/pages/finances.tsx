@@ -1,15 +1,20 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -18,496 +23,806 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Plus,
-  Search,
-  DollarSign,
   TrendingUp,
   TrendingDown,
-  ArrowUpRight,
-  ArrowDownRight,
+  DollarSign,
+  ArrowUpCircle,
+  ArrowDownCircle,
   Calendar,
-  CreditCard,
-  Banknote,
-  Wallet,
-  Filter,
+  User,
+  Plus,
+  Trash2,
+  CheckCircle,
+  Clock,
+  Receipt,
+  Scissors,
+  Package,
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { z } from "zod";
-import type { Transaction } from "@shared/schema";
 
-const transactionFormSchema = z.object({
-  type: z.enum(["service", "product", "expense", "refund"]),
-  category: z.string().optional(),
-  description: z.string().min(1, "Descrição é obrigatória"),
-  amount: z.string().min(1, "Valor é obrigatório"),
-  paymentMethod: z.enum(["cash", "pix", "credit", "debit"]).optional(),
-  date: z.string(),
-});
+const fmtBRL = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-type TransactionFormData = z.infer<typeof transactionFormSchema>;
-
-interface FinanceStats {
-  todayRevenue: number;
-  monthlyRevenue: number;
-  monthlyExpenses: number;
-  netProfit: number;
-  pendingPayments: number;
+function buildPeriodDates(period: string) {
+  const now = new Date();
+  if (period === "this_month") {
+    return {
+      start: format(startOfMonth(now), "yyyy-MM-dd"),
+      end: format(endOfMonth(now), "yyyy-MM-dd"),
+    };
+  }
+  if (period === "last_month") {
+    const last = subMonths(now, 1);
+    return {
+      start: format(startOfMonth(last), "yyyy-MM-dd"),
+      end: format(endOfMonth(last), "yyyy-MM-dd"),
+    };
+  }
+  return {
+    start: format(startOfMonth(now), "yyyy-MM-dd"),
+    end: format(endOfMonth(now), "yyyy-MM-dd"),
+  };
 }
 
-export default function Finances() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isNewDialogOpen, setIsNewDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("all");
-  const [dateRange, setDateRange] = useState("month");
-  const { toast } = useToast();
+// ─── Fluxo de Caixa ────────────────────────────────────────────────────────
+function CashflowTab() {
+  const [period, setPeriod] = useState("this_month");
+  const { start, end } = buildPeriodDates(period);
 
-  const form = useForm<TransactionFormData>({
-    resolver: zodResolver(transactionFormSchema),
-    defaultValues: {
-      type: "expense",
-      category: "",
-      description: "",
-      amount: "",
-      paymentMethod: "cash",
-      date: format(new Date(), "yyyy-MM-dd"),
-    },
+  const { data, isLoading } = useQuery<{
+    transactions: any[];
+    totalIn: number;
+    totalOut: number;
+    balance: number;
+  }>({
+    queryKey: ["/api/finances/cashflow", start, end],
+    queryFn: () => fetch(`/api/finances/cashflow?start=${start}&end=${end}`).then(r => r.json()),
   });
 
-  const { data: stats, isLoading: statsLoading } = useQuery<FinanceStats>({
-    queryKey: ["/api/finances/stats"],
-  });
+  const txns = data?.transactions ?? [];
 
-  const { data: transactions, isLoading: transactionsLoading } = useQuery<Transaction[]>({
-    queryKey: ["/api/transactions"],
-  });
-
-  const createTransactionMutation = useMutation({
-    mutationFn: async (data: TransactionFormData) => {
-      await apiRequest("POST", "/api/transactions", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/finances/stats"] });
-      setIsNewDialogOpen(false);
-      form.reset();
-      toast({ title: "Transação registrada" });
-    },
-    onError: () => {
-      toast({ title: "Erro ao registrar transação", variant: "destructive" });
-    },
-  });
-
-  const filteredTransactions = transactions?.filter((transaction) => {
-    const matchesSearch =
-      !searchQuery ||
-      transaction.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      transaction.category?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTab =
-      activeTab === "all" ||
-      (activeTab === "income" && (transaction.type === "service" || transaction.type === "product")) ||
-      (activeTab === "expenses" && transaction.type === "expense");
-    return matchesSearch && matchesTab;
-  });
-
-  const formatCurrency = (value: number | string | null) => {
-    const num = typeof value === "string" ? parseFloat(value) : value;
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(num || 0);
+  const typeLabel: Record<string, string> = {
+    service: "Serviço",
+    product: "Produto",
+    expense: "Despesa",
+    refund: "Reembolso",
+    other: "Outro",
   };
 
-  const getPaymentMethodIcon = (method: string | null) => {
-    switch (method) {
-      case "pix":
-        return <Wallet className="h-4 w-4" />;
-      case "credit":
-      case "debit":
-        return <CreditCard className="h-4 w-4" />;
-      default:
-        return <Banknote className="h-4 w-4" />;
-    }
-  };
-
-  const getPaymentMethodLabel = (method: string | null) => {
-    switch (method) {
-      case "pix":
-        return "PIX";
-      case "credit":
-        return "Crédito";
-      case "debit":
-        return "Débito";
-      case "cash":
-        return "Dinheiro";
-      default:
-        return method;
-    }
-  };
-
-  const onSubmit = (data: TransactionFormData) => {
-    createTransactionMutation.mutate(data);
+  const typeBadge: Record<string, string> = {
+    service: "bg-[#C9A24D]/20 text-[#C9A24D]",
+    product: "bg-blue-500/20 text-blue-400",
+    expense: "bg-red-500/20 text-red-400",
+    refund: "bg-orange-500/20 text-orange-400",
+    other: "bg-white/10 text-white/60",
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-finances-title">Financeiro</h1>
-          <p className="text-muted-foreground">
-            Controle de caixa e movimentações
-          </p>
-        </div>
-        <Dialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-new-transaction">
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Transação
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Nova Transação</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tipo *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-type">
-                            <SelectValue placeholder="Selecione o tipo" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="service">Serviço</SelectItem>
-                          <SelectItem value="product">Produto</SelectItem>
-                          <SelectItem value="expense">Despesa</SelectItem>
-                          <SelectItem value="refund">Reembolso</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Descrição *</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Descrição da transação" data-testid="input-description" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Valor *</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" step="0.01" placeholder="0.00" data-testid="input-amount" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Data</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="date" data-testid="input-date" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Categoria</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Ex: Aluguel, Material..." data-testid="input-category" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="paymentMethod"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Forma de Pagamento</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-payment">
-                              <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="cash">Dinheiro</SelectItem>
-                            <SelectItem value="pix">PIX</SelectItem>
-                            <SelectItem value="credit">Crédito</SelectItem>
-                            <SelectItem value="debit">Débito</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setIsNewDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={createTransactionMutation.isPending} data-testid="button-save-transaction">
-                    {createTransactionMutation.isPending ? "Salvando..." : "Salvar"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Select value={period} onValueChange={setPeriod}>
+          <SelectTrigger className="w-48 bg-white/5 border-white/10 text-white" data-testid="select-cashflow-period">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
+            <SelectItem value="this_month">Mês Atual</SelectItem>
+            <SelectItem value="last_month">Mês Passado</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Receita Hoje</p>
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-24 mt-1" />
-                ) : (
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400" data-testid="text-today-revenue">
-                    {formatCurrency(stats?.todayRevenue || 0)}
-                  </p>
-                )}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="bg-[#1a1a1a] border-white/10">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <ArrowUpCircle className="h-5 w-5 text-green-400" />
               </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-500/10 text-green-600 dark:text-green-400">
-                <TrendingUp className="h-6 w-6" />
+              <div>
+                <p className="text-white/50 text-xs uppercase tracking-wider">Entradas</p>
+                <p className="text-xl font-bold text-green-400">{fmtBRL(data?.totalIn ?? 0)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Receita Mensal</p>
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-24 mt-1" />
-                ) : (
-                  <p className="text-2xl font-bold" data-testid="text-monthly-revenue">
-                    {formatCurrency(stats?.monthlyRevenue || 0)}
-                  </p>
-                )}
+        <Card className="bg-[#1a1a1a] border-white/10">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-red-500/10">
+                <ArrowDownCircle className="h-5 w-5 text-red-400" />
               </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <DollarSign className="h-6 w-6" />
+              <div>
+                <p className="text-white/50 text-xs uppercase tracking-wider">Saídas</p>
+                <p className="text-xl font-bold text-red-400">{fmtBRL(data?.totalOut ?? 0)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between gap-4">
+        <Card className="bg-[#1a1a1a] border-white/10">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-[#C9A24D]/10">
+                <DollarSign className="h-5 w-5 text-[#C9A24D]" />
+              </div>
               <div>
-                <p className="text-sm text-muted-foreground">Despesas Mensal</p>
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-24 mt-1" />
-                ) : (
-                  <p className="text-2xl font-bold text-red-600 dark:text-red-400" data-testid="text-monthly-expenses">
-                    {formatCurrency(stats?.monthlyExpenses || 0)}
-                  </p>
-                )}
-              </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-500/10 text-red-600 dark:text-red-400">
-                <TrendingDown className="h-6 w-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Lucro Líquido</p>
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-24 mt-1" />
-                ) : (
-                  <p
-                    className={`text-2xl font-bold ${
-                      (stats?.netProfit || 0) >= 0
-                        ? "text-green-600 dark:text-green-400"
-                        : "text-red-600 dark:text-red-400"
-                    }`}
-                    data-testid="text-net-profit"
-                  >
-                    {formatCurrency(stats?.netProfit || 0)}
-                  </p>
-                )}
-              </div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                <Wallet className="h-6 w-6" />
+                <p className="text-white/50 text-xs uppercase tracking-wider">Saldo</p>
+                <p className={`text-xl font-bold ${(data?.balance ?? 0) >= 0 ? "text-[#C9A24D]" : "text-red-400"}`}>
+                  {fmtBRL(data?.balance ?? 0)}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <CardTitle className="text-lg">Transações</CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar..."
-                  className="pl-9"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  data-testid="input-search"
-                />
-              </div>
-            </div>
-          </div>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-            <TabsList>
-              <TabsTrigger value="all" data-testid="tab-all">Todas</TabsTrigger>
-              <TabsTrigger value="income" data-testid="tab-income">Receitas</TabsTrigger>
-              <TabsTrigger value="expenses" data-testid="tab-expenses">Despesas</TabsTrigger>
-            </TabsList>
-          </Tabs>
+      <Card className="bg-[#1a1a1a] border-white/10">
+        <CardHeader className="border-b border-white/5 px-5 py-4">
+          <CardTitle className="text-white text-base">Movimentações</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {transactionsLoading ? (
-            <div className="p-6 space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-24" />
+          {isLoading ? (
+            <div className="p-8 text-center text-white/40">Carregando...</div>
+          ) : txns.length === 0 ? (
+            <div className="p-8 text-center text-white/40">Nenhuma movimentação no período</div>
+          ) : (
+            <div className="divide-y divide-white/5">
+              {txns.map((t: any) => (
+                <div key={t.id} className="flex items-center justify-between px-5 py-3 hover:bg-white/[0.03] transition-colors" data-testid={`row-transaction-${t.id}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`p-1.5 rounded-full ${t.type === "expense" || t.type === "refund" ? "bg-red-500/10" : "bg-green-500/10"}`}>
+                      {t.type === "expense" || t.type === "refund"
+                        ? <ArrowDownCircle className="h-3.5 w-3.5 text-red-400" />
+                        : <ArrowUpCircle className="h-3.5 w-3.5 text-green-400" />}
+                    </div>
+                    <div>
+                      <p className="text-white text-sm font-medium">{t.description || "Sem descrição"}</p>
+                      <p className="text-white/40 text-xs">{t.date}{t.paymentMethod ? ` • ${t.paymentMethod}` : ""}</p>
+                    </div>
                   </div>
-                  <Skeleton className="h-6 w-20" />
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${typeBadge[t.type] ?? typeBadge.other}`}>
+                      {typeLabel[t.type] ?? t.type}
+                    </span>
+                    <span className={`font-semibold text-sm ${t.type === "expense" || t.type === "refund" ? "text-red-400" : "text-green-400"}`}>
+                      {t.type === "expense" || t.type === "refund" ? "-" : "+"}{fmtBRL(parseFloat(t.amount || "0"))}
+                    </span>
+                  </div>
                 </div>
               ))}
-            </div>
-          ) : filteredTransactions && filteredTransactions.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead className="hidden md:table-cell">Categoria</TableHead>
-                  <TableHead className="hidden md:table-cell">Pagamento</TableHead>
-                  <TableHead className="hidden sm:table-cell">Data</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredTransactions.map((transaction) => (
-                  <TableRow key={transaction.id} data-testid={`row-transaction-${transaction.id}`}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {transaction.type === "expense" || transaction.type === "refund" ? (
-                          <ArrowDownRight className="h-4 w-4 text-red-500" />
-                        ) : (
-                          <ArrowUpRight className="h-4 w-4 text-green-500" />
-                        )}
-                        <span className="font-medium">{transaction.description}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <Badge variant="secondary" size="sm">
-                        {transaction.category || transaction.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <div className="flex items-center gap-1">
-                        {getPaymentMethodIcon(transaction.paymentMethod)}
-                        <span className="text-sm">{getPaymentMethodLabel(transaction.paymentMethod)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell text-muted-foreground">
-                      {format(new Date(transaction.date), "dd/MM/yyyy")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span
-                        className={`font-semibold ${
-                          transaction.type === "expense" || transaction.type === "refund"
-                            ? "text-red-600 dark:text-red-400"
-                            : "text-green-600 dark:text-green-400"
-                        }`}
-                      >
-                        {transaction.type === "expense" || transaction.type === "refund" ? "-" : "+"}
-                        {formatCurrency(transaction.amount)}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center py-12">
-              <DollarSign className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
-              <p className="text-muted-foreground">Nenhuma transação encontrada</p>
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={() => setIsNewDialogOpen(true)}
-                data-testid="button-empty-new"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Transação
-              </Button>
             </div>
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ─── Contas a Pagar ─────────────────────────────────────────────────────────
+function FixedExpensesTab() {
+  const { toast } = useToast();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<any>(null);
+  const [form, setForm] = useState({ name: "", amount: "", dueDay: "", category: "" });
+
+  const { data: expenses = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/finances/fixed-expenses"],
+  });
+
+  const createMut = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/finances/fixed-expenses", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/finances/fixed-expenses"] });
+      setDialogOpen(false);
+      toast({ title: "Despesa criada com sucesso" });
+    },
+  });
+
+  const updateMut = useMutation({
+    mutationFn: ({ id, data }: any) => apiRequest("PATCH", `/api/finances/fixed-expenses/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/finances/fixed-expenses"] });
+      setDialogOpen(false);
+      toast({ title: "Despesa atualizada" });
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/finances/fixed-expenses/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/finances/fixed-expenses"] });
+      toast({ title: "Despesa excluída" });
+    },
+  });
+
+  const totalMonthly = (expenses as any[]).filter((e: any) => e.isActive).reduce((s: number, e: any) => s + parseFloat(e.amount || "0"), 0);
+
+  function openCreate() {
+    setEditTarget(null);
+    setForm({ name: "", amount: "", dueDay: "", category: "" });
+    setDialogOpen(true);
+  }
+
+  function openEdit(e: any) {
+    setEditTarget(e);
+    setForm({ name: e.name, amount: e.amount, dueDay: String(e.dueDay), category: e.category || "" });
+    setDialogOpen(true);
+  }
+
+  function handleSave() {
+    const payload = { name: form.name, amount: form.amount, dueDay: parseInt(form.dueDay), category: form.category || null };
+    if (editTarget) updateMut.mutate({ id: editTarget.id, data: payload });
+    else createMut.mutate(payload);
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Card className="bg-[#1a1a1a] border-white/10 flex-1">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-red-500/10">
+                <TrendingDown className="h-5 w-5 text-red-400" />
+              </div>
+              <div>
+                <p className="text-white/50 text-xs uppercase tracking-wider">Total Mensal Fixo</p>
+                <p className="text-xl font-bold text-red-400">{fmtBRL(totalMonthly)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Button
+          onClick={openCreate}
+          className="bg-[#C9A24D] hover:bg-[#b8913f] text-black font-semibold shrink-0"
+          data-testid="button-add-fixed-expense"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Adicionar
+        </Button>
+      </div>
+
+      <Card className="bg-[#1a1a1a] border-white/10">
+        <CardHeader className="border-b border-white/5 px-5 py-4">
+          <CardTitle className="text-white text-base">Despesas Fixas</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8 text-center text-white/40">Carregando...</div>
+          ) : (expenses as any[]).length === 0 ? (
+            <div className="p-8 text-center text-white/40">Nenhuma despesa fixa cadastrada</div>
+          ) : (
+            <div className="divide-y divide-white/5">
+              {(expenses as any[]).map((e: any) => (
+                <div key={e.id} className="flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors" data-testid={`row-expense-${e.id}`}>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-red-500/10">
+                      <Receipt className="h-4 w-4 text-red-400" />
+                    </div>
+                    <div>
+                      <p className="text-white font-medium text-sm">{e.name}</p>
+                      <p className="text-white/40 text-xs">
+                        Vence dia {e.dueDay}{e.category ? ` • ${e.category}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-red-400 font-semibold">{fmtBRL(parseFloat(e.amount || "0"))}</span>
+                    <Badge className={e.isActive ? "bg-green-500/15 text-green-400 border-0 text-xs" : "bg-white/10 text-white/40 border-0 text-xs"}>
+                      {e.isActive ? "Ativa" : "Inativa"}
+                    </Badge>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/5 text-white/30 hover:text-white/70" onClick={() => openEdit(e)} data-testid={`button-edit-expense-${e.id}`}>
+                      <Calendar className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-red-500/10 text-white/30 hover:text-red-400" onClick={() => deleteMut.mutate(e.id)} data-testid={`button-delete-expense-${e.id}`}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="bg-[#1a1a1a] border-white/10 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">{editTarget ? "Editar Despesa" : "Nova Despesa Fixa"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-white/70">Nome</Label>
+              <Input
+                value={form.name}
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                className="bg-white/5 border-white/10 text-white mt-1"
+                placeholder="Ex: Aluguel, Internet..."
+                data-testid="input-expense-name"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-white/70">Valor (R$)</Label>
+                <Input
+                  type="number"
+                  value={form.amount}
+                  onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+                  className="bg-white/5 border-white/10 text-white mt-1"
+                  placeholder="0,00"
+                  data-testid="input-expense-amount"
+                />
+              </div>
+              <div>
+                <Label className="text-white/70">Dia do Vencimento</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={form.dueDay}
+                  onChange={e => setForm(f => ({ ...f, dueDay: e.target.value }))}
+                  className="bg-white/5 border-white/10 text-white mt-1"
+                  placeholder="1–31"
+                  data-testid="input-expense-dueday"
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-white/70">Categoria</Label>
+              <Input
+                value={form.category}
+                onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                className="bg-white/5 border-white/10 text-white mt-1"
+                placeholder="Ex: Infraestrutura, Pessoal..."
+                data-testid="input-expense-category"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setDialogOpen(false)} className="text-white/60 hover:text-white">Cancelar</Button>
+            <Button
+              onClick={handleSave}
+              disabled={createMut.isPending || updateMut.isPending}
+              className="bg-[#C9A24D] hover:bg-[#b8913f] text-black font-semibold"
+              data-testid="button-save-expense"
+            >
+              {createMut.isPending || updateMut.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Contas a Receber ────────────────────────────────────────────────────────
+function ReceivablesTab() {
+  const [days, setDays] = useState("7");
+
+  const { data, isLoading } = useQuery<{ appointments: any[]; total: number }>({
+    queryKey: ["/api/finances/receivables", days],
+    queryFn: () => fetch(`/api/finances/receivables?days=${days}`).then(r => r.json()),
+  });
+
+  const appts = data?.appointments ?? [];
+
+  const statusLabel: Record<string, string> = {
+    confirmed: "Confirmado",
+    pending: "Pendente",
+  };
+
+  const statusClass: Record<string, string> = {
+    confirmed: "bg-green-500/15 text-green-400 border-0",
+    pending: "bg-yellow-500/15 text-yellow-400 border-0",
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Select value={days} onValueChange={setDays}>
+          <SelectTrigger className="w-48 bg-white/5 border-white/10 text-white" data-testid="select-receivables-days">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
+            <SelectItem value="7">Próximos 7 dias</SelectItem>
+            <SelectItem value="14">Próximos 14 dias</SelectItem>
+            <SelectItem value="30">Próximos 30 dias</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="bg-[#1a1a1a] border-white/10">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-[#C9A24D]/10">
+                <TrendingUp className="h-5 w-5 text-[#C9A24D]" />
+              </div>
+              <div>
+                <p className="text-white/50 text-xs uppercase tracking-wider">A Receber</p>
+                <p className="text-xl font-bold text-[#C9A24D]">{fmtBRL(data?.total ?? 0)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-[#1a1a1a] border-white/10">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Calendar className="h-5 w-5 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-white/50 text-xs uppercase tracking-wider">Agendamentos</p>
+                <p className="text-xl font-bold text-blue-400">{appts.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="bg-[#1a1a1a] border-white/10">
+        <CardHeader className="border-b border-white/5 px-5 py-4">
+          <CardTitle className="text-white text-base">Agendamentos Futuros</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8 text-center text-white/40">Carregando...</div>
+          ) : appts.length === 0 ? (
+            <div className="p-8 text-center text-white/40">Nenhum agendamento futuro no período</div>
+          ) : (
+            <div className="divide-y divide-white/5">
+              {appts.map((a: any) => (
+                <div key={a.id} className="flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors" data-testid={`row-receivable-${a.id}`}>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-500/10">
+                      <Clock className="h-4 w-4 text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-white font-medium text-sm">{a.clientName || "Cliente"}</p>
+                      <p className="text-white/40 text-xs">
+                        {a.date} às {a.startTime} • {a.barberName || "Barbeiro"} • {a.serviceName || "Serviço"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge className={`${statusClass[a.status] ?? "bg-white/10 text-white/40 border-0"} text-xs`}>
+                      {statusLabel[a.status] ?? a.status}
+                    </Badge>
+                    <span className="text-[#C9A24D] font-semibold text-sm">{fmtBRL(parseFloat(a.price || "0"))}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Comissões ───────────────────────────────────────────────────────────────
+function CommissionsTab() {
+  const { toast } = useToast();
+  const [payDialog, setPayDialog] = useState<any>(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [payNotes, setPayNotes] = useState("");
+
+  const { data: commissions = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/finances/commissions"],
+  });
+
+  const payMut = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/finances/commissions/pay", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/finances/commissions"] });
+      setPayDialog(null);
+      toast({ title: "Comissão registrada com sucesso" });
+    },
+  });
+
+  function openPay(c: any) {
+    setPayDialog(c);
+    setPayAmount(c.accumulated.toFixed(2));
+    setPayNotes("");
+  }
+
+  function handlePay() {
+    payMut.mutate({ barberId: payDialog.barberId, amount: payAmount, notes: payNotes });
+  }
+
+  const totalPending = (commissions as any[]).reduce((s: number, c: any) => s + c.accumulated, 0);
+
+  return (
+    <div className="space-y-6">
+      <Card className="bg-[#1a1a1a] border-white/10">
+        <CardContent className="p-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-[#C9A24D]/10">
+              <User className="h-5 w-5 text-[#C9A24D]" />
+            </div>
+            <div>
+              <p className="text-white/50 text-xs uppercase tracking-wider">Total Pendente (Comissões)</p>
+              <p className="text-xl font-bold text-[#C9A24D]">{fmtBRL(totalPending)}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-[#1a1a1a] border-white/10">
+        <CardHeader className="border-b border-white/5 px-5 py-4">
+          <CardTitle className="text-white text-base">Comissões por Funcionário</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8 text-center text-white/40">Carregando...</div>
+          ) : (commissions as any[]).length === 0 ? (
+            <div className="p-8 text-center text-white/40">Nenhum funcionário ativo encontrado</div>
+          ) : (
+            <div className="divide-y divide-white/5">
+              {(commissions as any[]).map((c: any) => (
+                <div key={c.barberId} className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 hover:bg-white/[0.03] transition-colors" data-testid={`row-commission-${c.barberId}`}>
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-full bg-[#C9A24D]/15 flex items-center justify-center shrink-0">
+                      <span className="text-[#C9A24D] font-bold text-sm">{c.barberName?.[0] || "?"}</span>
+                    </div>
+                    <div>
+                      <p className="text-white font-medium text-sm">{c.barberName}</p>
+                      <p className="text-white/40 text-xs">
+                        {c.commissionRate ? `${c.commissionRate}% de comissão` : "Sem taxa definida"}
+                        {c.lastPaidAt ? ` • Último pgto: ${format(new Date(c.lastPaidAt), "dd/MM/yyyy", { locale: ptBR })}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="text-right">
+                      <p className="text-xs text-white/40">Ganhou</p>
+                      <p className="text-sm text-white/70">{fmtBRL(c.totalEarned)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-white/40">Pago</p>
+                      <p className="text-sm text-green-400">{fmtBRL(c.totalPaid)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-white/40">Pendente</p>
+                      <p className={`text-sm font-bold ${c.accumulated > 0 ? "text-[#C9A24D]" : "text-white/40"}`}>{fmtBRL(c.accumulated)}</p>
+                    </div>
+                    {c.accumulated > 0 && (
+                      <Button
+                        size="sm"
+                        onClick={() => openPay(c)}
+                        className="bg-[#C9A24D] hover:bg-[#b8913f] text-black font-semibold text-xs"
+                        data-testid={`button-pay-commission-${c.barberId}`}
+                      >
+                        <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                        Pagar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!payDialog} onOpenChange={() => setPayDialog(null)}>
+        <DialogContent className="bg-[#1a1a1a] border-white/10 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Registrar Pagamento — {payDialog?.barberName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-white/70">Valor (R$)</Label>
+              <Input
+                type="number"
+                value={payAmount}
+                onChange={e => setPayAmount(e.target.value)}
+                className="bg-white/5 border-white/10 text-white mt-1"
+                data-testid="input-commission-amount"
+              />
+            </div>
+            <div>
+              <Label className="text-white/70">Observações</Label>
+              <Input
+                value={payNotes}
+                onChange={e => setPayNotes(e.target.value)}
+                className="bg-white/5 border-white/10 text-white mt-1"
+                placeholder="Período, forma de pagamento..."
+                data-testid="input-commission-notes"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setPayDialog(null)} className="text-white/60 hover:text-white">Cancelar</Button>
+            <Button
+              onClick={handlePay}
+              disabled={payMut.isPending}
+              className="bg-[#C9A24D] hover:bg-[#b8913f] text-black font-semibold"
+              data-testid="button-confirm-pay-commission"
+            >
+              {payMut.isPending ? "Registrando..." : "Confirmar Pagamento"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Receita Detalhada ───────────────────────────────────────────────────────
+function RevenueDetailTab() {
+  const [period, setPeriod] = useState("this_month");
+  const { start, end } = buildPeriodDates(period);
+
+  const { data, isLoading } = useQuery<{ byService: any[]; byProduct: any[] }>({
+    queryKey: ["/api/finances/revenue-detail", start, end],
+    queryFn: () => fetch(`/api/finances/revenue-detail?start=${start}&end=${end}`).then(r => r.json()),
+  });
+
+  const byService = data?.byService ?? [];
+  const byProduct = data?.byProduct ?? [];
+  const totalSvc = byService.reduce((s, x) => s + x.revenue, 0);
+  const totalProd = byProduct.reduce((s, x) => s + x.revenue, 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Select value={period} onValueChange={setPeriod}>
+          <SelectTrigger className="w-48 bg-white/5 border-white/10 text-white" data-testid="select-revenue-period">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
+            <SelectItem value="this_month">Mês Atual</SelectItem>
+            <SelectItem value="last_month">Mês Passado</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="bg-[#1a1a1a] border-white/10">
+          <CardHeader className="border-b border-white/5 px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Scissors className="h-4 w-4 text-[#C9A24D]" />
+                <CardTitle className="text-white text-base">Por Serviço</CardTitle>
+              </div>
+              <span className="text-[#C9A24D] font-bold text-sm">{fmtBRL(totalSvc)}</span>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isLoading ? (
+              <div className="p-6 text-center text-white/40">Carregando...</div>
+            ) : byService.length === 0 ? (
+              <div className="p-6 text-center text-white/40">Sem dados no período</div>
+            ) : (
+              <div className="divide-y divide-white/5">
+                {byService.map((s: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between px-5 py-3" data-testid={`row-service-revenue-${i}`}>
+                    <div>
+                      <p className="text-white text-sm font-medium">{s.name}</p>
+                      <p className="text-white/40 text-xs">{s.count} atendimento{s.count !== 1 ? "s" : ""}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[#C9A24D] font-semibold text-sm">{fmtBRL(s.revenue)}</p>
+                      {totalSvc > 0 && (
+                        <p className="text-white/40 text-xs">{((s.revenue / totalSvc) * 100).toFixed(0)}%</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-[#1a1a1a] border-white/10">
+          <CardHeader className="border-b border-white/5 px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-blue-400" />
+                <CardTitle className="text-white text-base">Por Produto</CardTitle>
+              </div>
+              <span className="text-blue-400 font-bold text-sm">{fmtBRL(totalProd)}</span>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isLoading ? (
+              <div className="p-6 text-center text-white/40">Carregando...</div>
+            ) : byProduct.length === 0 ? (
+              <div className="p-6 text-center text-white/40">Sem dados no período</div>
+            ) : (
+              <div className="divide-y divide-white/5">
+                {byProduct.map((p: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between px-5 py-3" data-testid={`row-product-revenue-${i}`}>
+                    <div>
+                      <p className="text-white text-sm font-medium">{p.name}</p>
+                      <p className="text-white/40 text-xs">{p.qty} unidade{p.qty !== 1 ? "s" : ""}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-blue-400 font-semibold text-sm">{fmtBRL(p.revenue)}</p>
+                      {totalProd > 0 && (
+                        <p className="text-white/40 text-xs">{((p.revenue / totalProd) * 100).toFixed(0)}%</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+export default function Finances() {
+  return (
+    <div className="p-6 space-y-6 bg-[#0e0e0e] min-h-screen">
+      <div>
+        <h1 className="text-2xl font-bold text-white tracking-tight" data-testid="text-finances-title">Financeiro</h1>
+        <p className="text-white/40 text-sm mt-1">Controle financeiro completo da barbearia</p>
+      </div>
+
+      <Tabs defaultValue="cashflow" className="space-y-6">
+        <TabsList className="bg-[#1a1a1a] border border-white/10 p-1 h-auto flex flex-wrap gap-1">
+          <TabsTrigger
+            value="cashflow"
+            className="data-[state=active]:bg-[#C9A24D] data-[state=active]:text-black text-white/60 hover:text-white text-sm px-4 py-2"
+            data-testid="tab-cashflow"
+          >
+            <DollarSign className="h-4 w-4 mr-2" />
+            Fluxo de Caixa
+          </TabsTrigger>
+          <TabsTrigger
+            value="fixed"
+            className="data-[state=active]:bg-[#C9A24D] data-[state=active]:text-black text-white/60 hover:text-white text-sm px-4 py-2"
+            data-testid="tab-fixed-expenses"
+          >
+            <ArrowDownCircle className="h-4 w-4 mr-2" />
+            Contas a Pagar
+          </TabsTrigger>
+          <TabsTrigger
+            value="receivables"
+            className="data-[state=active]:bg-[#C9A24D] data-[state=active]:text-black text-white/60 hover:text-white text-sm px-4 py-2"
+            data-testid="tab-receivables"
+          >
+            <ArrowUpCircle className="h-4 w-4 mr-2" />
+            Contas a Receber
+          </TabsTrigger>
+          <TabsTrigger
+            value="commissions"
+            className="data-[state=active]:bg-[#C9A24D] data-[state=active]:text-black text-white/60 hover:text-white text-sm px-4 py-2"
+            data-testid="tab-commissions"
+          >
+            <User className="h-4 w-4 mr-2" />
+            Comissões
+          </TabsTrigger>
+          <TabsTrigger
+            value="revenue"
+            className="data-[state=active]:bg-[#C9A24D] data-[state=active]:text-black text-white/60 hover:text-white text-sm px-4 py-2"
+            data-testid="tab-revenue-detail"
+          >
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Receita Detalhada
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="cashflow">
+          <CashflowTab />
+        </TabsContent>
+        <TabsContent value="fixed">
+          <FixedExpensesTab />
+        </TabsContent>
+        <TabsContent value="receivables">
+          <ReceivablesTab />
+        </TabsContent>
+        <TabsContent value="commissions">
+          <CommissionsTab />
+        </TabsContent>
+        <TabsContent value="revenue">
+          <RevenueDetailTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

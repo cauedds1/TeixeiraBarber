@@ -4,6 +4,7 @@ import {
   users, barbershops, barbers, services, serviceCategories,
   clients, appointments, products, transactions, loyaltyPlans,
   subscriptionPackages, coupons, reviews, barberTimeOff, notifications,
+  fixedExpenses, commissionPayments,
   type User, type UpsertUser, type Barbershop, type InsertBarbershop,
   type Barber, type InsertBarber, type Service, type InsertService,
   type ServiceCategory, type InsertServiceCategory,
@@ -11,6 +12,8 @@ import {
   type Product, type InsertProduct, type Transaction, type InsertTransaction,
   type LoyaltyPlan, type InsertLoyaltyPlan, type SubscriptionPackage, type InsertSubscriptionPackage,
   type Coupon, type InsertCoupon, type Review, type InsertReview,
+  type FixedExpense, type InsertFixedExpense,
+  type CommissionPayment, type InsertCommissionPayment,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -71,7 +74,23 @@ export interface IStorage {
 
   // Transactions
   getTransactions(barbershopId: string): Promise<Transaction[]>;
+  getTransactionsByPeriod(barbershopId: string, startDate: string, endDate: string): Promise<Transaction[]>;
   createTransaction(data: InsertTransaction): Promise<Transaction>;
+
+  // Fixed Expenses
+  getFixedExpenses(barbershopId: string): Promise<FixedExpense[]>;
+  createFixedExpense(data: InsertFixedExpense): Promise<FixedExpense>;
+  updateFixedExpense(id: string, data: Partial<InsertFixedExpense>): Promise<FixedExpense | undefined>;
+  deleteFixedExpense(id: string): Promise<void>;
+
+  // Commission Payments
+  getCommissionPayments(barbershopId: string): Promise<CommissionPayment[]>;
+  createCommissionPayment(data: InsertCommissionPayment): Promise<CommissionPayment>;
+
+  // Finance aggregations
+  getUpcomingAppointments(barbershopId: string, days: number): Promise<any[]>;
+  getRevenueByService(barbershopId: string, startDate: string, endDate: string): Promise<any[]>;
+  getRevenueByProduct(barbershopId: string, startDate: string, endDate: string): Promise<any[]>;
 
   // Loyalty Plans
   getLoyaltyPlans(barbershopId: string): Promise<LoyaltyPlan[]>;
@@ -499,6 +518,119 @@ export class DatabaseStorage implements IStorage {
         )
       );
     return Math.round((result[0]?.avg || 0) * 10) / 10;
+  }
+
+  // Transactions by period
+  async getTransactionsByPeriod(barbershopId: string, startDate: string, endDate: string): Promise<Transaction[]> {
+    return db.select().from(transactions)
+      .where(
+        and(
+          eq(transactions.barbershopId, barbershopId),
+          gte(transactions.date, startDate),
+          lte(transactions.date, endDate)
+        )
+      )
+      .orderBy(desc(transactions.createdAt));
+  }
+
+  // Fixed Expenses
+  async getFixedExpenses(barbershopId: string): Promise<FixedExpense[]> {
+    return db.select().from(fixedExpenses)
+      .where(eq(fixedExpenses.barbershopId, barbershopId))
+      .orderBy(fixedExpenses.dueDay);
+  }
+
+  async createFixedExpense(data: InsertFixedExpense): Promise<FixedExpense> {
+    const [expense] = await db.insert(fixedExpenses).values(data).returning();
+    return expense;
+  }
+
+  async updateFixedExpense(id: string, data: Partial<InsertFixedExpense>): Promise<FixedExpense | undefined> {
+    const [expense] = await db.update(fixedExpenses).set(data).where(eq(fixedExpenses.id, id)).returning();
+    return expense;
+  }
+
+  async deleteFixedExpense(id: string): Promise<void> {
+    await db.delete(fixedExpenses).where(eq(fixedExpenses.id, id));
+  }
+
+  // Commission Payments
+  async getCommissionPayments(barbershopId: string): Promise<CommissionPayment[]> {
+    return db.select().from(commissionPayments)
+      .where(eq(commissionPayments.barbershopId, barbershopId))
+      .orderBy(desc(commissionPayments.paidAt));
+  }
+
+  async createCommissionPayment(data: InsertCommissionPayment): Promise<CommissionPayment> {
+    const [payment] = await db.insert(commissionPayments).values(data).returning();
+    return payment;
+  }
+
+  // Upcoming appointments (for Contas a Receber)
+  async getUpcomingAppointments(barbershopId: string, days: number): Promise<any[]> {
+    const today = new Date();
+    const future = new Date();
+    future.setDate(future.getDate() + days);
+    const todayStr = today.toISOString().slice(0, 10);
+    const futureStr = future.toISOString().slice(0, 10);
+
+    const rows = await db
+      .select({
+        id: appointments.id,
+        date: appointments.date,
+        startTime: appointments.startTime,
+        status: appointments.status,
+        price: appointments.price,
+        clientName: appointments.clientName,
+        barberName: barbers.name,
+        serviceName: services.name,
+      })
+      .from(appointments)
+      .leftJoin(barbers, eq(appointments.barberId, barbers.id))
+      .leftJoin(services, eq(appointments.serviceId, services.id))
+      .where(
+        and(
+          eq(appointments.barbershopId, barbershopId),
+          gte(appointments.date, todayStr),
+          lte(appointments.date, futureStr),
+          or(
+            eq(appointments.status, "confirmed"),
+            eq(appointments.status, "pending")
+          )
+        )
+      )
+      .orderBy(appointments.date, appointments.startTime);
+    return rows;
+  }
+
+  // Revenue breakdown by service
+  async getRevenueByService(barbershopId: string, startDate: string, endDate: string): Promise<any[]> {
+    const txns = await this.getTransactionsByPeriod(barbershopId, startDate, endDate);
+    const serviceMap: Record<string, { name: string; count: number; revenue: number }> = {};
+
+    for (const t of txns) {
+      if (t.type !== "service") continue;
+      const key = t.category || t.description || "Serviço";
+      if (!serviceMap[key]) serviceMap[key] = { name: key, count: 0, revenue: 0 };
+      serviceMap[key].count += 1;
+      serviceMap[key].revenue += parseFloat(t.amount?.toString() || "0");
+    }
+    return Object.values(serviceMap).sort((a, b) => b.revenue - a.revenue);
+  }
+
+  // Revenue breakdown by product
+  async getRevenueByProduct(barbershopId: string, startDate: string, endDate: string): Promise<any[]> {
+    const txns = await this.getTransactionsByPeriod(barbershopId, startDate, endDate);
+    const productMap: Record<string, { name: string; qty: number; revenue: number; cost: number }> = {};
+
+    for (const t of txns) {
+      if (t.type !== "product") continue;
+      const key = t.description || "Produto";
+      if (!productMap[key]) productMap[key] = { name: key, qty: 0, revenue: 0, cost: 0 };
+      productMap[key].qty += 1;
+      productMap[key].revenue += parseFloat(t.amount?.toString() || "0");
+    }
+    return Object.values(productMap).sort((a, b) => b.revenue - a.revenue);
   }
 }
 

@@ -19,6 +19,7 @@ import Appointments from "@/pages/appointments";
 import Booking from "@/pages/booking";
 import ClientBooking from "@/pages/client-booking";
 import WhatsAppBot from "@/pages/whatsapp-bot";
+import Finances from "@/pages/finances";
 import { LogOut } from "lucide-react";
 import teixeiraCircleLogoPath from "@assets/image_1766152301102.png";
 import teixeiraBarberiaLogoPath from "@assets/logo.png";
@@ -103,6 +104,7 @@ function AuthenticatedRouter() {
         <Route path="/products" component={Products} />
         <Route path="/settings" component={Settings} />
         <Route path="/whatsapp" component={WhatsAppBot} />
+        <Route path="/financeiro" component={Finances} />
         <Route component={NotFound} />
       </Switch>
     </AuthenticatedLayout>

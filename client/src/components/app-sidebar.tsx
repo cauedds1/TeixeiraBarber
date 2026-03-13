@@ -7,6 +7,7 @@ import {
   Settings,
   CalendarDays,
   MessageCircle,
+  DollarSign,
 } from "lucide-react";
 import {
   Sidebar,
@@ -31,6 +32,7 @@ const menuItems = [
   { title: "Serviços", url: "/services", icon: Scissors },
   { title: "Produtos", url: "/products", icon: Package },
   { title: "WhatsApp", url: "/whatsapp", icon: MessageCircle },
+  { title: "Financeiro", url: "/financeiro", icon: DollarSign },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
 

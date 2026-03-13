@@ -227,6 +227,30 @@ export const expenseCategories = pgTable("expense_categories", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Fixed Expenses (recurring bills: rent, internet, etc.)
+export const fixedExpenses = pgTable("fixed_expenses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  barbershopId: varchar("barbershop_id").references(() => barbershops.id).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  dueDay: integer("due_day").notNull(), // 1-31
+  category: varchar("category", { length: 100 }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Commission Payments (records when a barber commission was paid)
+export const commissionPayments = pgTable("commission_payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  barbershopId: varchar("barbershop_id").references(() => barbershops.id).notNull(),
+  barberId: varchar("barber_id").references(() => barbers.id).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  period: varchar("period", { length: 7 }).notNull(), // YYYY-MM
+  notes: text("notes"),
+  paidAt: timestamp("paid_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Loyalty Plans
 export const loyaltyPlans = pgTable("loyalty_plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -417,6 +441,8 @@ export const insertLoyaltyPlanSchema = createInsertSchema(loyaltyPlans).omit({ i
 export const insertBarberTimeOffSchema = createInsertSchema(barberTimeOff).omit({ id: true, createdAt: true });
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 export const insertRevenueGoalSchema = createInsertSchema(revenueGoals).omit({ id: true, createdAt: true });
+export const insertFixedExpenseSchema = createInsertSchema(fixedExpenses).omit({ id: true, createdAt: true });
+export const insertCommissionPaymentSchema = createInsertSchema(commissionPayments).omit({ id: true, createdAt: true });
 
 // Types
 export type UpsertUser = typeof users.$inferInsert;
@@ -451,3 +477,7 @@ export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
 export type InsertRevenueGoal = z.infer<typeof insertRevenueGoalSchema>;
 export type RevenueGoal = typeof revenueGoals.$inferSelect;
+export type InsertFixedExpense = z.infer<typeof insertFixedExpenseSchema>;
+export type FixedExpense = typeof fixedExpenses.$inferSelect;
+export type InsertCommissionPayment = z.infer<typeof insertCommissionPaymentSchema>;
+export type CommissionPayment = typeof commissionPayments.$inferSelect;

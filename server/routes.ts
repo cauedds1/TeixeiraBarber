@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, registerAuthRoutes, seedOwner } from "./auth";
-import { format } from "date-fns";
+import { format, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { whatsappService } from "./whatsapp";
 import { BOOKING_URL } from "./reminder";
@@ -767,6 +767,142 @@ export async function registerRoutes(
       });
     } catch (error) {
       res.status(500).json({ message: "Error fetching stats" });
+    }
+  });
+
+  // Cashflow (period-filtered transactions)
+  app.get("/api/finances/cashflow", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const { start, end } = req.query as { start?: string; end?: string };
+      const today = format(new Date(), "yyyy-MM-dd");
+      const startDate = start || format(startOfMonth(new Date()), "yyyy-MM-dd");
+      const endDate = end || today;
+      const txns = await storage.getTransactionsByPeriod(barbershop.id, startDate, endDate);
+      const totalIn = txns.filter(t => t.type !== "expense" && t.type !== "refund").reduce((s, t) => s + parseFloat(t.amount?.toString() || "0"), 0);
+      const totalOut = txns.filter(t => t.type === "expense" || t.type === "refund").reduce((s, t) => s + parseFloat(t.amount?.toString() || "0"), 0);
+      res.json({ transactions: txns, totalIn, totalOut, balance: totalIn - totalOut });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar fluxo de caixa" });
+    }
+  });
+
+  // Commissions pending per barber
+  app.get("/api/finances/commissions", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const allBarbers = await storage.getBarbers(barbershop.id);
+      const allTxns = await storage.getTransactions(barbershop.id);
+      const allPayments = await storage.getCommissionPayments(barbershop.id);
+
+      const result = allBarbers.filter(b => b.isActive).map(barber => {
+        const earned = allTxns
+          .filter(t => t.barberId === barber.id && t.commissionAmount && parseFloat(t.commissionAmount.toString()) > 0)
+          .reduce((s, t) => s + parseFloat(t.commissionAmount?.toString() || "0"), 0);
+        const paid = allPayments
+          .filter(p => p.barberId === barber.id)
+          .reduce((s, p) => s + parseFloat(p.amount?.toString() || "0"), 0);
+        const lastPayment = allPayments.filter(p => p.barberId === barber.id).sort((a, b) => new Date(b.paidAt!).getTime() - new Date(a.paidAt!).getTime())[0];
+        return {
+          barberId: barber.id,
+          barberName: barber.name,
+          accumulated: Math.max(0, earned - paid),
+          totalEarned: earned,
+          totalPaid: paid,
+          lastPaidAt: lastPayment?.paidAt || null,
+          commissionRate: barber.commissionRate,
+        };
+      });
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar comissões" });
+    }
+  });
+
+  // Pay a commission
+  app.post("/api/finances/commissions/pay", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const { barberId, amount, period, notes } = req.body;
+      const payment = await storage.createCommissionPayment({
+        barbershopId: barbershop.id,
+        barberId,
+        amount,
+        period: period || format(new Date(), "yyyy-MM"),
+        notes,
+      });
+      res.status(201).json(payment);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao registrar pagamento de comissão" });
+    }
+  });
+
+  // Fixed Expenses CRUD
+  app.get("/api/finances/fixed-expenses", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const expenses = await storage.getFixedExpenses(barbershop.id);
+      res.json(expenses);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar despesas fixas" });
+    }
+  });
+
+  app.post("/api/finances/fixed-expenses", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const expense = await storage.createFixedExpense({ ...req.body, barbershopId: barbershop.id });
+      res.status(201).json(expense);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao criar despesa fixa" });
+    }
+  });
+
+  app.patch("/api/finances/fixed-expenses/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const expense = await storage.updateFixedExpense(req.params.id, req.body);
+      res.json(expense);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar despesa fixa" });
+    }
+  });
+
+  app.delete("/api/finances/fixed-expenses/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      await storage.deleteFixedExpense(req.params.id);
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir despesa fixa" });
+    }
+  });
+
+  // Receivables (upcoming confirmed appointments)
+  app.get("/api/finances/receivables", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const days = parseInt((req.query.days as string) || "7", 10);
+      const appts = await storage.getUpcomingAppointments(barbershop.id, days);
+      const total = appts.reduce((s, a) => s + parseFloat(a.price?.toString() || "0"), 0);
+      res.json({ appointments: appts, total });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar contas a receber" });
+    }
+  });
+
+  // Revenue detail by service and product
+  app.get("/api/finances/revenue-detail", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const { start, end } = req.query as { start?: string; end?: string };
+      const startDate = start || format(startOfMonth(new Date()), "yyyy-MM-dd");
+      const endDate = end || format(new Date(), "yyyy-MM-dd");
+      const [byService, byProduct] = await Promise.all([
+        storage.getRevenueByService(barbershop.id, startDate, endDate),
+        storage.getRevenueByProduct(barbershop.id, startDate, endDate),
+      ]);
+      res.json({ byService, byProduct });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar receita detalhada" });
     }
   });
 
