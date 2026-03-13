@@ -75,7 +75,14 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Barbearia não encontrada" });
       }
       const barbers = await storage.getBarbers(barbershop.id);
-      res.json(barbers.filter(b => b.isActive));
+      const activeBarbers = barbers.filter(b => b.isActive);
+      const barbersWithRatings = await Promise.all(
+        activeBarbers.map(async (b) => ({
+          ...b,
+          avgRating: await storage.getBarberAverageRating(b.id),
+        }))
+      );
+      res.json(barbersWithRatings);
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar barbeiros" });
     }

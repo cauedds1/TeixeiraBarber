@@ -123,6 +123,7 @@ export default function Landing() {
         photoUrl: b.photoUrl,
         initials: b.initials,
         color: b.color,
+        avgRating: 0,
       }))
     : (apiBarbers || []).map((b, i) => ({
         name: b.name,
@@ -130,6 +131,7 @@ export default function Landing() {
         photoUrl: b.photoUrl,
         initials: b.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(),
         color: teamColors[i % teamColors.length],
+        avgRating: (b as any).avgRating ?? 0,
       }));
 
   useEffect(() => {
@@ -429,10 +431,22 @@ export default function Landing() {
                 <div className="p-5 space-y-2">
                   <h3 className="font-bold text-lg text-white">{barber.name}</h3>
                   <p className="text-white/40 text-sm leading-relaxed">{barber.role}</p>
-                  <div className="flex gap-0.5 pt-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-3.5 h-3.5 text-[#C9A24D] fill-current" />
-                    ))}
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <div className="flex gap-0.5">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-3.5 h-3.5 fill-current ${
+                            barber.avgRating > 0
+                              ? i < Math.round(barber.avgRating) ? "text-[#C9A24D]" : "text-white/20"
+                              : "text-[#C9A24D]"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    {barber.avgRating > 0 && (
+                      <span className="text-[#C9A24D] text-xs font-bold">{barber.avgRating.toFixed(1)}</span>
+                    )}
                   </div>
                 </div>
               </div>
