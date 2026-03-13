@@ -35,15 +35,23 @@ class WhatsAppService {
 
   private async resolveJid(digits: string): Promise<string | null> {
     if (!this.sock) return null;
-    // Build candidate JIDs: original + BR alternative (add/remove the 9th digit)
-    const candidates: string[] = [digits];
-    if (digits.startsWith("55") && digits.length === 13) {
-      // e.g. 5548999186712 → 554899186712 (remove the extra 9)
-      candidates.push(digits.slice(0, 4) + digits.slice(5));
-    } else if (digits.startsWith("55") && digits.length === 12) {
-      // e.g. 554899186712 → 5548999186712 (add the extra 9)
-      candidates.push(digits.slice(0, 4) + "9" + digits.slice(4));
+
+    // Normalise: ensure the number starts with Brazil country code 55
+    let base = digits;
+    if (!base.startsWith("55")) {
+      base = "55" + base;
     }
+
+    // Build candidates handling the extra 9th digit used in Brazilian mobile numbers
+    const candidates: string[] = [base];
+    if (base.length === 13) {
+      // e.g. 5548999186712 → 554899186712 (without the extra 9)
+      candidates.push(base.slice(0, 4) + base.slice(5));
+    } else if (base.length === 12) {
+      // e.g. 554899186712 → 5548999186712 (with the extra 9)
+      candidates.push(base.slice(0, 4) + "9" + base.slice(4));
+    }
+
     for (const candidate of candidates) {
       try {
         const [result] = await this.sock.onWhatsApp(`${candidate}@s.whatsapp.net`);
@@ -53,9 +61,10 @@ class WhatsAppService {
         }
       } catch {}
     }
-    // Fallback: use original digits unverified
-    log(`[WhatsApp] Número não verificado no WA, tentando enviar assim mesmo: ${digits}`);
-    return `${digits}@s.whatsapp.net`;
+
+    // Fallback: use the normalised number unverified
+    log(`[WhatsApp] Número não verificado no WA, enviando para: ${base}`);
+    return `${base}@s.whatsapp.net`;
   }
 
   async sendMessage(phone: string, text: string): Promise<boolean> {
