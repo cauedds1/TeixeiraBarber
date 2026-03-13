@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +37,18 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 import type { Barbershop } from "@shared/schema";
+import { DEFAULT_WORK_SCHEDULE } from "@shared/schema";
+import type { WorkSchedule } from "@shared/schema";
+
+const DAYS: { key: keyof WorkSchedule; label: string; short: string }[] = [
+  { key: "mon", label: "Segunda-feira", short: "Seg" },
+  { key: "tue", label: "Terça-feira", short: "Ter" },
+  { key: "wed", label: "Quarta-feira", short: "Qua" },
+  { key: "thu", label: "Quinta-feira", short: "Qui" },
+  { key: "fri", label: "Sexta-feira", short: "Sex" },
+  { key: "sat", label: "Sábado", short: "Sáb" },
+  { key: "sun", label: "Domingo", short: "Dom" },
+];
 
 const barbershopFormSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
@@ -43,8 +56,6 @@ const barbershopFormSchema = z.object({
   address: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
-  openingTime: z.string(),
-  closingTime: z.string(),
   primaryColor: z.string(),
 });
 
@@ -54,10 +65,18 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState("business");
   const { toast } = useToast();
   const { user } = useAuth();
+  const [workSchedule, setWorkSchedule] = useState<WorkSchedule>(DEFAULT_WORK_SCHEDULE);
+  const [applyAll, setApplyAll] = useState(false);
 
   const { data: barbershop, isLoading } = useQuery<Barbershop>({
     queryKey: ["/api/barbershop"],
   });
+
+  useEffect(() => {
+    if (barbershop?.workSchedule) {
+      setWorkSchedule(barbershop.workSchedule as WorkSchedule);
+    }
+  }, [barbershop]);
 
   const form = useForm<BarbershopFormData>({
     resolver: zodResolver(barbershopFormSchema),
@@ -67,15 +86,26 @@ export default function Settings() {
       address: barbershop?.address || "",
       phone: barbershop?.phone || "",
       email: barbershop?.email || "",
-      openingTime: barbershop?.openingTime || "09:00",
-      closingTime: barbershop?.closingTime || "19:00",
-      primaryColor: barbershop?.primaryColor || "#0066FF",
+      primaryColor: barbershop?.primaryColor || "#C9A24D",
     },
   });
 
+  useEffect(() => {
+    if (barbershop) {
+      form.reset({
+        name: barbershop.name || "",
+        description: barbershop.description || "",
+        address: barbershop.address || "",
+        phone: barbershop.phone || "",
+        email: barbershop.email || "",
+        primaryColor: barbershop.primaryColor || "#C9A24D",
+      });
+    }
+  }, [barbershop]);
+
   const updateBarbershopMutation = useMutation({
     mutationFn: async (data: BarbershopFormData) => {
-      await apiRequest("PATCH", "/api/barbershop", data);
+      await apiRequest("PATCH", "/api/barbershop", { ...data, workSchedule });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/barbershop"] });
@@ -86,8 +116,32 @@ export default function Settings() {
     },
   });
 
+  const updateDayTime = (day: keyof WorkSchedule, field: "open" | "close", value: string) => {
+    if (applyAll) {
+      setWorkSchedule(prev => {
+        const next = { ...prev };
+        (Object.keys(next) as (keyof WorkSchedule)[]).forEach(k => {
+          next[k] = { ...next[k], [field]: value };
+        });
+        return next;
+      });
+    } else {
+      setWorkSchedule(prev => ({
+        ...prev,
+        [day]: { ...prev[day], [field]: value },
+      }));
+    }
+  };
+
+  const toggleDay = (day: keyof WorkSchedule) => {
+    setWorkSchedule(prev => ({
+      ...prev,
+      [day]: { ...prev[day], isOpen: !prev[day].isOpen },
+    }));
+  };
+
   const bookingUrl = barbershop?.slug
-    ? `${window.location.origin}/book/${barbershop.slug}`
+    ? `${window.location.origin}/agendar/${barbershop.slug}`
     : "";
 
   const copyBookingUrl = () => {
@@ -212,38 +266,61 @@ export default function Settings() {
 
                   <Separator />
 
+                  {/* ── PER-DAY WORK SCHEDULE ─────────────────────────── */}
                   <div className="space-y-4">
                     <h3 className="font-medium flex items-center gap-2">
                       <Clock className="h-4 w-4" />
                       Horário de Funcionamento
                     </h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="openingTime"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Abertura</FormLabel>
-                            <FormControl>
-                              <Input {...field} type="time" data-testid="input-opening" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+
+                    <div className="rounded-xl border border-border overflow-hidden">
+                      {DAYS.map((day, idx) => {
+                        const d = workSchedule[day.key];
+                        return (
+                          <div
+                            key={day.key}
+                            className={`flex items-center gap-3 px-4 py-3 ${idx < DAYS.length - 1 ? "border-b border-border" : ""} ${d.isOpen ? "" : "opacity-50"}`}
+                          >
+                            <Switch
+                              checked={d.isOpen}
+                              onCheckedChange={() => toggleDay(day.key)}
+                              data-testid={`switch-day-${day.key}`}
+                            />
+                            <span className="w-28 text-sm font-medium shrink-0">{day.label}</span>
+                            <div className="flex items-center gap-2 flex-1">
+                              <Input
+                                type="time"
+                                value={d.open}
+                                disabled={!d.isOpen}
+                                onChange={e => updateDayTime(day.key, "open", e.target.value)}
+                                className="h-8 text-sm"
+                                data-testid={`input-open-${day.key}`}
+                              />
+                              <span className="text-muted-foreground text-sm shrink-0">até</span>
+                              <Input
+                                type="time"
+                                value={d.close}
+                                disabled={!d.isOpen}
+                                onChange={e => updateDayTime(day.key, "close", e.target.value)}
+                                className="h-8 text-sm"
+                                data-testid={`input-close-${day.key}`}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="apply-all"
+                        checked={applyAll}
+                        onCheckedChange={(v) => setApplyAll(!!v)}
+                        data-testid="checkbox-apply-all"
                       />
-                      <FormField
-                        control={form.control}
-                        name="closingTime"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Fechamento</FormLabel>
-                            <FormControl>
-                              <Input {...field} type="time" data-testid="input-closing" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <label htmlFor="apply-all" className="text-sm text-muted-foreground cursor-pointer select-none">
+                        Ao alterar um horário, aplicar a todos os dias
+                      </label>
                     </div>
                   </div>
 
@@ -263,7 +340,7 @@ export default function Settings() {
                           <FormControl>
                             <div className="flex items-center gap-3">
                               <Input {...field} type="color" className="w-16 h-10 p-1" data-testid="input-color" />
-                              <Input {...field} placeholder="#0066FF" className="flex-1" />
+                              <Input {...field} placeholder="#C9A24D" className="flex-1" />
                             </div>
                           </FormControl>
                           <FormDescription>

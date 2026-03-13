@@ -9,10 +9,13 @@ import {
 } from "lucide-react";
 import { format, addDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import type { Barbershop, Service, Barber } from "@shared/schema";
+import type { Barbershop, Service, Barber, WorkSchedule } from "@shared/schema";
+import { DEFAULT_WORK_SCHEDULE } from "@shared/schema";
 import teixeiraLogoPath from "@assets/logo.png";
 
 const WHATSAPP_NUMBER = "5548999505167";
+const WS_DAY_KEYS: (keyof WorkSchedule)[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+function getDayKey(d: Date): keyof WorkSchedule { return WS_DAY_KEYS[d.getDay()]; }
 
 type BarberWithAvailability = Barber & { available: boolean; nextSlots: string[] };
 
@@ -128,22 +131,33 @@ export default function ClientBooking() {
     },
   });
 
+  const ws: WorkSchedule = (barbershop?.workSchedule as WorkSchedule | null) || DEFAULT_WORK_SCHEDULE;
+
   const calendarDays = useMemo(() => {
     const today = startOfDay(new Date());
-    return Array.from({ length: 30 }, (_, i) => {
+    const todayStr = format(today, "yyyy-MM-dd");
+    const days = [];
+    for (let i = 0; days.length < 30 && i < 90; i++) {
       const d = addDays(today, i);
-      return { date: format(d, "yyyy-MM-dd"), day: d, isToday: i === 0 };
-    });
-  }, []);
+      const key = getDayKey(d);
+      if (ws[key].isOpen) {
+        const dateStr = format(d, "yyyy-MM-dd");
+        days.push({ date: dateStr, day: d, isToday: dateStr === todayStr });
+      }
+    }
+    return days;
+  }, [barbershop]);
 
   const generalTimeSlots = useMemo(() => {
     if (!barbershop) return [];
+    const dayKey = getDayKey(new Date(selectedDate + "T12:00:00"));
+    const daySchedule = ws[dayKey];
     return generateSlots(
-      barbershop.openingTime || "09:00",
-      barbershop.closingTime || "19:00",
+      daySchedule.open || barbershop.openingTime || "09:00",
+      daySchedule.close || barbershop.closingTime || "19:00",
       selectedService?.duration || 30
     );
-  }, [barbershop, selectedService]);
+  }, [barbershop, selectedService, selectedDate]);
 
   const activeServices = services.filter((s) => s.isActive);
   const featuredServices = activeServices.filter((s) => s.isFeatured);

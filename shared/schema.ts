@@ -40,6 +40,19 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export type WorkDaySchedule = { open: string; close: string; isOpen: boolean };
+export type WorkSchedule = { mon: WorkDaySchedule; tue: WorkDaySchedule; wed: WorkDaySchedule; thu: WorkDaySchedule; fri: WorkDaySchedule; sat: WorkDaySchedule; sun: WorkDaySchedule };
+
+export const DEFAULT_WORK_SCHEDULE: WorkSchedule = {
+  mon: { open: "09:00", close: "19:00", isOpen: true },
+  tue: { open: "09:00", close: "19:00", isOpen: true },
+  wed: { open: "09:00", close: "19:00", isOpen: true },
+  thu: { open: "09:00", close: "19:00", isOpen: true },
+  fri: { open: "09:00", close: "19:00", isOpen: true },
+  sat: { open: "09:00", close: "14:00", isOpen: true },
+  sun: { open: "09:00", close: "19:00", isOpen: false },
+};
+
 // Barbershops (Multi-tenant)
 export const barbershops = pgTable("barbershops", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -56,6 +69,7 @@ export const barbershops = pgTable("barbershops", {
   openingTime: time("opening_time").default("09:00"),
   closingTime: time("closing_time").default("19:00"),
   workDays: jsonb("work_days").default(["mon", "tue", "wed", "thu", "fri", "sat"]),
+  workSchedule: jsonb("work_schedule").$type<WorkSchedule>(),
   subscriptionPlan: varchar("subscription_plan", { length: 50 }).default("basic"),
   subscriptionStatus: varchar("subscription_status", { length: 20 }).default("active"),
   createdAt: timestamp("created_at").defaultNow(),

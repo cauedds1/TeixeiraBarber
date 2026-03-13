@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, MapPin, Phone, Clock, Star, Scissors, ChevronDown, Menu, X, Instagram, MessageCircle, Calendar, Award, Users, Lock } from "lucide-react";
 import teixeiraLogoPath from "@assets/logo.png";
-import type { Service, Barber } from "@shared/schema";
+import type { Service, Barber, Barbershop, WorkSchedule } from "@shared/schema";
+import { DEFAULT_WORK_SCHEDULE } from "@shared/schema";
 
 const WHATSAPP_NUMBER = "5548999505167";
 const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}`;
@@ -37,11 +38,36 @@ const staticReviews = [
 
 type ReviewData = { text: string; author: string; date: string; rating: number };
 
-const hours = [
-  { day: "Segunda a Sexta", time: "09:00 – 20:00", open: true },
-  { day: "Sábado", time: "08:00 – 14:00", open: true },
-  { day: "Domingo", time: "Fechado", open: false },
-];
+const WS_KEYS: (keyof WorkSchedule)[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const DAY_LABELS: Record<string, string> = {
+  mon: "Segunda", tue: "Terça", wed: "Quarta", thu: "Quinta",
+  fri: "Sexta", sat: "Sábado", sun: "Domingo",
+};
+
+function computeHoursDisplay(ws: WorkSchedule) {
+  const groups: { day: string; time: string; open: boolean }[] = [];
+  for (const key of WS_KEYS) {
+    const d = ws[key];
+    const sig = `${d.isOpen}-${d.open}-${d.close}`;
+    const prev = groups[groups.length - 1];
+    if (prev && prev._sig === sig) {
+      (prev as any)._endLabel = DAY_LABELS[key];
+    } else {
+      groups.push({
+        day: DAY_LABELS[key],
+        time: d.isOpen ? `${d.open} – ${d.close}` : "Fechado",
+        open: d.isOpen,
+        _sig: sig,
+        _endLabel: "",
+      } as any);
+    }
+  }
+  return groups.map((g: any) => ({
+    day: g._endLabel ? `${g.day} a ${g._endLabel}` : g.day,
+    time: g.time,
+    open: g.open,
+  }));
+}
 
 const formatCurrency = (value: number | string | null) => {
   const num = typeof value === "string" ? parseFloat(value) : value;
@@ -60,6 +86,21 @@ export default function Landing() {
   const [scrolled, setScrolled] = useState(false);
   const [activeReview, setActiveReview] = useState(0);
   const reviewInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { data: barbershopData } = useQuery<Barbershop>({
+    queryKey: ["/api/public/barbershops/teixeira"],
+    queryFn: async () => {
+      const res = await fetch("/api/public/barbershops/teixeira");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    staleTime: 60000,
+    retry: false,
+  });
+
+  const ws: WorkSchedule = (barbershopData?.workSchedule as WorkSchedule | null) || DEFAULT_WORK_SCHEDULE;
+  const hours = computeHoursDisplay(ws);
+  const weekdayLabel = ws.mon.isOpen ? `${ws.mon.open}–${ws.mon.close}` : "Agende online";
 
   const { data: apiServices, isError: servicesError } = useQuery<Service[]>({
     queryKey: ["/api/public/barbershops/teixeira/services"],
@@ -297,7 +338,7 @@ export default function Landing() {
               data-testid="button-hero-whatsapp"
               className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold text-base px-8 py-4 rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95"
             >
-              <MessageCircle className="w-5 h-5 text-green-400" />
+              <MessageCircle className="w-5 h-5 text-[#C9A24D]" />
               WhatsApp
             </a>
           </div>
@@ -541,7 +582,7 @@ export default function Landing() {
             {[
               { icon: "⚡", title: "Rápido", desc: "Agendamento em menos de 1 minuto" },
               { icon: "📱", title: "Fácil", desc: "Sem cadastro, sem complicação" },
-              { icon: "🕐", title: "24/7", desc: "Agende qualquer hora do dia" },
+              { icon: "🕐", title: weekdayLabel, desc: "Horário de funcionamento" },
               { icon: "💬", title: "WhatsApp", desc: "Confirmação direto no seu celular" },
             ].map((item) => (
               <div key={item.title} className="bg-[#151515] border border-white/5 rounded-2xl p-5 text-center">
@@ -662,7 +703,7 @@ export default function Landing() {
                   data-testid="button-contact-whatsapp"
                   className="flex items-center justify-center gap-2 w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold py-4 rounded-2xl transition-all"
                 >
-                  <MessageCircle className="w-5 h-5 text-green-400" />
+                  <MessageCircle className="w-5 h-5 text-[#C9A24D]" />
                   Falar no WhatsApp
                 </a>
               </div>
@@ -707,10 +748,10 @@ export default function Landing() {
         target="_blank"
         rel="noopener noreferrer"
         data-testid="button-whatsapp-fab"
-        className="fixed bottom-24 right-4 sm:bottom-8 sm:right-6 z-50 w-14 h-14 bg-green-500 hover:bg-green-400 rounded-full flex items-center justify-center shadow-2xl shadow-green-500/30 transition-all duration-200 hover:scale-110 active:scale-95"
+        className="fixed bottom-24 right-4 sm:bottom-8 sm:right-6 z-50 w-14 h-14 bg-[#0e0e0e] border border-[#C9A24D]/50 hover:border-[#C9A24D] rounded-full flex items-center justify-center shadow-2xl shadow-[#C9A24D]/20 transition-all duration-200 hover:scale-110 active:scale-95"
         aria-label="Falar no WhatsApp"
       >
-        <MessageCircle className="w-7 h-7 text-white" />
+        <MessageCircle className="w-7 h-7 text-[#C9A24D]" />
       </a>
 
       {/* ─── MOBILE STICKY BOTTOM CTA ─────────────────────────────── */}

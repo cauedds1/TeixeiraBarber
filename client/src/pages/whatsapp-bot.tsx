@@ -51,8 +51,8 @@ export default function WhatsAppBotPage() {
     connected: {
       label: "Conectado",
       icon: Wifi,
-      badgeClass: "bg-green-500/20 text-green-400 border-green-500/30",
-      dot: "bg-green-400",
+      badgeClass: "bg-[#C9A24D]/15 text-[#C9A24D] border-[#C9A24D]/30",
+      dot: "bg-[#C9A24D]",
     },
     waiting_qr: {
       label: "Aguardando scan",
@@ -127,10 +127,10 @@ export default function WhatsAppBotPage() {
 
             {!isLoading && status === "connected" && (
               <div className="flex flex-col items-center gap-3 py-6">
-                <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <Wifi className="h-8 w-8 text-green-400" />
+                <div className="w-16 h-16 rounded-full bg-[#C9A24D]/15 flex items-center justify-center">
+                  <Wifi className="h-8 w-8 text-[#C9A24D]" />
                 </div>
-                <p className="text-green-400 font-medium">Número conectado com sucesso!</p>
+                <p className="text-[#C9A24D] font-medium">Número conectado com sucesso!</p>
                 <p className="text-white/40 text-sm text-center">
                   O bot está ativo. Clientes que enviarem mensagens receberão respostas automáticas.
                 </p>
@@ -174,7 +174,7 @@ export default function WhatsAppBotPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-start gap-3 p-3 rounded-lg bg-white/5">
-                <div className="w-2 h-2 mt-1.5 rounded-full bg-green-400 flex-shrink-0" />
+                <div className="w-2 h-2 mt-1.5 rounded-full bg-[#C9A24D] flex-shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-white">Agendamento criado</p>
                   <p className="text-xs text-white/40">
