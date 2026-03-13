@@ -81,6 +81,7 @@ export interface IStorage {
   createProduct(data: InsertProduct): Promise<Product>;
   updateProduct(id: string, data: Partial<InsertProduct>): Promise<Product | undefined>;
   deleteProduct(id: string): Promise<void>;
+  getProductVelocity(barbershopId: string, days?: number): Promise<Record<string, number>>;
 
   // Transactions
   getTransactions(barbershopId: string): Promise<Transaction[]>;
@@ -585,6 +586,35 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProduct(id: string): Promise<void> {
     await db.delete(products).where(eq(products.id, id));
+  }
+
+  async getProductVelocity(barbershopId: string, days = 30): Promise<Record<string, number>> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().split("T")[0];
+
+    const rows = await db
+      .select({
+        productId: appointmentProducts.productId,
+        totalQty: sum(appointmentProducts.quantity),
+      })
+      .from(appointmentProducts)
+      .innerJoin(appointments, eq(appointmentProducts.appointmentId, appointments.id))
+      .where(
+        and(
+          eq(appointments.barbershopId, barbershopId),
+          eq(appointments.status, "completed"),
+          gte(appointments.date, cutoffStr)
+        )
+      )
+      .groupBy(appointmentProducts.productId);
+
+    const velocity: Record<string, number> = {};
+    for (const row of rows) {
+      const qty = parseFloat(row.totalQty?.toString() || "0");
+      velocity[row.productId] = qty / days;
+    }
+    return velocity;
   }
 
   // Transactions

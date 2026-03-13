@@ -450,6 +450,7 @@ export async function registerRoutes(
       }
 
       const latestReview = (await storage.getReviews(barbershop.id))[0] || null;
+      const productVelocity = await storage.getProductVelocity(barbershop.id, 30);
 
       res.json({
         todayAppointments: todayAppointments.length,
@@ -461,6 +462,7 @@ export async function registerRoutes(
         botConfirmed,
         nextClientInfo,
         latestReview,
+        productVelocity,
         pendingAppointments: todayAppointments.filter((a) => a.status === "pending").length,
         newClients: clients.filter((c) => {
           const created = c.createdAt ? new Date(c.createdAt) : null;

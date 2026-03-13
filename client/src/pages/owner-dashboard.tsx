@@ -5,10 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
+  type LucideIcon,
   DollarSign,
   Calendar,
   MessageCircle,
@@ -35,6 +37,8 @@ import {
   CircleDollarSign,
 } from "lucide-react";
 import type { Appointment, Barber, Service, Product, Review } from "@shared/schema";
+import { CheckoutDialog } from "@/components/checkout-dialog";
+import type { CheckoutAppointment } from "@/components/checkout-dialog";
 
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -57,6 +61,7 @@ interface DashboardStats {
     isVIP: boolean;
   } | null;
   latestReview: Review | null;
+  productVelocity: Record<string, number>;
   pendingAppointments: number;
   newClients: number;
 }
@@ -170,6 +175,7 @@ export default function OwnerDashboard() {
   const { toast } = useToast();
   const [privacyMode, setPrivacyMode] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [checkoutApt, setCheckoutApt] = useState<CheckoutAppointment | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -195,23 +201,6 @@ export default function OwnerDashboard() {
 
   const { data: weather } = useWeather();
 
-  const statusMut = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      await apiRequest("PATCH", `/api/appointments/${id}/status`, { status });
-    },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      if (variables.status === "completed") {
-        queryClient.invalidateQueries({ queryKey: ["/api/finances/cashflow"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/finances/commissions"] });
-      }
-      toast({ title: "Status atualizado!" });
-    },
-    onError: () => {
-      toast({ title: "Erro ao atualizar status", variant: "destructive" });
-    },
-  });
 
   const sendReadyMut = useMutation({
     mutationFn: (data: { appointmentId: string }) =>
@@ -476,8 +465,7 @@ export default function OwnerDashboard() {
                               <Button
                                 size="sm"
                                 className="h-8 px-3 bg-[#C9A24D] hover:bg-[#b8913f] text-black font-semibold text-xs"
-                                onClick={() => statusMut.mutate({ id: apt.id, status: "completed" })}
-                                disabled={statusMut.isPending}
+                                onClick={() => setCheckoutApt(apt)}
                                 data-testid={`button-complete-${apt.id}`}
                               >
                                 <CheckCircle className="h-3.5 w-3.5 mr-1" />
@@ -537,7 +525,7 @@ export default function OwnerDashboard() {
                     <p className="text-white/20 text-sm text-center py-4">Nenhuma transação hoje</p>
                   ) : (
                     Object.entries(stats?.paymentBreakdown || {}).map(([method, value]) => {
-                      const icons: Record<string, any> = {
+                      const icons: Record<string, LucideIcon> = {
                         pix: Smartphone,
                         PIX: Smartphone,
                         cash: Banknote,
@@ -548,7 +536,7 @@ export default function OwnerDashboard() {
                         debit: CreditCard,
                         Débito: CreditCard,
                       };
-                      const Icon = icons[method] || CircleDollarSign;
+                      const Icon = icons[method] ?? CircleDollarSign;
                       return (
                         <div key={method} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] hover:bg-white/[0.05] transition-colors" data-testid={`row-payment-${method}`}>
                           <div className="flex items-center gap-3">
@@ -671,8 +659,8 @@ export default function OwnerDashboard() {
                 const stock = p.stockQuantity || 0;
                 const threshold = p.lowStockThreshold || 5;
                 const isZero = stock <= 0;
-                const dailyUsage = Math.max(0.5, threshold / 14);
-                const daysLeft = stock > 0 ? Math.round(stock / dailyUsage) : 0;
+                const velocity = stats?.productVelocity?.[p.id] ?? 0;
+                const daysLeft = stock > 0 && velocity > 0 ? Math.round(stock / velocity) : null;
                 const restockQty = Math.max(threshold * 2 - stock, threshold);
                 const whatsappMsg = encodeURIComponent(
                   `Olá! Preciso repor estoque:\n\n📦 Produto: ${p.name}\n🔢 Quantidade: ${restockQty} unidades\n\nTeixeira Barbearia - Kobrasol`
@@ -690,7 +678,9 @@ export default function OwnerDashboard() {
                         <p className={`text-xs mt-0.5 ${isZero ? "text-red-400" : "text-orange-400"}`}>
                           {isZero
                             ? "Estoque zerado!"
-                            : `${stock} un. — dura ~${daysLeft} dia(s)`}
+                            : daysLeft !== null
+                              ? `${stock} un. — dura ~${daysLeft} dia(s)`
+                              : `${stock} un. — sem histórico de uso`}
                         </p>
                       </div>
                       <Badge className={`text-xs border-0 ${isZero ? "bg-red-500/15 text-red-400" : "bg-orange-500/15 text-orange-400"}`}>
@@ -714,6 +704,16 @@ export default function OwnerDashboard() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={!!checkoutApt} onOpenChange={(open) => { if (!open) setCheckoutApt(null); }}>
+        {checkoutApt && (
+          <CheckoutDialog
+            apt={checkoutApt}
+            onClose={() => setCheckoutApt(null)}
+            onSuccess={() => setCheckoutApt(null)}
+          />
+        )}
+      </Dialog>
 
       <style>{`
         @keyframes pulse-slow {
