@@ -967,6 +967,11 @@ export async function registerRoutes(
 
   app.patch("/api/finances/bills/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const existing = await storage.getBill(req.params.id);
+      if (!existing || existing.barbershopId !== barbershop.id) {
+        return res.status(404).json({ message: "Conta não encontrada" });
+      }
       const bill = await storage.updateBill(req.params.id, req.body);
       res.json(bill);
     } catch (error) {
@@ -976,6 +981,11 @@ export async function registerRoutes(
 
   app.delete("/api/finances/bills/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const existing = await storage.getBill(req.params.id);
+      if (!existing || existing.barbershopId !== barbershop.id) {
+        return res.status(404).json({ message: "Conta não encontrada" });
+      }
       await storage.deleteBill(req.params.id);
       res.json({ ok: true });
     } catch (error) {
@@ -986,13 +996,20 @@ export async function registerRoutes(
   app.patch("/api/finances/bills/:id/pay", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const barbershop = await getBarbershopForUser((req.user as any).id);
+      const existing = await storage.getBill(req.params.id);
+      if (!existing || existing.barbershopId !== barbershop.id) {
+        return res.status(404).json({ message: "Conta não encontrada" });
+      }
+      if (existing.status === "paid") {
+        return res.status(409).json({ message: "Conta já está paga" });
+      }
       const bill = await storage.markBillPaid(req.params.id);
       if (!bill) return res.status(404).json({ message: "Conta não encontrada" });
 
       const today = new Date().toISOString().slice(0, 10);
       await storage.createTransaction({
         barbershopId: barbershop.id,
-        type: bill.billType === "payable" ? "expense" : "service",
+        type: bill.billType === "payable" ? "expense" : "income",
         category: bill.billType === "payable" ? "Conta a Pagar" : "Conta a Receber",
         description: bill.title,
         amount: bill.amount,
