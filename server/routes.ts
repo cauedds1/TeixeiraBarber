@@ -388,9 +388,13 @@ export async function registerRoutes(
       const todayAppointments = await storage.getAppointments(barbershop.id, today);
       const allTransactions = await storage.getTransactions(barbershop.id);
       const clients = await storage.getClients(barbershop.id);
+      const allBarbers = await storage.getBarbers(barbershop.id);
+      const activeBarbers = allBarbers.filter(b => b.isActive);
 
-      const todayRevenue = allTransactions
-        .filter((t) => t.date === today && t.type !== "expense" && t.type !== "refund")
+      const todayTransactions = allTransactions.filter(t => t.date === today);
+
+      const todayRevenue = todayTransactions
+        .filter((t) => t.type !== "expense" && t.type !== "refund")
         .reduce((sum, t) => sum + parseFloat(t.amount?.toString() || "0"), 0);
 
       const currentMonth = format(new Date(), "yyyy-MM");
@@ -398,10 +402,66 @@ export async function registerRoutes(
         .filter((t) => t.date?.startsWith(currentMonth) && t.type !== "expense" && t.type !== "refund")
         .reduce((sum, t) => sum + parseFloat(t.amount?.toString() || "0"), 0);
 
+      const openTime = barbershop.openingTime || "09:00";
+      const closeTime = barbershop.closingTime || "19:00";
+      const openH = parseInt(openTime.split(":")[0]);
+      const closeH = parseInt(closeTime.split(":")[0]);
+      const totalSlots = activeBarbers.length * (closeH - openH) * 2;
+      const activeAppts = todayAppointments.filter(a => a.status !== "cancelled");
+      const occupancyRate = totalSlots > 0 ? Math.round((activeAppts.length / totalSlots) * 100) : 0;
+
+      const paymentBreakdown: Record<string, number> = {};
+      todayTransactions
+        .filter(t => t.type !== "expense" && t.type !== "refund")
+        .forEach(t => {
+          const method = t.paymentMethod || "Outro";
+          paymentBreakdown[method] = (paymentBreakdown[method] || 0) + parseFloat(t.amount?.toString() || "0");
+        });
+
+      const pendingCommissions = todayTransactions
+        .filter(t => t.type === "service" && t.commissionAmount)
+        .reduce((sum, t) => sum + parseFloat(t.commissionAmount?.toString() || "0"), 0);
+
+      const botConfirmed = todayAppointments.filter(a => a.status === "confirmed" && a.reminderSent).length;
+
+      const now = new Date();
+      const nowTime = format(now, "HH:mm");
+      const upcomingAppts = todayAppointments
+        .filter(a => a.startTime >= nowTime && a.status !== "cancelled" && a.status !== "completed")
+        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+      const nextAppt = upcomingAppts[0] || null;
+
+      let nextClientInfo = null;
+      if (nextAppt) {
+        const clientPhone = nextAppt.clientPhone;
+        const allAppts = await storage.getAppointments(barbershop.id);
+        const clientVisits = clientPhone
+          ? allAppts.filter(a => a.clientPhone === clientPhone && a.status === "completed").length
+          : 0;
+        nextClientInfo = {
+          clientName: nextAppt.clientName || "Cliente",
+          clientPhone: nextAppt.clientPhone,
+          barberId: nextAppt.barberId,
+          startTime: nextAppt.startTime,
+          visitCount: clientVisits,
+          isNew: clientVisits === 0,
+          isVIP: clientVisits >= 10,
+        };
+      }
+
+      const latestReview = (await storage.getReviews(barbershop.id))[0] || null;
+
       res.json({
         todayAppointments: todayAppointments.length,
         todayRevenue,
         monthlyRevenue,
+        occupancyRate,
+        paymentBreakdown,
+        pendingCommissions,
+        botConfirmed,
+        nextClientInfo,
+        latestReview,
+        pendingAppointments: todayAppointments.filter((a) => a.status === "pending").length,
         newClients: clients.filter((c) => {
           const created = c.createdAt ? new Date(c.createdAt) : null;
           if (!created) return false;
@@ -409,8 +469,6 @@ export async function registerRoutes(
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
           return created >= thirtyDaysAgo;
         }).length,
-        occupancyRate: 75,
-        pendingAppointments: todayAppointments.filter((a) => a.status === "pending").length,
       });
     } catch (error) {
       res.status(500).json({ message: "Error fetching stats" });
@@ -438,7 +496,7 @@ export async function registerRoutes(
     try {
       const barbershop = await getBarbershopForUser((req.user as any).id);
       const today = format(new Date(), "yyyy-MM-dd");
-      const appointments = await storage.getAppointments(barbershop.id, today);
+      const appointments = await storage.getAppointmentsWithDetails(barbershop.id, today);
       res.json(appointments);
     } catch (error) {
       res.status(500).json({ message: "Error fetching appointments" });
@@ -1211,6 +1269,27 @@ export async function registerRoutes(
   });
 
   // ===== WHATSAPP ROUTES =====
+  app.post("/api/whatsapp/send-ready", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { appointmentId } = req.body;
+      if (!appointmentId) return res.status(400).json({ message: "appointmentId obrigatório" });
+      const user = req.user as any;
+      const barbershop = await storage.getBarbershopByOwnerId(user.id);
+      if (!barbershop) return res.status(403).json({ message: "Barbearia não encontrada" });
+      const appointment = await storage.getAppointment(appointmentId);
+      if (!appointment || appointment.barbershopId !== barbershop.id) {
+        return res.status(404).json({ message: "Agendamento não encontrado" });
+      }
+      if (!appointment.clientPhone) return res.status(400).json({ message: "Cliente sem telefone cadastrado" });
+      const barber = appointment.barberId ? await storage.getBarber(appointment.barberId) : null;
+      const msg = `Olá ${appointment.clientName || ""}! O ${barber?.name || "barbeiro"} já te espera! 💈✨ Teixeira Barbearia`;
+      await whatsappService.sendMessage(appointment.clientPhone, msg);
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao enviar mensagem" });
+    }
+  });
+
   app.get("/api/whatsapp/status", isAuthenticated, (_req: Request, res: Response) => {
     res.json({ status: whatsappService.getStatus(), qr: whatsappService.getQR() });
   });

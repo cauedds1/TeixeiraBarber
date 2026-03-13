@@ -1,349 +1,713 @@
-import { useQuery } from "@tanstack/react-query";
-import { Card } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
-import {
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
-  Calendar,
-  Users,
-  CreditCard,
-  AlertCircle,
-  ArrowRight,
-  Settings,
-} from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import {
+  DollarSign,
+  Calendar,
+  MessageCircle,
+  Cloud,
+  CloudRain,
+  Sun,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  AlertTriangle,
+  Star,
+  Package,
+  User,
+  Clock,
+  Scissors,
+  TrendingUp,
+  ExternalLink,
+  Crown,
+  Sparkles,
+  Send,
+  CreditCard,
+  Banknote,
+  Smartphone,
+  CircleDollarSign,
+} from "lucide-react";
+import type { Appointment, Barber, Service, Product, Review } from "@shared/schema";
 
-// Mock data - replace with API calls
-const mockDashboardData = {
-  dailyRevenue: 850.50,
-  monthlyRevenue: 12450.75,
-  weeklyRevenue: 2800.00,
-  totalClients: 156,
-  appointmentsToday: 8,
-  appointmentsWeek: 42,
-  pendingAppointments: 3,
+const fmtBRL = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  revenueChart: [
-    { date: "Seg", revenue: 1200, expenses: 300 },
-    { date: "Ter", revenue: 1900, expenses: 400 },
-    { date: "Qua", revenue: 1600, expenses: 350 },
-    { date: "Qui", revenue: 2100, expenses: 450 },
-    { date: "Sex", revenue: 2400, expenses: 500 },
-    { date: "Sáb", revenue: 1800, expenses: 400 },
-    { date: "Dom", revenue: 450, expenses: 100 },
-  ],
+interface DashboardStats {
+  todayAppointments: number;
+  todayRevenue: number;
+  monthlyRevenue: number;
+  occupancyRate: number;
+  paymentBreakdown: Record<string, number>;
+  pendingCommissions: number;
+  botConfirmed: number;
+  nextClientInfo: {
+    clientName: string;
+    clientPhone: string;
+    barberId: string;
+    startTime: string;
+    visitCount: number;
+    isNew: boolean;
+    isVIP: boolean;
+  } | null;
+  latestReview: Review | null;
+  pendingAppointments: number;
+  newClients: number;
+}
 
-  barberPerformance: [
-    { name: "Fran", revenue: 3200, clients: 45, efficiency: 92 },
-    { name: "Jefferson", revenue: 2950, clients: 38, efficiency: 88 },
-    { name: "Jean", revenue: 2800, clients: 42, efficiency: 85 },
-  ],
+interface DetailedAppointment extends Appointment {
+  barber: Barber | null;
+  service: Service | null;
+}
 
-  paymentMethods: [
-    { name: "PIX", value: 4500, fill: "#D4A574" },
-    { name: "Dinheiro", value: 3200, fill: "#E8DCC4" },
-    { name: "Débito", value: 2150, fill: "#B8956A" },
-    { name: "Crédito", value: 1600, fill: "#2A2A2A" },
-  ],
+interface WeatherData {
+  temperature: number;
+  weatherCode: number;
+  rainHours: { hour: number; precip: number }[];
+}
 
-  recentTransactions: [
-    { id: 1, type: "service", barber: "Fran", service: "Corte Masculino", amount: 55.00, method: "PIX", time: "14:30" },
-    { id: 2, type: "service", barber: "Jefferson", service: "Corte e Barba", amount: 92.00, method: "Dinheiro", time: "13:15" },
-    { id: 3, type: "expense", category: "Produto", description: "Tônico Capilar", amount: 120.00, method: "Débito", time: "10:45" },
-    { id: 4, type: "service", barber: "Jean", service: "Corte Masculino", amount: 55.00, method: "Crédito", time: "15:50" },
-  ],
+function useWeather() {
+  return useQuery<WeatherData>({
+    queryKey: ["weather-sao-jose"],
+    queryFn: async () => {
+      const res = await fetch(
+        "https://api.open-meteo.com/v1/forecast?latitude=-27.61&longitude=-48.64&current=temperature_2m,weather_code&hourly=precipitation&timezone=America/Sao_Paulo&forecast_days=1"
+      );
+      if (!res.ok) throw new Error("Weather API error");
+      const data = await res.json();
+      const currentHour = new Date().getHours();
+      const rainHours: { hour: number; precip: number }[] = [];
+      if (data.hourly?.precipitation) {
+        for (let i = currentHour; i < Math.min(currentHour + 6, 24); i++) {
+          if (data.hourly.precipitation[i] > 0) {
+            rainHours.push({ hour: i, precip: data.hourly.precipitation[i] });
+          }
+        }
+      }
+      return {
+        temperature: data.current?.temperature_2m || 0,
+        weatherCode: data.current?.weather_code || 0,
+        rainHours,
+      };
+    },
+    staleTime: 30 * 60 * 1000,
+    refetchInterval: 30 * 60 * 1000,
+  });
+}
 
-  weeklyComparison: [
-    { week: "Sem 1", revenue: 9500, expenses: 2100, profit: 7400 },
-    { week: "Sem 2", revenue: 11200, expenses: 2500, profit: 8700 },
-    { week: "Sem 3", revenue: 10800, expenses: 2300, profit: 8500 },
-    { week: "Sem 4", revenue: 12450, expenses: 2700, profit: 9750 },
-  ],
-};
+function getWeatherIcon(code: number) {
+  if (code >= 61) return CloudRain;
+  if (code >= 45) return Cloud;
+  return Sun;
+}
 
-const StatCard = ({ icon: Icon, label, value, trend, color }: any) => (
-  <Card className="p-4 md:p-6 hover-elevate">
-    <div className="flex items-start justify-between">
-      <div>
-        <p className="text-muted-foreground text-sm font-medium">{label}</p>
-        <p className="text-2xl md:text-3xl font-bold text-foreground mt-2">{value}</p>
-      </div>
-      <div className={`p-3 rounded-lg bg-${color}/10`}>
-        <Icon className={`w-5 h-5 md:w-6 md:h-6 text-${color}`} />
-      </div>
+function getWeatherLabel(code: number) {
+  if (code >= 80) return "Chuva forte";
+  if (code >= 61) return "Chuva";
+  if (code >= 51) return "Garoa";
+  if (code >= 45) return "Nublado";
+  if (code >= 2) return "Parcialmente nublado";
+  return "Ensolarado";
+}
+
+function OccupancyRing({ rate }: { rate: number }) {
+  const r = 40;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (circ * Math.min(rate, 100)) / 100;
+  return (
+    <svg width="96" height="96" viewBox="0 0 100 100" className="shrink-0">
+      <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+      <circle
+        cx="50" cy="50" r={r} fill="none"
+        stroke="#C9A24D" strokeWidth="8" strokeLinecap="round"
+        strokeDasharray={circ} strokeDashoffset={offset}
+        transform="rotate(-90 50 50)"
+        className="transition-all duration-1000"
+      />
+      <text x="50" y="50" textAnchor="middle" dominantBaseline="central" className="fill-white text-lg font-bold" fontSize="18">
+        {rate}%
+      </text>
+    </svg>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <Card className="bg-[#141414]/80 backdrop-blur-sm border-white/5">
+      <CardContent className="p-5">
+        <Skeleton className="h-4 w-24 bg-white/5 mb-3" />
+        <Skeleton className="h-8 w-32 bg-white/5 mb-2" />
+        <Skeleton className="h-3 w-20 bg-white/5" />
+      </CardContent>
+    </Card>
+  );
+}
+
+function SkeletonTimeline() {
+  return (
+    <div className="space-y-3">
+      {[1, 2, 3, 4].map(i => (
+        <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-[#141414]/80 border border-white/5">
+          <Skeleton className="h-10 w-10 rounded-full bg-white/5" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-32 bg-white/5" />
+            <Skeleton className="h-3 w-24 bg-white/5" />
+          </div>
+          <Skeleton className="h-8 w-20 bg-white/5" />
+        </div>
+      ))}
     </div>
-    {trend && (
-      <div className="mt-3 flex items-center gap-1 text-sm">
-        {trend.positive ? (
-          <TrendingUp className="w-4 h-4 text-green-600" />
-        ) : (
-          <TrendingDown className="w-4 h-4 text-red-600" />
-        )}
-        <span className={trend.positive ? "text-green-600" : "text-red-600"}>
-          {trend.value}
-        </span>
-        <span className="text-muted-foreground">vs. semana passada</span>
-      </div>
-    )}
-  </Card>
-);
+  );
+}
 
 export default function OwnerDashboard() {
-  const data = mockDashboardData;
+  const { toast } = useToast();
+  const [privacyMode, setPrivacyMode] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   const today = format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR });
+  const nowTime = format(currentTime, "HH:mm");
+
+  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
+    queryKey: ["/api/dashboard/stats"],
+    refetchInterval: 60000,
+  });
+
+  const { data: todayAppts = [], isLoading: apptsLoading } = useQuery<DetailedAppointment[]>({
+    queryKey: ["/api/appointments/today"],
+    refetchInterval: 60000,
+  });
+
+  const { data: products = [] } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
+  });
+
+  const { data: weather } = useWeather();
+
+  const statusMut = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      await apiRequest("PATCH", `/api/appointments/${id}/status`, { status });
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      if (variables.status === "completed") {
+        queryClient.invalidateQueries({ queryKey: ["/api/finances/cashflow"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/finances/commissions"] });
+      }
+      toast({ title: "Status atualizado!" });
+    },
+    onError: () => {
+      toast({ title: "Erro ao atualizar status", variant: "destructive" });
+    },
+  });
+
+  const sendReadyMut = useMutation({
+    mutationFn: (data: { appointmentId: string }) =>
+      apiRequest("POST", "/api/whatsapp/send-ready", data),
+    onSuccess: () => toast({ title: "Mensagem enviada pelo WhatsApp!" }),
+    onError: () => toast({ title: "Erro ao enviar mensagem", variant: "destructive" }),
+  });
+
+  const sortedAppts = [...todayAppts].sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""));
+
+  const getActiveAppt = () => {
+    for (const apt of sortedAppts) {
+      if (apt.status === "cancelled" || apt.status === "completed") continue;
+      const start = apt.startTime || "";
+      const end = apt.endTime || "";
+      if (nowTime >= start && nowTime < end) return apt.id;
+    }
+    return null;
+  };
+
+  const detectConflicts = () => {
+    const conflicts = new Set<string>();
+    const active = sortedAppts.filter(a => a.status !== "cancelled");
+    for (let i = 0; i < active.length; i++) {
+      for (let j = i + 1; j < active.length; j++) {
+        if (active[i].barberId === active[j].barberId &&
+            active[i].endTime > active[j].startTime &&
+            active[i].startTime < active[j].endTime) {
+          conflicts.add(active[i].id);
+          conflicts.add(active[j].id);
+        }
+      }
+    }
+    return conflicts;
+  };
+
+  const activeId = getActiveAppt();
+  const conflictIds = detectConflicts();
+
+  const lowStockProducts = products.filter(p =>
+    p.isActive && (p.stockQuantity || 0) <= (p.lowStockThreshold || 5)
+  );
+
+  const moneyValue = (val: number) => privacyMode ? "••••••" : fmtBRL(val);
+
+  const WeatherIcon = weather ? getWeatherIcon(weather.weatherCode) : Sun;
 
   return (
-    <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="min-h-full bg-[#0e0e0e] p-4 md:p-6 space-y-6 max-w-[1400px] mx-auto">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground mt-1 capitalize">{today}</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-white" data-testid="text-dashboard-title">
+            Command Center
+          </h1>
+          <p className="text-white/40 text-sm capitalize mt-0.5">{today}</p>
         </div>
-        <Button variant="outline" data-testid="button-settings">
-          <Settings className="w-4 h-4 mr-2" />
-          Configurações
-        </Button>
+        <div className="flex items-center gap-2 text-white/50 text-sm">
+          <Clock className="h-4 w-4" />
+          <span data-testid="text-current-time">{format(currentTime, "HH:mm")}</span>
+        </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <StatCard
-          icon={DollarSign}
-          label="Faturamento Hoje"
-          value={`R$ ${data.dailyRevenue.toFixed(2)}`}
-          trend={{ value: "+12%", positive: true }}
-          color="primary"
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="Faturamento Mês"
-          value={`R$ ${data.monthlyRevenue.toFixed(2)}`}
-          trend={{ value: "+8%", positive: true }}
-          color="accent"
-        />
-        <StatCard
-          icon={Calendar}
-          label="Agendamentos"
-          value={data.appointmentsToday}
-          trend={{ value: `${data.appointmentsWeek} na semana`, positive: true }}
-          color="primary"
-        />
-        <StatCard
-          icon={Users}
-          label="Clientes"
-          value={data.totalClients}
-          trend={{ value: "+5 novo", positive: true }}
-          color="accent"
-        />
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Revenue Chart */}
-        <Card className="lg:col-span-2 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-bold text-foreground">Faturamento Semanal</h2>
-              <p className="text-sm text-muted-foreground mt-1">Receita vs. Despesas</p>
-            </div>
-            <Badge variant="secondary">Esta Semana</Badge>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data.revenueChart}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="date" stroke="var(--muted-foreground)" />
-              <YAxis stroke="var(--muted-foreground)" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "var(--card)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "0.5rem",
-                }}
-                labelStyle={{ color: "var(--foreground)" }}
-              />
-              <Legend />
-              <Bar dataKey="revenue" fill="hsl(var(--primary))" name="Receita" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Despesas" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-
-        {/* Payment Methods */}
-        <Card className="p-6">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-foreground">Formas de Pagamento</h2>
-            <p className="text-sm text-muted-foreground mt-1">Distribuição esta semana</p>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={data.paymentMethods}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {data.paymentMethods.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "var(--card)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "0.5rem",
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </Card>
-      </div>
-
-      {/* Barber Performance and Recent Transactions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Barber Performance */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-bold text-foreground">Performance dos Barbeiros</h2>
-              <p className="text-sm text-muted-foreground mt-1">Semana atual</p>
-            </div>
-            <Button size="sm" variant="ghost" data-testid="button-view-barbers">
-              Ver Mais <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </div>
-          <div className="space-y-4">
-            {data.barberPerformance.map((barber) => (
-              <div key={barber.name} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover-elevate">
+      {/* === HEADER DE PERFORMANCE === */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {statsLoading ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : (
+          <>
+            <Card className="bg-[#141414]/80 backdrop-blur-sm border-white/5 hover:border-[#C9A24D]/20 transition-colors" data-testid="card-occupancy">
+              <CardContent className="p-5 flex items-center gap-4">
+                <OccupancyRing rate={stats?.occupancyRate || 0} />
                 <div>
-                  <p className="font-semibold text-foreground">{barber.name}</p>
-                  <p className="text-sm text-muted-foreground">{barber.clients} clientes • {barber.efficiency}% eficiência</p>
+                  <p className="text-white/40 text-xs uppercase tracking-wider">Ocupação</p>
+                  <p className="text-white text-lg font-bold mt-0.5">{stats?.todayAppointments || 0} agendamentos</p>
+                  <p className="text-white/30 text-xs mt-0.5">{stats?.pendingAppointments || 0} pendente(s)</p>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-primary">R$ {barber.revenue.toFixed(2)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* Recent Transactions */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-bold text-foreground">Últimas Transações</h2>
-              <p className="text-sm text-muted-foreground mt-1">Hoje</p>
+            <Card className="bg-[#141414]/80 backdrop-blur-sm border-white/5 hover:border-[#C9A24D]/20 transition-colors" data-testid="card-revenue">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <p className="text-white/40 text-xs uppercase tracking-wider">Faturamento Hoje</p>
+                  <div className="p-2 rounded-lg bg-[#C9A24D]/10">
+                    <DollarSign className="h-4 w-4 text-[#C9A24D]" />
+                  </div>
+                </div>
+                <p className="text-2xl font-bold text-[#C9A24D] mt-2" data-testid="text-today-revenue">
+                  {moneyValue(stats?.todayRevenue || 0)}
+                </p>
+                <p className="text-white/30 text-xs mt-1">
+                  Mês: {moneyValue(stats?.monthlyRevenue || 0)}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-[#141414]/80 backdrop-blur-sm border-white/5 hover:border-[#C9A24D]/20 transition-colors" data-testid="card-bot">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <p className="text-white/40 text-xs uppercase tracking-wider">Bot Eficiência</p>
+                  <div className="p-2 rounded-lg bg-green-500/10">
+                    <MessageCircle className="h-4 w-4 text-green-400" />
+                  </div>
+                </div>
+                <p className="text-2xl font-bold text-white mt-2" data-testid="text-bot-confirmed">
+                  {stats?.botConfirmed || 0}
+                </p>
+                <p className="text-white/30 text-xs mt-1">Confirmações automáticas hoje</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-[#141414]/80 backdrop-blur-sm border-white/5 hover:border-[#C9A24D]/20 transition-colors" data-testid="card-weather">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <p className="text-white/40 text-xs uppercase tracking-wider">Clima</p>
+                  <div className="p-2 rounded-lg bg-blue-500/10">
+                    <WeatherIcon className="h-4 w-4 text-blue-400" />
+                  </div>
+                </div>
+                {weather ? (
+                  <>
+                    <p className="text-2xl font-bold text-white mt-2">{Math.round(weather.temperature)}°C</p>
+                    <p className="text-white/30 text-xs mt-1">{getWeatherLabel(weather.weatherCode)}</p>
+                    {weather.rainHours.length > 0 && (
+                      <p className="text-yellow-400/80 text-xs mt-1 flex items-center gap-1">
+                        <CloudRain className="h-3 w-3" />
+                        Chuva prevista às {weather.rainHours[0].hour}h
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Skeleton className="h-8 w-16 bg-white/5 mt-2" />
+                    <Skeleton className="h-3 w-20 bg-white/5 mt-1" />
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </div>
+
+      {/* === MAIN GRID: TIMELINE + FINANCIAL === */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* TIMELINE OPERACIONAL */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-white font-semibold text-lg flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-[#C9A24D]" />
+              Timeline do Dia
+            </h2>
+            <Badge className="bg-[#C9A24D]/10 text-[#C9A24D] border-0 text-xs">
+              {sortedAppts.filter(a => a.status !== "cancelled").length} atendimento(s)
+            </Badge>
+          </div>
+
+          {apptsLoading ? (
+            <SkeletonTimeline />
+          ) : sortedAppts.length === 0 ? (
+            <Card className="bg-[#141414]/80 backdrop-blur-sm border-white/5">
+              <CardContent className="p-8 text-center">
+                <Calendar className="h-12 w-12 text-white/10 mx-auto mb-3" />
+                <p className="text-white/40">Nenhum agendamento para hoje</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {sortedAppts.map((apt) => {
+                const isActive = apt.id === activeId;
+                const isConflict = conflictIds.has(apt.id);
+                const isDone = apt.status === "completed";
+                const isCancelled = apt.status === "cancelled";
+
+                let borderClass = "border-white/5";
+                if (isActive) borderClass = "border-[#C9A24D] shadow-[0_0_15px_rgba(201,162,77,0.15)]";
+                if (isConflict) borderClass = "border-red-500/50";
+                if (isDone) borderClass = "border-green-500/20";
+                if (isCancelled) borderClass = "border-white/5 opacity-40";
+
+                return (
+                  <Card
+                    key={apt.id}
+                    className={`bg-[#141414]/80 backdrop-blur-sm border ${borderClass} transition-all ${isActive ? "animate-pulse-slow ring-1 ring-[#C9A24D]/30" : ""}`}
+                    data-testid={`card-timeline-${apt.id}`}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-4">
+                        <div className="relative shrink-0">
+                          {apt.barber?.photoUrl ? (
+                            <img
+                              src={apt.barber.photoUrl}
+                              alt={apt.barber.name}
+                              className="h-11 w-11 rounded-full object-cover border-2 border-white/10"
+                            />
+                          ) : (
+                            <div className="h-11 w-11 rounded-full bg-[#C9A24D]/10 border-2 border-white/10 flex items-center justify-center">
+                              <User className="h-5 w-5 text-[#C9A24D]" />
+                            </div>
+                          )}
+                          {isActive && (
+                            <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-[#C9A24D] border-2 border-[#141414]" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-white font-medium text-sm truncate">
+                              {apt.clientName || "Cliente"}
+                            </span>
+                            {isConflict && (
+                              <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-white/40 text-xs mt-0.5">
+                            <Clock className="h-3 w-3" />
+                            <span>{apt.startTime} - {apt.endTime}</span>
+                            <span className="text-white/10">|</span>
+                            <Scissors className="h-3 w-3" />
+                            <span className="truncate">{apt.service?.name || "Serviço"}</span>
+                          </div>
+                          <p className="text-white/25 text-xs mt-0.5">
+                            {apt.barber?.name || "Barbeiro"}
+                            {apt.price ? ` • ${fmtBRL(parseFloat(apt.price.toString()))}` : ""}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isDone && (
+                            <Badge className="bg-green-500/10 text-green-400 border-0 text-xs">Concluído</Badge>
+                          )}
+                          {isCancelled && (
+                            <Badge className="bg-red-500/10 text-red-400 border-0 text-xs">Cancelado</Badge>
+                          )}
+                          {apt.status === "pending" && (
+                            <Badge className="bg-yellow-500/10 text-yellow-400 border-0 text-xs">Pendente</Badge>
+                          )}
+                          {apt.status === "confirmed" && (
+                            <Badge className="bg-blue-500/10 text-blue-400 border-0 text-xs">Confirmado</Badge>
+                          )}
+
+                          {!isDone && !isCancelled && (
+                            <div className="flex gap-1.5">
+                              {apt.clientPhone && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 px-2 text-green-400 hover:bg-green-500/10 hover:text-green-300"
+                                  onClick={() => sendReadyMut.mutate({ appointmentId: apt.id })}
+                                  disabled={sendReadyMut.isPending}
+                                  data-testid={`button-notify-${apt.id}`}
+                                  title="Avisar cliente"
+                                >
+                                  <Send className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                className="h-8 px-3 bg-[#C9A24D] hover:bg-[#b8913f] text-black font-semibold text-xs"
+                                onClick={() => statusMut.mutate({ id: apt.id, status: "completed" })}
+                                disabled={statusMut.isPending}
+                                data-testid={`button-complete-${apt.id}`}
+                              >
+                                <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                                Concluir
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {isConflict && (
+                        <div className="mt-2 px-3 py-1.5 rounded-lg bg-red-500/5 border border-red-500/10">
+                          <p className="text-red-400 text-xs flex items-center gap-1.5">
+                            <AlertTriangle className="h-3 w-3" />
+                            Conflito de horário detectado — reagende este atendimento
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
-            <Button size="sm" variant="ghost" data-testid="button-view-transactions">
-              Ver Tudo <ArrowRight className="w-4 h-4 ml-2" />
+          )}
+        </div>
+
+        {/* FINANCIAL BATE-GRADE */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-white font-semibold text-lg flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-[#C9A24D]" />
+              Financeiro
+            </h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-white/30 hover:text-white"
+              onClick={() => setPrivacyMode(!privacyMode)}
+              data-testid="button-privacy-toggle"
+            >
+              {privacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
           </div>
-          <div className="space-y-3">
-            {data.recentTransactions.map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover-elevate">
-                <div className="flex items-center gap-3 flex-1">
-                  <div className={`p-2 rounded-lg ${tx.type === "service" ? "bg-green-100" : "bg-red-100"}`}>
-                    {tx.type === "service" ? (
-                      <CreditCard className="w-4 h-4 text-green-700" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 text-red-700" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground text-sm">
-                      {tx.type === "service" ? `${tx.barber} - ${tx.service}` : tx.description}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{tx.method} • {tx.time}</p>
-                  </div>
+
+          <Card className="bg-[#141414]/80 backdrop-blur-sm border-white/5">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-white/50 text-xs uppercase tracking-wider">Meios de Pagamento</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              {statsLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 bg-white/5 rounded-lg" />)}
                 </div>
-                <div className="text-right">
-                  <p className={`font-bold ${tx.type === "service" ? "text-green-600" : "text-red-600"}`}>
-                    {tx.type === "service" ? "+" : "-"}R$ {tx.amount.toFixed(2)}
-                  </p>
+              ) : (
+                <div className="space-y-2">
+                  {Object.entries(stats?.paymentBreakdown || {}).length === 0 ? (
+                    <p className="text-white/20 text-sm text-center py-4">Nenhuma transação hoje</p>
+                  ) : (
+                    Object.entries(stats?.paymentBreakdown || {}).map(([method, value]) => {
+                      const icons: Record<string, any> = {
+                        pix: Smartphone,
+                        PIX: Smartphone,
+                        cash: Banknote,
+                        Dinheiro: Banknote,
+                        dinheiro: Banknote,
+                        credit: CreditCard,
+                        Crédito: CreditCard,
+                        debit: CreditCard,
+                        Débito: CreditCard,
+                      };
+                      const Icon = icons[method] || CircleDollarSign;
+                      return (
+                        <div key={method} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] hover:bg-white/[0.05] transition-colors" data-testid={`row-payment-${method}`}>
+                          <div className="flex items-center gap-3">
+                            <div className="p-1.5 rounded-md bg-[#C9A24D]/10">
+                              <Icon className="h-3.5 w-3.5 text-[#C9A24D]" />
+                            </div>
+                            <span className="text-white/70 text-sm capitalize">{method}</span>
+                          </div>
+                          <span className={`text-sm font-semibold ${privacyMode ? "text-white/20" : "text-white"}`}>
+                            {moneyValue(value)}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-[#141414]/80 backdrop-blur-sm border-white/5">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-orange-500/10">
+                    <TrendingUp className="h-3.5 w-3.5 text-orange-400" />
+                  </div>
+                  <span className="text-white/50 text-xs uppercase tracking-wider">Comissões Pendentes</span>
+                </div>
+                <span className={`text-lg font-bold ${privacyMode ? "text-white/20" : "text-orange-400"}`} data-testid="text-pending-commissions">
+                  {moneyValue(stats?.pendingCommissions || 0)}
+                </span>
               </div>
-            ))}
-          </div>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
 
-      {/* Weekly Comparison */}
-      <Card className="p-6">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-foreground">Comparativo Semanal</h2>
-          <p className="text-sm text-muted-foreground mt-1">Últimas 4 semanas</p>
+          {/* CLIENT INTELLIGENCE */}
+          {stats?.nextClientInfo && (
+            <Card className={`bg-[#141414]/80 backdrop-blur-sm border ${stats.nextClientInfo.isNew ? "border-emerald-500/20" : stats.nextClientInfo.isVIP ? "border-[#C9A24D]/20" : "border-white/5"}`} data-testid="card-next-client">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  {stats.nextClientInfo.isNew ? (
+                    <Sparkles className="h-4 w-4 text-emerald-400" />
+                  ) : stats.nextClientInfo.isVIP ? (
+                    <Crown className="h-4 w-4 text-[#C9A24D]" />
+                  ) : (
+                    <User className="h-4 w-4 text-white/40" />
+                  )}
+                  <span className="text-white/50 text-xs uppercase tracking-wider">Próximo Cliente</span>
+                </div>
+                <p className="text-white font-medium">{stats.nextClientInfo.clientName}</p>
+                <p className="text-white/40 text-xs mt-0.5">
+                  {stats.nextClientInfo.startTime}
+                  {stats.nextClientInfo.isNew
+                    ? " • Cliente novo — capriche no ritual de boas-vindas!"
+                    : stats.nextClientInfo.isVIP
+                    ? ` • Top cliente (${stats.nextClientInfo.visitCount} visitas) — atendimento VIP!`
+                    : ` • ${stats.nextClientInfo.visitCount} visita(s) anteriore(s)`}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* LATEST REVIEW */}
+          {stats?.latestReview && (
+            <Card className="bg-[#141414]/80 backdrop-blur-sm border-white/5" data-testid="card-latest-review">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Star className="h-4 w-4 text-[#C9A24D]" />
+                  <span className="text-white/50 text-xs uppercase tracking-wider">Último Feedback</span>
+                </div>
+                <div className="flex items-center gap-1 mb-1.5">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <Star
+                      key={i}
+                      className={`h-3.5 w-3.5 ${i <= (stats.latestReview!.rating || 0) ? "text-[#C9A24D] fill-[#C9A24D]" : "text-white/10"}`}
+                    />
+                  ))}
+                  <span className="text-white/30 text-xs ml-2">{stats.latestReview.clientName || "Anônimo"}</span>
+                </div>
+                {stats.latestReview.comment && (
+                  <p className="text-white/50 text-sm italic">"{stats.latestReview.comment}"</p>
+                )}
+                {stats.latestReview.clientPhone && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 text-green-400 hover:text-green-300 hover:bg-green-500/10 text-xs px-2 h-7"
+                    onClick={() => {
+                      const phone = stats.latestReview!.clientPhone!.replace(/\D/g, "");
+                      window.open(`https://wa.me/${phone}`, "_blank");
+                    }}
+                    data-testid="button-reply-review"
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Responder no Zap
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data.weeklyComparison}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-            <XAxis dataKey="week" stroke="var(--muted-foreground)" />
-            <YAxis stroke="var(--muted-foreground)" />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "var(--card)",
-                border: "1px solid var(--border)",
-                borderRadius: "0.5rem",
-              }}
-              labelStyle={{ color: "var(--foreground)" }}
-            />
-            <Legend />
-            <Line
-              type="monotone"
-              dataKey="revenue"
-              stroke="hsl(var(--primary))"
-              name="Receita"
-              strokeWidth={2}
-              dot={{ fill: "hsl(var(--primary))" }}
-            />
-            <Line
-              type="monotone"
-              dataKey="profit"
-              stroke="hsl(var(--accent))"
-              name="Lucro"
-              strokeWidth={2}
-              dot={{ fill: "hsl(var(--accent))" }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </Card>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Button variant="outline" className="h-12 text-sm" data-testid="button-new-appointment">
-          + Novo Agendamento
-        </Button>
-        <Button variant="outline" className="h-12 text-sm" data-testid="button-new-client">
-          + Novo Cliente
-        </Button>
-        <Button variant="outline" className="h-12 text-sm" data-testid="button-financial-report">
-          Relatório Financeiro
-        </Button>
-        <Button variant="outline" className="h-12 text-sm" data-testid="button-send-reminder">
-          Enviar Lembretes
-        </Button>
       </div>
+
+      {/* === INVENTÁRIO PREDITIVO === */}
+      {lowStockProducts.length > 0 && (
+        <Card className="bg-[#141414]/80 backdrop-blur-sm border-white/5" data-testid="card-inventory">
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-white text-base flex items-center gap-2">
+              <Package className="h-5 w-5 text-orange-400" />
+              Alerta de Estoque
+              <Badge className="bg-orange-500/10 text-orange-400 border-0 text-xs ml-auto">
+                {lowStockProducts.length} item(ns)
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {lowStockProducts.map(p => {
+                const stock = p.stockQuantity || 0;
+                const threshold = p.lowStockThreshold || 5;
+                const isZero = stock <= 0;
+                const daysLeft = stock > 0 ? Math.max(1, Math.round(stock / Math.max(1, threshold / 7))) : 0;
+
+                return (
+                  <div
+                    key={p.id}
+                    className={`p-3 rounded-lg border ${isZero ? "border-red-500/20 bg-red-500/5" : "border-orange-500/10 bg-orange-500/5"}`}
+                    data-testid={`row-lowstock-${p.id}`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-white text-sm font-medium">{p.name}</p>
+                        <p className={`text-xs mt-0.5 ${isZero ? "text-red-400" : "text-orange-400"}`}>
+                          {isZero
+                            ? "Estoque zerado!"
+                            : `${stock} unidade(s) — dura ~${daysLeft} dia(s)`}
+                        </p>
+                      </div>
+                      <Badge className={`text-xs border-0 ${isZero ? "bg-red-500/15 text-red-400" : "bg-orange-500/15 text-orange-400"}`}>
+                        {stock}/{threshold}
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <style>{`
+        @keyframes pulse-slow {
+          0%, 100% { box-shadow: 0 0 15px rgba(201,162,77,0.15); }
+          50% { box-shadow: 0 0 25px rgba(201,162,77,0.3); }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 2s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 }
