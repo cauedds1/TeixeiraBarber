@@ -15,6 +15,8 @@ import {
   ChevronRight,
   CalendarDays,
   X,
+  Check,
+  CheckCheck,
   User,
   Scissors,
 } from "lucide-react";
