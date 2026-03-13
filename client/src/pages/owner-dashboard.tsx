@@ -307,8 +307,8 @@ export default function OwnerDashboard() {
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <p className="text-white/40 text-xs uppercase tracking-wider">Bot Eficiência</p>
-                  <div className="p-2 rounded-lg bg-green-500/10">
-                    <MessageCircle className="h-4 w-4 text-green-400" />
+                  <div className="p-2 rounded-lg bg-[#C9A24D]/10">
+                    <MessageCircle className="h-4 w-4 text-[#C9A24D]" />
                   </div>
                 </div>
                 <p className="text-2xl font-bold text-white mt-2" data-testid="text-bot-confirmed">
@@ -436,7 +436,7 @@ export default function OwnerDashboard() {
                               <span
                                 className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${
                                   apt.reminderSent
-                                    ? "text-green-400 bg-green-500/10 border-green-500/20"
+                                    ? "text-[#C9A24D] bg-[#C9A24D]/10 border-[#C9A24D]/20"
                                     : "text-white/20 bg-white/[0.03] border-white/10"
                                 }`}
                                 data-testid={`badge-whatsapp-${apt.id}`}
@@ -468,7 +468,7 @@ export default function OwnerDashboard() {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-8 px-2 text-green-400 hover:bg-green-500/10 hover:text-green-300"
+                                  className="h-8 px-2 text-[#C9A24D] hover:bg-[#C9A24D]/10 hover:text-[#C9A24D]/80"
                                   onClick={() => sendReadyMut.mutate({ appointmentId: apt.id })}
                                   disabled={sendReadyMut.isPending}
                                   data-testid={`button-notify-${apt.id}`}
@@ -634,7 +634,7 @@ export default function OwnerDashboard() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="mt-2 text-green-400 hover:text-green-300 hover:bg-green-500/10 text-xs px-2 h-7"
+                    className="mt-2 text-[#C9A24D] hover:text-[#C9A24D]/80 hover:bg-[#C9A24D]/10 text-xs px-2 h-7"
                     onClick={() => {
                       const phone = stats.latestReview!.clientPhone!.replace(/\D/g, "");
                       window.open(`https://wa.me/${phone}`, "_blank");
@@ -700,7 +700,7 @@ export default function OwnerDashboard() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-full h-7 text-xs text-green-400 hover:text-green-300 hover:bg-green-500/10 border border-green-500/10"
+                      className="w-full h-7 text-xs text-[#C9A24D] hover:text-[#C9A24D]/80 hover:bg-[#C9A24D]/10 border border-[#C9A24D]/20"
                       onClick={() => window.open(`https://wa.me/?text=${whatsappMsg}`, "_blank")}
                       data-testid={`button-restock-${p.id}`}
                     >

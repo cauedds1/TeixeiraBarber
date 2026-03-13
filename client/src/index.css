@@ -193,3 +193,31 @@ html {
     inset: -1px;
   }
 }
+
+@keyframes fadeinup {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glowpulse {
+  0%, 100% {
+    text-shadow: 0 0 0px rgba(201, 162, 77, 0);
+  }
+  50% {
+    text-shadow: 0 0 22px rgba(201, 162, 77, 0.4), 0 0 8px rgba(201, 162, 77, 0.2);
+  }
+}
+
+.animate-fadeinup {
+  animation: fadeinup 0.8s ease-out both;
+}
+
+.animate-glowpulse {
+  animation: glowpulse 5s ease-in-out infinite;
+}

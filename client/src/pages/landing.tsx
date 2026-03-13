@@ -312,9 +312,9 @@ export default function Landing() {
 
           {/* Headline */}
           <div className="space-y-3">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
-              Seu visual no{" "}
-              <span className="text-[#C9A24D]">melhor momento</span>
+            <h1 className="font-baskerville text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.15] animate-fadeinup">
+              <span className="text-white">Seu visual no </span>
+              <span className="text-[#C9A24D] animate-glowpulse">melhor momento</span>
             </h1>
             <p className="text-base sm:text-lg text-white/55 max-w-md mx-auto leading-relaxed">
               A barbearia que transforma seu estilo com tradição, cuidado e o toque que só a Teixeira tem.

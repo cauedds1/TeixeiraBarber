@@ -1,0 +1,51 @@
+Para uma barbearia com esse estilo "Old School com requinte", a fonte não pode ser apenas "moderna"; ela precisa ter caráter e tradição.
+
+Aqui estão as minhas opiniões detalhadas sobre como transformar esse título no ponto focal do seu site:
+
+1. Tipografia (A Fonte): Trocar para uma Serif com Caráter
+A fonte atual é uma Sans-Serif muito neutra (parece Inter ou Roboto), que é ótima para textos longos, mas para títulos ela é muito "comum". Ela não diz "estilo" ou "tradição".
+
+Minha sugestão para elevar o nível é usar uma fonte Serif (serifada) que tenha peso e elegância. O contraste entre a Sans-Serif moderna (no resto do site) e uma Serif imponente no título gera um visual muito sofisticado.
+
+Opções de Fonte (Gratuitas no Google Fonts):
+
+Libre Baskerville (Bold): É clássica, tradicional, e tem uma robustez que lembra prensas antigas. Combina perfeitamente com o logo deles.
+
+Cormorant Garamond (Bold/Medium): Tem um toque mais refinado e contemporâneo do que a Baskerville. É muito usada em branding de luxo.
+
+DM Serif Display: Tem um design muito limpo, mas com a imponência de uma Serif. O contraste entre as linhas grossas e finas é excelente.
+
+Minha Recomendação: Tente a Libre Baskerville Bold. Ela evoca confiança e tradição, que é o que a Teixeira quer passar com o "EST. 2018".
+
+2. Cores: Sutilidade sobre o Dourado
+Atualmente, o texto é inteiramente dourado, o que é bonito, mas pode cansar um pouco ou faltar contraste com o fundo, dependendo da tela.
+
+A minha ideia é usar Contraste de Categoria para guiar a leitura:
+
+Branco Creme / Cinza Claro: Para o "Seu visual no".
+
+Dourado (#C9A24D): Apenas para a palavra "melhor momento".
+
+Efeito: Isso atrai o olho instantaneamente para a promessa central e dá profundidade ao texto.
+
+3. Animação: O Toque de Classe e Interatividade
+Não queremos animações "inúteis" ou que chamem atenção para elas mesmas. Elas devem ser sutis e apenas "apresentar" o conteúdo.
+
+Minhas ideias de animação:
+
+Abertura Suave (Fade-In-Up): Quando a página carregar, o texto inteiro surge de baixo para cima com uma opacidade gradual (delay curto). O tempo total deve ser de no máximo 0.8s. Dá a sensação de algo "chegando" com classe.
+
+Efeito "Cintilância" no Dourado (Glow Pulse): Nas palavras douradas ("melhor momento"), podemos adicionar uma animação CSS muito lenta e sutil de drop-shadow. O dourado pulsaria suavemente com um brilho externo dourado.
+
+Exemplo CSS: animate: glowPulse 5s infinite;
+
+Por que? Cria a percepção de que o texto é um objeto físico de metal precioso.
+
+Resumo: O Novo Visual do Título
+Imagine o título agora:
+
+Fonte: Libre Baskerville Bold (Robusta e tradicional).
+
+Cores: "Seu visual no" em Branco; "melhor momento" em Dourado.
+
+Animação: Ele surge suavemente e as palavras douradas têm um pulso de brilho bem lento.
