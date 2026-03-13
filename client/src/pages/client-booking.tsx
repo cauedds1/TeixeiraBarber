@@ -377,7 +377,7 @@ export default function ClientBooking() {
         </section>
 
         {/* ─── 2. DATA ─────────────────────────────────────────────── */}
-        <section ref={dateRef} data-testid="step-date-content">
+        <section ref={dateRef} className="scroll-mt-[60px]" data-testid="step-date-content">
           <SectionHeader
             icon={<CalendarDays className="h-4 w-4" />}
             title="Data"
