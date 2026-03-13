@@ -64,6 +64,7 @@ export default function ClientBooking() {
   const [clientPhone, setClientPhone] = useState("");
   const [booked, setBooked] = useState(false);
 
+  const dateRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLDivElement>(null);
   const barberRef = useRef<HTMLDivElement>(null);
   const infoRef = useRef<HTMLDivElement>(null);
@@ -316,7 +317,7 @@ export default function ClientBooking() {
                       return (
                         <button
                           key={service.id}
-                          onClick={() => { setSelectedService(service); if (!selectedTime) scrollTo(timeRef); }}
+                          onClick={() => { setSelectedService(service); if (!selectedTime) scrollTo(dateRef); }}
                           className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group active:scale-[0.99] ${sel ? "bg-[#C9A24D]/12 border-[#C9A24D]/45" : "bg-[#141414] border-white/6 hover:border-white/15"}`}
                           data-testid={`card-service-${service.id}`}
                         >
@@ -350,7 +351,7 @@ export default function ClientBooking() {
                     return (
                       <button
                         key={service.id}
-                        onClick={() => { setSelectedService(service); if (!selectedTime) scrollTo(timeRef); }}
+                        onClick={() => { setSelectedService(service); if (!selectedTime) scrollTo(dateRef); }}
                         className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group active:scale-[0.99] ${sel ? "bg-[#C9A24D]/12 border-[#C9A24D]/45" : "bg-[#141414] border-white/6 hover:border-white/15"}`}
                         data-testid={`card-service-${service.id}`}
                       >
@@ -376,7 +377,7 @@ export default function ClientBooking() {
         </section>
 
         {/* ─── 2. DATA ─────────────────────────────────────────────── */}
-        <section data-testid="step-date-content">
+        <section ref={dateRef} data-testid="step-date-content">
           <SectionHeader
             icon={<CalendarDays className="h-4 w-4" />}
             title="Data"
