@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -64,8 +64,8 @@ export default function ClientBooking() {
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
   const [expandedBarber, setExpandedBarber] = useState<string | null>(null);
   const [showAllServices, setShowAllServices] = useState(false);
-  const [clientName, setClientName] = useState("");
-  const [clientPhone, setClientPhone] = useState("");
+  const [clientName, setClientName] = useState(() => localStorage.getItem("teixeira_client_name") || "");
+  const [clientPhone, setClientPhone] = useState(() => localStorage.getItem("teixeira_client_phone") || "");
   const [booked, setBooked] = useState(false);
 
   const dateRef = useRef<HTMLDivElement>(null);
@@ -125,7 +125,11 @@ export default function ClientBooking() {
       }
       return res.json();
     },
-    onSuccess: () => setBooked(true),
+    onSuccess: () => {
+      localStorage.setItem("teixeira_client_name", clientName.trim());
+      localStorage.setItem("teixeira_client_phone", clientPhone.trim());
+      setBooked(true);
+    },
     onError: (e: any) => {
       toast({ title: "Erro ao agendar", description: e.message || "Tente novamente.", variant: "destructive" });
     },
@@ -268,8 +272,8 @@ export default function ClientBooking() {
                   setSelectedDate(todayStr);
                   setSelectedTime("");
                   setSelectedBarber(null);
-                  setClientName("");
-                  setClientPhone("");
+                  setClientName(localStorage.getItem("teixeira_client_name") || "");
+                  setClientPhone(localStorage.getItem("teixeira_client_phone") || "");
                 }}
                 className="w-full py-3.5 rounded-xl border border-white/8 text-white/40 text-sm hover:text-white hover:border-white/20 transition-colors"
                 data-testid="button-new-booking"
@@ -633,6 +637,27 @@ export default function ClientBooking() {
             </div>
           )}
 
+          {localStorage.getItem("teixeira_client_name") && (
+            <div className="flex items-center justify-between mb-3 px-1">
+              <p className="text-[#C9A24D] text-xs flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3" />
+                Bem-vindo de volta, {localStorage.getItem("teixeira_client_name")?.split(" ")[0]}!
+              </p>
+              <button
+                onClick={() => {
+                  localStorage.removeItem("teixeira_client_name");
+                  localStorage.removeItem("teixeira_client_phone");
+                  setClientName("");
+                  setClientPhone("");
+                }}
+                className="text-white/25 text-xs hover:text-white/60 transition-colors"
+                data-testid="button-clear-client-data"
+              >
+                Não é você?
+              </button>
+            </div>
+          )}
+
           <div className="space-y-3">
             <input
               type="text"
@@ -640,7 +665,7 @@ export default function ClientBooking() {
               onChange={(e) => setClientName(e.target.value)}
               placeholder="Seu nome completo"
               autoComplete="name"
-              className="w-full px-4 py-3.5 bg-[#141414] border border-white/8 rounded-xl text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-[#C9A24D]/50 transition-all"
+              className={`w-full px-4 py-3.5 bg-[#141414] border rounded-xl text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-[#C9A24D]/50 transition-all ${clientName && localStorage.getItem("teixeira_client_name") === clientName ? "border-[#C9A24D]/30" : "border-white/8"}`}
               data-testid="input-name"
             />
             <input
@@ -650,7 +675,7 @@ export default function ClientBooking() {
               placeholder="WhatsApp (48) 99999-9999"
               autoComplete="tel"
               inputMode="tel"
-              className="w-full px-4 py-3.5 bg-[#141414] border border-white/8 rounded-xl text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-[#C9A24D]/50 transition-all"
+              className={`w-full px-4 py-3.5 bg-[#141414] border rounded-xl text-white text-sm placeholder:text-white/20 focus:outline-none focus:border-[#C9A24D]/50 transition-all ${clientPhone && localStorage.getItem("teixeira_client_phone") === clientPhone ? "border-[#C9A24D]/30" : "border-white/8"}`}
               data-testid="input-phone"
             />
           </div>
