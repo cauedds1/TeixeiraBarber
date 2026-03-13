@@ -53,8 +53,13 @@ export default function Appointments() {
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       await apiRequest("PATCH", `/api/appointments/${id}/status`, { status });
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      if (variables.status === "completed") {
+        queryClient.invalidateQueries({ queryKey: ["/api/finances/cashflow"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/finances/commissions"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/finances/bills"] });
+      }
       toast({ title: "Status atualizado com sucesso" });
     },
     onError: () => {
