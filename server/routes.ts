@@ -1274,7 +1274,7 @@ export async function registerRoutes(
       const { appointmentId } = req.body;
       if (!appointmentId) return res.status(400).json({ message: "appointmentId obrigatório" });
       const user = req.user as any;
-      const barbershop = await storage.getBarbershopByOwnerId(user.id);
+      const barbershop = await storage.getBarbershopByOwner(user.id);
       if (!barbershop) return res.status(403).json({ message: "Barbearia não encontrada" });
       const appointment = await storage.getAppointment(appointmentId);
       if (!appointment || appointment.barbershopId !== barbershop.id) {

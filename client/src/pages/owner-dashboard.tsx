@@ -255,7 +255,8 @@ export default function OwnerDashboard() {
     p.isActive && (p.stockQuantity || 0) <= (p.lowStockThreshold || 5)
   );
 
-  const moneyValue = (val: number) => privacyMode ? "••••••" : fmtBRL(val);
+  const blurClass = privacyMode ? "blur-sm select-none" : "";
+  const moneyValue = (val: number) => fmtBRL(val);
 
   const WeatherIcon = weather ? getWeatherIcon(weather.weatherCode) : Sun;
 
@@ -304,10 +305,10 @@ export default function OwnerDashboard() {
                     <DollarSign className="h-4 w-4 text-[#C9A24D]" />
                   </div>
                 </div>
-                <p className="text-2xl font-bold text-[#C9A24D] mt-2" data-testid="text-today-revenue">
+                <p className={`text-2xl font-bold text-[#C9A24D] mt-2 ${blurClass}`} data-testid="text-today-revenue">
                   {moneyValue(stats?.todayRevenue || 0)}
                 </p>
-                <p className="text-white/30 text-xs mt-1">
+                <p className={`text-white/30 text-xs mt-1 ${blurClass}`}>
                   Mês: {moneyValue(stats?.monthlyRevenue || 0)}
                 </p>
               </CardContent>
@@ -556,7 +557,7 @@ export default function OwnerDashboard() {
                             </div>
                             <span className="text-white/70 text-sm capitalize">{method}</span>
                           </div>
-                          <span className={`text-sm font-semibold ${privacyMode ? "text-white/20" : "text-white"}`}>
+                          <span className={`text-sm font-semibold text-white ${blurClass}`}>
                             {moneyValue(value)}
                           </span>
                         </div>
@@ -577,7 +578,7 @@ export default function OwnerDashboard() {
                   </div>
                   <span className="text-white/50 text-xs uppercase tracking-wider">Comissões Pendentes</span>
                 </div>
-                <span className={`text-lg font-bold ${privacyMode ? "text-white/20" : "text-orange-400"}`} data-testid="text-pending-commissions">
+                <span className={`text-lg font-bold text-orange-400 ${blurClass}`} data-testid="text-pending-commissions">
                   {moneyValue(stats?.pendingCommissions || 0)}
                 </span>
               </div>
@@ -670,7 +671,12 @@ export default function OwnerDashboard() {
                 const stock = p.stockQuantity || 0;
                 const threshold = p.lowStockThreshold || 5;
                 const isZero = stock <= 0;
-                const daysLeft = stock > 0 ? Math.max(1, Math.round(stock / Math.max(1, threshold / 7))) : 0;
+                const dailyUsage = Math.max(0.5, threshold / 14);
+                const daysLeft = stock > 0 ? Math.round(stock / dailyUsage) : 0;
+                const restockQty = Math.max(threshold * 2 - stock, threshold);
+                const whatsappMsg = encodeURIComponent(
+                  `Olá! Preciso repor estoque:\n\n📦 Produto: ${p.name}\n🔢 Quantidade: ${restockQty} unidades\n\nTeixeira Barbearia - Kobrasol`
+                );
 
                 return (
                   <div
@@ -678,19 +684,29 @@ export default function OwnerDashboard() {
                     className={`p-3 rounded-lg border ${isZero ? "border-red-500/20 bg-red-500/5" : "border-orange-500/10 bg-orange-500/5"}`}
                     data-testid={`row-lowstock-${p.id}`}
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between mb-2">
                       <div>
                         <p className="text-white text-sm font-medium">{p.name}</p>
                         <p className={`text-xs mt-0.5 ${isZero ? "text-red-400" : "text-orange-400"}`}>
                           {isZero
                             ? "Estoque zerado!"
-                            : `${stock} unidade(s) — dura ~${daysLeft} dia(s)`}
+                            : `${stock} un. — dura ~${daysLeft} dia(s)`}
                         </p>
                       </div>
                       <Badge className={`text-xs border-0 ${isZero ? "bg-red-500/15 text-red-400" : "bg-orange-500/15 text-orange-400"}`}>
                         {stock}/{threshold}
                       </Badge>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full h-7 text-xs text-green-400 hover:text-green-300 hover:bg-green-500/10 border border-green-500/10"
+                      onClick={() => window.open(`https://wa.me/?text=${whatsappMsg}`, "_blank")}
+                      data-testid={`button-restock-${p.id}`}
+                    >
+                      <Send className="h-3 w-3 mr-1.5" />
+                      Pedir ao Fornecedor
+                    </Button>
                   </div>
                 );
               })}
