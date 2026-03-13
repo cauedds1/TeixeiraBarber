@@ -13,7 +13,6 @@ import type { Barbershop, Service, Barber } from "@shared/schema";
 import teixeiraLogoPath from "@assets/logo.png";
 
 const WHATSAPP_NUMBER = "5548999505167";
-const SERVICE_EMOJIS = ["✂️", "💈", "⚡", "🪒", "💇", "🧴", "🎨", "🔥"];
 
 type BarberWithAvailability = Barber & { available: boolean; nextSlots: string[] };
 
@@ -145,6 +144,9 @@ export default function ClientBooking() {
   }, [barbershop, selectedService]);
 
   const activeServices = services.filter((s) => s.isActive);
+  const featuredServices = activeServices.filter((s) => s.isFeatured);
+  const otherServices = activeServices.filter((s) => !s.isFeatured);
+  const hasFeatured = featuredServices.length > 0;
   const canConfirm = selectedService && selectedBarber && selectedDate && selectedTime && clientName.trim() && clientPhone.trim();
 
   const handleConfirm = () => {
@@ -304,40 +306,71 @@ export default function ClientBooking() {
           ) : activeServices.length === 0 ? (
             <p className="text-white/25 text-sm py-6">Nenhum serviço disponível no momento.</p>
           ) : (
-            <div className="space-y-2.5">
-              {activeServices.map((service, i) => {
-                const sel = selectedService?.id === service.id;
-                return (
-                  <button
-                    key={service.id}
-                    onClick={() => {
-                      setSelectedService(service);
-                      if (!selectedTime) scrollTo(timeRef);
-                    }}
-                    className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group active:scale-[0.99] ${sel ? "bg-[#C9A24D]/12 border-[#C9A24D]/45" : "bg-[#141414] border-white/6 hover:border-white/15"}`}
-                    data-testid={`card-service-${service.id}`}
-                  >
-                    <div className="flex items-center gap-3.5">
-                      <span className="text-2xl w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
-                        {SERVICE_EMOJIS[i % SERVICE_EMOJIS.length]}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white text-sm">{service.name}</p>
-                        {service.description && <p className="text-xs text-white/30 mt-0.5 line-clamp-1">{service.description}</p>}
-                        <p className="text-xs text-white/25 mt-1 flex items-center gap-1">
-                          <Clock className="h-2.5 w-2.5" />{service.duration} min
-                        </p>
-                      </div>
-                      <div className="flex-shrink-0 text-right">
-                        <p className={`font-bold text-base ${sel ? "text-[#C9A24D]" : "text-white"}`}>
-                          R$ {Number(service.price).toFixed(0)}
-                        </p>
-                        <ChevronRight className={`h-4 w-4 ml-auto mt-1 transition-colors ${sel ? "text-[#C9A24D]" : "text-white/15 group-hover:text-white/30"}`} />
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
+            <div className="space-y-4">
+              {hasFeatured && (
+                <>
+                  <p className="text-xs font-semibold text-[#C9A24D]/80 uppercase tracking-widest">Serviços Principais</p>
+                  <div className="space-y-2.5">
+                    {featuredServices.map((service) => {
+                      const sel = selectedService?.id === service.id;
+                      return (
+                        <button
+                          key={service.id}
+                          onClick={() => { setSelectedService(service); if (!selectedTime) scrollTo(timeRef); }}
+                          className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group active:scale-[0.99] ${sel ? "bg-[#C9A24D]/12 border-[#C9A24D]/45" : "bg-[#141414] border-white/6 hover:border-white/15"}`}
+                          data-testid={`card-service-${service.id}`}
+                        >
+                          <div className="flex items-center gap-3.5">
+                            <span className="text-2xl w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">{service.emoji || "✂️"}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-white text-sm">{service.name}</p>
+                              {service.description && <p className="text-xs text-white/30 mt-0.5 line-clamp-2">{service.description}</p>}
+                              <p className="text-xs text-white/25 mt-1 flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{service.duration} min</p>
+                            </div>
+                            <div className="flex-shrink-0 text-right">
+                              <p className={`font-bold text-base ${sel ? "text-[#C9A24D]" : "text-white"}`}>R$ {Number(service.price).toFixed(0)}</p>
+                              <ChevronRight className={`h-4 w-4 ml-auto mt-1 transition-colors ${sel ? "text-[#C9A24D]" : "text-white/15 group-hover:text-white/30"}`} />
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {hasFeatured && otherServices.length > 0 && (
+                <p className="text-xs font-semibold text-white/30 uppercase tracking-widest pt-2">Todos os serviços</p>
+              )}
+
+              {otherServices.length > 0 && (
+                <div className="space-y-2.5">
+                  {otherServices.map((service) => {
+                    const sel = selectedService?.id === service.id;
+                    return (
+                      <button
+                        key={service.id}
+                        onClick={() => { setSelectedService(service); if (!selectedTime) scrollTo(timeRef); }}
+                        className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 group active:scale-[0.99] ${sel ? "bg-[#C9A24D]/12 border-[#C9A24D]/45" : "bg-[#141414] border-white/6 hover:border-white/15"}`}
+                        data-testid={`card-service-${service.id}`}
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <span className="text-2xl w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">{service.emoji || "✂️"}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-white text-sm">{service.name}</p>
+                            {service.description && <p className="text-xs text-white/30 mt-0.5 line-clamp-2">{service.description}</p>}
+                            <p className="text-xs text-white/25 mt-1 flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{service.duration} min</p>
+                          </div>
+                          <div className="flex-shrink-0 text-right">
+                            <p className={`font-bold text-base ${sel ? "text-[#C9A24D]" : "text-white"}`}>R$ {Number(service.price).toFixed(0)}</p>
+                            <ChevronRight className={`h-4 w-4 ml-auto mt-1 transition-colors ${sel ? "text-[#C9A24D]" : "text-white/15 group-hover:text-white/30"}`} />
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </section>

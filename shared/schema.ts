@@ -101,7 +101,9 @@ export const services = pgTable("services", {
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   duration: integer("duration").notNull(), // in minutes
   isCombo: boolean("is_combo").default(false),
+  isFeatured: boolean("is_featured").default(false),
   isActive: boolean("is_active").default(true),
+  emoji: varchar("emoji", { length: 10 }),
   imageUrl: varchar("image_url"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

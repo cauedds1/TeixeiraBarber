@@ -113,7 +113,7 @@ export default function Landing() {
         name: s.name,
         duration: formatDuration(s.duration),
         price: formatCurrency(s.price),
-        icon: serviceIcons[i % serviceIcons.length],
+        icon: s.emoji || serviceIcons[i % serviceIcons.length],
       }));
 
   const team = barbersError

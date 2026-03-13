@@ -18,10 +18,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
-  Plus, Search, Clock, Scissors, Pencil, Trash2, ArrowRight,
+  Plus, Search, Clock, Scissors, Pencil, Trash2, Star,
 } from "lucide-react";
 import { z } from "zod";
 import type { Service } from "@shared/schema";
+
+const BARBERSHOP_EMOJIS = [
+  "✂️", "💈", "🪒", "⚡", "💇", "🧴", "🎨", "🔥",
+  "🧼", "💆", "👑", "🪮", "🎭", "🏆", "⭐", "💎",
+  "🌟", "✨", "🫧", "🪥", "💅", "🧖", "🧔", "👨",
+];
 
 const serviceFormSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
@@ -29,7 +35,9 @@ const serviceFormSchema = z.object({
   price: z.string().min(1, "Preço é obrigatório"),
   duration: z.string().min(1, "Duração é obrigatória"),
   isCombo: z.boolean().default(false),
+  isFeatured: z.boolean().default(false),
   isActive: z.boolean().default(true),
+  emoji: z.string().optional(),
 });
 
 type ServiceFormData = z.infer<typeof serviceFormSchema>;
@@ -44,7 +52,7 @@ export default function Services() {
   const form = useForm<ServiceFormData>({
     resolver: zodResolver(serviceFormSchema),
     defaultValues: {
-      name: "", description: "", price: "", duration: "30", isCombo: false, isActive: true,
+      name: "", description: "", price: "", duration: "30", isCombo: false, isFeatured: false, isActive: true, emoji: "✂️",
     },
   });
 
@@ -114,7 +122,7 @@ export default function Services() {
   const closeDialog = () => {
     setDialogOpen(false);
     setEditingService(null);
-    form.reset({ name: "", description: "", price: "", duration: "30", isCombo: false, isActive: true });
+    form.reset({ name: "", description: "", price: "", duration: "30", isCombo: false, isFeatured: false, isActive: true, emoji: "✂️" });
   };
 
   const openEdit = (service: Service) => {
@@ -125,7 +133,9 @@ export default function Services() {
       price: service.price?.toString() || "",
       duration: service.duration?.toString() || "30",
       isCombo: service.isCombo ?? false,
+      isFeatured: service.isFeatured ?? false,
       isActive: service.isActive ?? true,
+      emoji: service.emoji || "✂️",
     });
     setDialogOpen(true);
   };
@@ -157,6 +167,7 @@ export default function Services() {
   });
 
   const activeCount = services?.filter((s) => s.isActive).length || 0;
+  const featuredCount = services?.filter((s) => s.isFeatured).length || 0;
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   return (
@@ -166,7 +177,7 @@ export default function Services() {
           <div>
             <h1 className="text-2xl font-black text-white" data-testid="text-services-title">Serviços</h1>
             <p className="text-white/40 text-sm mt-1">
-              {activeCount} {activeCount === 1 ? "serviço ativo" : "serviços ativos"} · Gerencie sua tabela de preços
+              {activeCount} {activeCount === 1 ? "serviço ativo" : "serviços ativos"} · {featuredCount} {featuredCount === 1 ? "principal" : "principais"}
             </p>
           </div>
           <button
@@ -216,12 +227,18 @@ export default function Services() {
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="w-12 h-12 rounded-xl bg-[#C9A24D]/10 flex items-center justify-center flex-shrink-0">
-                      <Scissors className="w-5 h-5 text-[#C9A24D]" />
+                    <div className="w-12 h-12 rounded-xl bg-[#C9A24D]/10 flex items-center justify-center flex-shrink-0 text-2xl">
+                      {service.emoji || "✂️"}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-bold text-white">{service.name}</h3>
+                        {service.isFeatured && (
+                          <span className="text-[10px] uppercase tracking-wider font-semibold bg-[#C9A24D]/15 text-[#C9A24D] px-2 py-0.5 rounded-full flex items-center gap-1" data-testid={`badge-featured-${service.id}`}>
+                            <Star className="w-2.5 h-2.5 fill-[#C9A24D]" />
+                            Principal
+                          </span>
+                        )}
                         {service.isCombo && (
                           <span className="text-[10px] uppercase tracking-wider font-semibold bg-[#C9A24D]/10 text-[#C9A24D] px-2 py-0.5 rounded-full">Combo</span>
                         )}
@@ -287,7 +304,7 @@ export default function Services() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); else setDialogOpen(true); }}>
-        <DialogContent className="max-w-lg bg-[#1a1a1a] border-white/10 text-white">
+        <DialogContent className="max-w-lg bg-[#1a1a1a] border-white/10 text-white max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white">
               {editingService ? "Editar Serviço" : "Novo Serviço"}
@@ -295,6 +312,29 @@ export default function Services() {
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField control={form.control} name="emoji" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-white/70">Ícone</FormLabel>
+                  <div className="grid grid-cols-8 gap-2" data-testid="emoji-picker">
+                    {BARBERSHOP_EMOJIS.map((em) => (
+                      <button
+                        key={em}
+                        type="button"
+                        onClick={() => field.onChange(em)}
+                        className={`w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all ${
+                          field.value === em
+                            ? "bg-[#C9A24D]/20 border-2 border-[#C9A24D] scale-110"
+                            : "bg-white/5 border border-white/10 hover:bg-white/10 hover:scale-105"
+                        }`}
+                        data-testid={`emoji-option-${em}`}
+                      >
+                        {em}
+                      </button>
+                    ))}
+                  </div>
+                </FormItem>
+              )} />
+
               <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-white/70">Nome *</FormLabel>
@@ -309,7 +349,7 @@ export default function Services() {
                 <FormItem>
                   <FormLabel className="text-white/70">Descrição</FormLabel>
                   <FormControl>
-                    <Textarea {...field} placeholder="Descrição opcional do serviço..." className="bg-[#0e0e0e] border-white/10 text-white resize-none" data-testid="input-service-description" />
+                    <Textarea {...field} placeholder="Explique o que inclui este serviço..." className="bg-[#0e0e0e] border-white/10 text-white resize-none" rows={3} data-testid="input-service-description" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -336,23 +376,37 @@ export default function Services() {
                 )} />
               </div>
 
-              <div className="flex items-center gap-6">
-                <FormField control={form.control} name="isCombo" render={({ field }) => (
-                  <FormItem className="flex items-center gap-2">
+              <div className="space-y-3 pt-1">
+                <FormField control={form.control} name="isFeatured" render={({ field }) => (
+                  <FormItem className="flex items-center justify-between gap-2 bg-[#C9A24D]/5 border border-[#C9A24D]/20 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Star className="w-4 h-4 text-[#C9A24D]" />
+                      <FormLabel className="!mt-0 text-white/90 font-medium">Serviço Principal</FormLabel>
+                    </div>
                     <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-combo" />
+                      <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-featured" className="data-[state=checked]:bg-[#C9A24D]" />
                     </FormControl>
-                    <FormLabel className="!mt-0 text-white/70">É combo</FormLabel>
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="isActive" render={({ field }) => (
-                  <FormItem className="flex items-center gap-2">
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-active" />
-                    </FormControl>
-                    <FormLabel className="!mt-0 text-white/70">Ativo</FormLabel>
-                  </FormItem>
-                )} />
+
+                <div className="flex items-center gap-6">
+                  <FormField control={form.control} name="isCombo" render={({ field }) => (
+                    <FormItem className="flex items-center gap-2">
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-combo" />
+                      </FormControl>
+                      <FormLabel className="!mt-0 text-white/70">É combo</FormLabel>
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="isActive" render={({ field }) => (
+                    <FormItem className="flex items-center gap-2">
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-active" />
+                      </FormControl>
+                      <FormLabel className="!mt-0 text-white/70">Ativo</FormLabel>
+                    </FormItem>
+                  )} />
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
