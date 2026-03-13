@@ -33,6 +33,31 @@ class WhatsAppService {
     return this.qrDataUrl;
   }
 
+  private async resolveJid(digits: string): Promise<string | null> {
+    if (!this.sock) return null;
+    // Build candidate JIDs: original + BR alternative (add/remove the 9th digit)
+    const candidates: string[] = [digits];
+    if (digits.startsWith("55") && digits.length === 13) {
+      // e.g. 5548999186712 → 554899186712 (remove the extra 9)
+      candidates.push(digits.slice(0, 4) + digits.slice(5));
+    } else if (digits.startsWith("55") && digits.length === 12) {
+      // e.g. 554899186712 → 5548999186712 (add the extra 9)
+      candidates.push(digits.slice(0, 4) + "9" + digits.slice(4));
+    }
+    for (const candidate of candidates) {
+      try {
+        const [result] = await this.sock.onWhatsApp(`${candidate}@s.whatsapp.net`);
+        if (result?.exists) {
+          log(`[WhatsApp] Número verificado: ${result.jid}`);
+          return result.jid;
+        }
+      } catch {}
+    }
+    // Fallback: use original digits unverified
+    log(`[WhatsApp] Número não verificado no WA, tentando enviar assim mesmo: ${digits}`);
+    return `${digits}@s.whatsapp.net`;
+  }
+
   async sendMessage(phone: string, text: string): Promise<boolean> {
     if (!this.sock || this.status !== "connected") {
       log("[WhatsApp] Não conectado — mensagem não enviada");
@@ -40,9 +65,10 @@ class WhatsAppService {
     }
     try {
       const digits = phone.replace(/\D/g, "");
-      const jid = digits.includes("@") ? digits : `${digits}@s.whatsapp.net`;
+      const jid = await this.resolveJid(digits);
+      if (!jid) return false;
       await this.sock.sendMessage(jid, { text });
-      log(`[WhatsApp] Mensagem enviada para ${digits}`);
+      log(`[WhatsApp] Mensagem enviada para ${jid}`);
       return true;
     } catch (e) {
       log(`[WhatsApp] Erro ao enviar mensagem: ${e}`);
