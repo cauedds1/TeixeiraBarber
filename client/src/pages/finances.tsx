@@ -42,6 +42,7 @@ import {
   Package,
   FileText,
   Eye,
+  Pencil,
 } from "lucide-react";
 
 const fmtBRL = (v: number) =>
@@ -348,6 +349,7 @@ function BillsTab() {
   const { toast } = useToast();
   const [subTab, setSubTab] = useState<"payable" | "receivable">("payable");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingBillId, setEditingBillId] = useState<string | null>(null);
   const [form, setForm] = useState({
     billType: "payable" as string,
     title: "",
@@ -372,7 +374,18 @@ function BillsTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/finances/bills"] });
       setDialogOpen(false);
+      setEditingBillId(null);
       toast({ title: "Conta criada com sucesso" });
+    },
+  });
+
+  const updateMut = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest("PATCH", `/api/finances/bills/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/finances/bills"] });
+      setDialogOpen(false);
+      setEditingBillId(null);
+      toast({ title: "Conta atualizada com sucesso" });
     },
   });
 
@@ -399,6 +412,7 @@ function BillsTab() {
   const forecastBalance = totalReceivable - totalPayable;
 
   function openCreate() {
+    setEditingBillId(null);
     setForm({
       billType: subTab,
       title: "",
@@ -411,8 +425,22 @@ function BillsTab() {
     setDialogOpen(true);
   }
 
+  function openEdit(bill: any) {
+    setEditingBillId(bill.id);
+    setForm({
+      billType: bill.billType,
+      title: bill.title,
+      amount: bill.amount?.toString() || "",
+      dueDate: bill.dueDate || "",
+      supplier: bill.supplier || "",
+      paymentMethod: bill.paymentMethod || "",
+      notes: bill.notes || "",
+    });
+    setDialogOpen(true);
+  }
+
   function handleSave() {
-    createMut.mutate({
+    const payload = {
       billType: form.billType,
       title: form.title,
       amount: form.amount,
@@ -420,7 +448,12 @@ function BillsTab() {
       supplier: form.supplier || null,
       paymentMethod: form.paymentMethod || null,
       notes: form.notes || null,
-    });
+    };
+    if (editingBillId) {
+      updateMut.mutate({ id: editingBillId, data: payload });
+    } else {
+      createMut.mutate(payload);
+    }
   }
 
   return (
@@ -553,6 +586,15 @@ function BillsTab() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-8 w-8 hover:bg-[#C9A24D]/10 text-white/30 hover:text-[#C9A24D]"
+                      onClick={() => openEdit(b)}
+                      data-testid={`button-edit-bill-${b.id}`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="h-8 w-8 hover:bg-red-500/10 text-white/30 hover:text-red-400"
                       onClick={() => deleteMut.mutate(b.id)}
                       data-testid={`button-delete-bill-${b.id}`}
@@ -570,7 +612,7 @@ function BillsTab() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="bg-[#1a1a1a] border-white/10 text-white max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white">Nova Conta</DialogTitle>
+            <DialogTitle className="text-white">{editingBillId ? "Editar Conta" : "Nova Conta"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -660,11 +702,11 @@ function BillsTab() {
             <Button variant="ghost" onClick={() => setDialogOpen(false)} className="text-white/60 hover:text-white">Cancelar</Button>
             <Button
               onClick={handleSave}
-              disabled={createMut.isPending || !form.title || !form.amount || !form.dueDate}
+              disabled={(createMut.isPending || updateMut.isPending) || !form.title || !form.amount || !form.dueDate}
               className="bg-[#C9A24D] hover:bg-[#b8913f] text-black font-semibold"
               data-testid="button-save-bill"
             >
-              {createMut.isPending ? "Salvando..." : "Salvar"}
+              {(createMut.isPending || updateMut.isPending) ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>

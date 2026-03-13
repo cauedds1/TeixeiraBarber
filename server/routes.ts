@@ -468,27 +468,25 @@ export async function registerRoutes(
       const appointment = await storage.updateAppointmentStatus(req.params.id, req.body.status);
 
       if (req.body.status === "completed" && existing.status !== "completed") {
-        try {
-          const price = parseFloat(existing.price?.toString() || "0");
-          const barber = await storage.getBarber(existing.barberId);
-          const service = await storage.getService(existing.serviceId);
-          const rate = parseFloat(barber?.commissionRate?.toString() || "0");
-          const commissionAmount = (price * rate) / 100;
+        const price = parseFloat(existing.price?.toString() || "0");
+        const barber = await storage.getBarber(existing.barberId);
+        const service = await storage.getService(existing.serviceId);
+        const rate = parseFloat(barber?.commissionRate?.toString() || "0");
+        const commissionAmount = (price * rate) / 100;
 
-          await storage.createTransaction({
-            barbershopId: barbershop.id,
-            appointmentId: existing.id,
-            barberId: existing.barberId,
-            clientId: existing.clientId || undefined,
-            type: "service",
-            category: service?.name || "Serviço",
-            description: `${service?.name || "Serviço"} — ${existing.clientName || "Cliente"}`,
-            amount: existing.price,
-            commissionAmount: commissionAmount > 0 ? commissionAmount.toFixed(2) : undefined,
-            paymentMethod: req.body.paymentMethod || undefined,
-            date: existing.date,
-          });
-        } catch (_) {}
+        await storage.createTransaction({
+          barbershopId: barbershop.id,
+          appointmentId: existing.id,
+          barberId: existing.barberId,
+          clientId: existing.clientId || undefined,
+          type: "service",
+          category: service?.name || "Serviço",
+          description: `${service?.name || "Serviço"} — ${existing.clientName || "Cliente"}`,
+          amount: existing.price,
+          commissionAmount: commissionAmount > 0 ? commissionAmount.toFixed(2) : undefined,
+          paymentMethod: req.body.paymentMethod || undefined,
+          date: existing.date,
+        });
       }
 
       if (req.body.status === "cancelled" && existing.clientPhone) {
