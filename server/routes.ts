@@ -87,17 +87,35 @@ export async function registerRoutes(
       if (!barbershop) {
         return res.status(404).json({ message: "Barbearia não encontrada" });
       }
-      const reviews = await storage.getReviews(barbershop.id);
-      const publicReviews = reviews.filter(r => r.isPublic);
-      const totalReviews = publicReviews.length;
-      const averageRating = totalReviews > 0
-        ? publicReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+      const allReviews = await storage.getReviews(barbershop.id);
+      const publicReviews = allReviews.filter(r => r.isPublic);
+
+      const barbershopRatings = publicReviews.map(r => r.barbershopRating).filter((r): r is number => r != null);
+      const barberRatings = publicReviews.map(r => r.rating).filter((r): r is number => r != null);
+      const allRatings = [...barbershopRatings, ...barberRatings];
+
+      const avgBarbershopRating = barbershopRatings.length > 0
+        ? barbershopRatings.reduce((s, r) => s + r, 0) / barbershopRatings.length
         : 0;
+      const avgBarberRating = barberRatings.length > 0
+        ? barberRatings.reduce((s, r) => s + r, 0) / barberRatings.length
+        : 0;
+      const overallAvg = allRatings.length > 0
+        ? allRatings.reduce((s, r) => s + r, 0) / allRatings.length
+        : 0;
+
+      const testimonials = publicReviews
+        .filter(r => r.comment && r.comment.trim().length > 0)
+        .slice(0, 20);
 
       res.json({
         reviews: publicReviews,
-        averageRating,
-        totalReviews,
+        testimonials,
+        avgBarbershopRating: Math.round(avgBarbershopRating * 10) / 10,
+        avgBarberRating: Math.round(avgBarberRating * 10) / 10,
+        overallAvg: Math.round(overallAvg * 10) / 10,
+        totalReviews: publicReviews.length,
+        totalWithRating: allRatings.length,
       });
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar avaliações" });
@@ -465,7 +483,13 @@ export async function registerRoutes(
     try {
       const barbershop = await getBarbershopForUser((req.user as any).id);
       const barbers = await storage.getBarbers(barbershop.id);
-      res.json(barbers);
+      const barbersWithRatings = await Promise.all(
+        barbers.map(async (b) => ({
+          ...b,
+          avgRating: await storage.getBarberAverageRating(b.id),
+        }))
+      );
+      res.json(barbersWithRatings);
     } catch (error) {
       res.status(500).json({ message: "Error fetching barbers" });
     }

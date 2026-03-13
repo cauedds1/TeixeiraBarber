@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import {
-  Plus, Search, Phone, Mail, Clock, Percent, Camera, Pencil, Trash2, UserPlus,
+  Plus, Search, Phone, Mail, Clock, Percent, Camera, Pencil, Trash2, UserPlus, Star,
 } from "lucide-react";
 import { z } from "zod";
 import type { Barber } from "@shared/schema";
@@ -232,7 +232,15 @@ export default function Team() {
 
                 <div className="p-5 space-y-3">
                   <div>
-                    <h3 className="font-bold text-white text-lg">{barber.name}</h3>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-bold text-white text-lg">{barber.name}</h3>
+                      {(barber as any).avgRating > 0 && (
+                        <div className="flex items-center gap-1 shrink-0 mt-0.5" data-testid={`text-rating-${barber.id}`}>
+                          <Star className="w-3.5 h-3.5 text-[#C9A24D] fill-current" />
+                          <span className="text-[#C9A24D] text-xs font-bold">{(barber as any).avgRating.toFixed(1)}</span>
+                        </div>
+                      )}
+                    </div>
                     {barber.bio && (
                       <p className="text-white/40 text-sm mt-1 line-clamp-2">{barber.bio}</p>
                     )}

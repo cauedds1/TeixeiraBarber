@@ -151,6 +151,9 @@ export const appointments = pgTable("appointments", {
   clientName: varchar("client_name", { length: 255 }),
   clientPhone: varchar("client_phone", { length: 20 }),
   reminderSent: boolean("reminder_sent").default(false),
+  reviewRequestSent: boolean("review_request_sent").default(false),
+  reviewRequestSentAt: timestamp("review_request_sent_at"),
+  reviewCompleted: boolean("review_completed").default(false),
   confirmedAt: timestamp("confirmed_at"),
   completedAt: timestamp("completed_at"),
   cancelledAt: timestamp("cancelled_at"),
@@ -286,11 +289,14 @@ export const coupons = pgTable("coupons", {
 export const reviews = pgTable("reviews", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   barbershopId: varchar("barbershop_id").references(() => barbershops.id).notNull(),
-  clientId: varchar("client_id").references(() => clients.id).notNull(),
+  clientId: varchar("client_id").references(() => clients.id),
   barberId: varchar("barber_id").references(() => barbers.id),
   appointmentId: varchar("appointment_id").references(() => appointments.id),
-  rating: integer("rating").notNull(), // 1-5
-  comment: text("comment"),
+  rating: integer("rating"), // barber rating 1-5
+  barbershopRating: integer("barbershop_rating"), // 1-5
+  comment: text("comment"), // testimonial
+  clientPhone: varchar("client_phone", { length: 20 }),
+  clientName: varchar("client_name", { length: 255 }),
   reply: text("reply"),
   isPublic: boolean("is_public").default(true),
   createdAt: timestamp("created_at").defaultNow(),

@@ -10,6 +10,7 @@ import * as qrcode from "qrcode";
 import * as path from "path";
 import P from "pino";
 import { handleIncomingMessage } from "./whatsapp-ai";
+import { isInReviewConversation, handleReviewResponse } from "./review-conversation";
 import { log } from "./index";
 
 const pinoLogger = P({ level: "silent" });
@@ -105,7 +106,15 @@ class WhatsAppService {
             "";
           if (!text.trim()) continue;
 
-          const reply = await handleIncomingMessage(text, this.barbershopSlug);
+          const phone = from.replace("@s.whatsapp.net", "");
+          let reply: string | null = null;
+
+          if (isInReviewConversation(phone)) {
+            reply = await handleReviewResponse(phone, text);
+          } else {
+            reply = await handleIncomingMessage(text, this.barbershopSlug);
+          }
+
           if (reply) {
             await sock.sendMessage(from, { text: reply });
           }

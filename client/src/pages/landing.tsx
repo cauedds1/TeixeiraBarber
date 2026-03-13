@@ -26,14 +26,16 @@ const fallbackTeam = [
 const serviceIcons = ["✂️", "💈", "⚡", "🪒", "💇", "🧴"];
 const teamColors = ["from-amber-700 to-amber-900", "from-stone-600 to-stone-800", "from-yellow-700 to-yellow-900"];
 
-const reviews = [
-  { text: "Ótimo atendimento!! Melhor barbearia da região 🙏", author: "José", date: "Jan 2026" },
-  { text: "Nota 10! Profissionais incríveis, ambiente muito agradável.", author: "Edson", date: "Dez 2025" },
-  { text: "Melhor barbearia de Floripa ♡ Sempre saio satisfeito!", author: "Octavio", date: "Dez 2025" },
-  { text: "Simplesmente a melhor profissional do ramo. Recomendo demais!", author: "Davi", date: "Out 2025" },
-  { text: "Serviço impecável, ambiente top. Virei cliente fiel!", author: "Priscila", date: "Out 2025" },
-  { text: "Atendimento perfeito, resultado sempre incrível. 5 estrelas!", author: "Leonardo", date: "Dez 2025" },
+const staticReviews = [
+  { text: "Ótimo atendimento!! Melhor barbearia da região 🙏", author: "José", date: "Jan 2026", rating: 5 },
+  { text: "Nota 10! Profissionais incríveis, ambiente muito agradável.", author: "Edson", date: "Dez 2025", rating: 5 },
+  { text: "Melhor barbearia de Floripa ♡ Sempre saio satisfeito!", author: "Octavio", date: "Dez 2025", rating: 5 },
+  { text: "Simplesmente a melhor profissional do ramo. Recomendo demais!", author: "Davi", date: "Out 2025", rating: 5 },
+  { text: "Serviço impecável, ambiente top. Virei cliente fiel!", author: "Priscila", date: "Out 2025", rating: 5 },
+  { text: "Atendimento perfeito, resultado sempre incrível. 5 estrelas!", author: "Leonardo", date: "Dez 2025", rating: 5 },
 ];
+
+type ReviewData = { text: string; author: string; date: string; rating: number };
 
 const hours = [
   { day: "Segunda a Sexta", time: "09:00 – 20:00", open: true },
@@ -81,6 +83,23 @@ export default function Landing() {
     retry: false,
   });
 
+  const { data: reviewsData } = useQuery<{
+    testimonials: Array<{ id: string; comment: string; clientName: string | null; rating: number | null; barbershopRating: number | null; createdAt: string }>;
+    avgBarbershopRating: number;
+    overallAvg: number;
+    totalReviews: number;
+    totalWithRating: number;
+  }>({
+    queryKey: ["/api/public/barbershops/teixeira/reviews"],
+    queryFn: async () => {
+      const res = await fetch("/api/public/barbershops/teixeira/reviews");
+      if (!res.ok) throw new Error("Failed to fetch reviews");
+      return res.json();
+    },
+    staleTime: 120000,
+    retry: false,
+  });
+
   const activeApiServices = apiServices?.filter(s => s.isActive) || [];
 
   const services = servicesError
@@ -119,12 +138,36 @@ export default function Landing() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const displayReviews: ReviewData[] = (() => {
+    const dbTestimonials = reviewsData?.testimonials || [];
+    if (dbTestimonials.length >= 3) {
+      return dbTestimonials.map(r => ({
+        text: r.comment,
+        author: r.clientName || "Cliente",
+        date: new Date(r.createdAt).toLocaleDateString("pt-BR", { month: "short", year: "numeric" }),
+        rating: r.rating || r.barbershopRating || 5,
+      }));
+    }
+    return staticReviews;
+  })();
+
+  const totalReviewCount = reviewsData?.totalReviews && reviewsData.totalReviews > 0
+    ? reviewsData.totalReviews
+    : 28;
+
+  const displayAvg = reviewsData?.overallAvg && reviewsData.overallAvg > 0
+    ? reviewsData.overallAvg
+    : 5.0;
+
+  const displayAvgRounded = Math.round(displayAvg * 10) / 10;
+  const displayStars = Math.round(displayAvgRounded);
+
   useEffect(() => {
     reviewInterval.current = setInterval(() => {
-      setActiveReview((prev) => (prev + 1) % reviews.length);
+      setActiveReview((prev) => (prev + 1) % displayReviews.length);
     }, 3500);
     return () => { if (reviewInterval.current) clearInterval(reviewInterval.current); };
-  }, []);
+  }, [displayReviews.length]);
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
@@ -261,9 +304,9 @@ export default function Landing() {
           <div className="flex items-center justify-center gap-6 sm:gap-10 pt-4 border-t border-white/5">
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-[#C9A24D]">
-                {[...Array(5)].map((_, i) => <Star key={i} className="w-3.5 h-3.5 fill-current" />)}
+                {[...Array(5)].map((_, i) => <Star key={i} className={`w-3.5 h-3.5 fill-current ${i < displayStars ? "text-[#C9A24D]" : "text-white/20"}`} />)}
               </div>
-              <p className="text-xs text-white/40 mt-1">28 avaliações</p>
+              <p className="text-xs text-white/40 mt-1">{totalReviewCount} avaliações</p>
             </div>
             <div className="w-px h-8 bg-white/10" />
             <div className="text-center">
@@ -407,44 +450,48 @@ export default function Landing() {
             <h2 className="text-3xl sm:text-4xl font-black">Avaliações</h2>
             <div className="flex items-center justify-center gap-2 mt-4">
               <div className="flex">
-                {[...Array(5)].map((_, i) => <Star key={i} className="w-5 h-5 text-[#C9A24D] fill-current" />)}
+                {[...Array(5)].map((_, i) => <Star key={i} className={`w-5 h-5 fill-current ${i < displayStars ? "text-[#C9A24D]" : "text-white/20"}`} />)}
               </div>
-              <span className="text-white font-bold text-lg">5.0</span>
-              <span className="text-white/40 text-sm">· 28 avaliações</span>
+              <span className="text-white font-bold text-lg">{displayAvgRounded > 0 ? displayAvgRounded.toFixed(1) : "5.0"}</span>
+              <span className="text-white/40 text-sm">· {totalReviewCount} avaliações</span>
             </div>
           </div>
 
           {/* Featured review */}
-          <div className="bg-[#151515] border border-white/5 rounded-3xl p-8 mb-6 min-h-[160px] flex flex-col justify-between transition-all duration-500">
-            <p className="text-white/80 text-base sm:text-lg leading-relaxed italic">
-              "{reviews[activeReview].text}"
-            </p>
-            <div className="flex items-center justify-between mt-6">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-[#C9A24D]/20 flex items-center justify-center">
-                  <span className="text-[#C9A24D] text-sm font-bold">
-                    {reviews[activeReview].author[0]}
-                  </span>
+          {displayReviews.length > 0 && (
+            <div className="bg-[#151515] border border-white/5 rounded-3xl p-8 mb-6 min-h-[160px] flex flex-col justify-between transition-all duration-500">
+              <p className="text-white/80 text-base sm:text-lg leading-relaxed italic">
+                "{displayReviews[activeReview % displayReviews.length].text}"
+              </p>
+              <div className="flex items-center justify-between mt-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-[#C9A24D]/20 flex items-center justify-center">
+                    <span className="text-[#C9A24D] text-sm font-bold">
+                      {displayReviews[activeReview % displayReviews.length].author[0]}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm text-white">{displayReviews[activeReview % displayReviews.length].author}</p>
+                    <p className="text-white/30 text-xs">{displayReviews[activeReview % displayReviews.length].date}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-sm text-white">{reviews[activeReview].author}</p>
-                  <p className="text-white/30 text-xs">{reviews[activeReview].date}</p>
+                <div className="flex gap-1">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className={`w-4 h-4 fill-current ${i < (displayReviews[activeReview % displayReviews.length].rating || 5) ? "text-[#C9A24D]" : "text-white/20"}`} />
+                  ))}
                 </div>
-              </div>
-              <div className="flex gap-1">
-                {[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 text-[#C9A24D] fill-current" />)}
               </div>
             </div>
-          </div>
+          )}
 
           {/* Dot indicators */}
           <div className="flex justify-center gap-2 mb-8">
-            {reviews.map((_, i) => (
+            {displayReviews.map((_, i) => (
               <button
                 key={i}
                 onClick={() => { setActiveReview(i); if (reviewInterval.current) clearInterval(reviewInterval.current); }}
                 className={`transition-all duration-300 rounded-full ${
-                  i === activeReview ? "w-6 h-2 bg-[#C9A24D]" : "w-2 h-2 bg-white/20 hover:bg-white/40"
+                  i === activeReview % displayReviews.length ? "w-6 h-2 bg-[#C9A24D]" : "w-2 h-2 bg-white/20 hover:bg-white/40"
                 }`}
                 data-testid={`button-review-dot-${i}`}
               />
@@ -453,7 +500,7 @@ export default function Landing() {
 
           {/* Mini reviews grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {reviews.slice(0, 3).map((review, i) => (
+            {displayReviews.slice(0, 3).map((review, i) => (
               <div
                 key={i}
                 onClick={() => setActiveReview(i)}
@@ -461,7 +508,9 @@ export default function Landing() {
                 data-testid={`card-review-${i}`}
               >
                 <div className="flex gap-0.5 mb-2">
-                  {[...Array(5)].map((_, j) => <Star key={j} className="w-3 h-3 text-[#C9A24D] fill-current" />)}
+                  {[...Array(5)].map((_, j) => (
+                    <Star key={j} className={`w-3 h-3 fill-current ${j < (review.rating || 5) ? "text-[#C9A24D]" : "text-white/20"}`} />
+                  ))}
                 </div>
                 <p className="text-white/60 text-xs leading-relaxed line-clamp-2">"{review.text}"</p>
                 <p className="text-white/30 text-xs mt-2 font-medium">— {review.author}</p>

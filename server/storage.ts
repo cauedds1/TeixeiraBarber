@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, desc, sql, count, sum } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql, count, sum, isNull, lt, isNotNull, or } from "drizzle-orm";
 import { db } from "./db";
 import {
   users, barbershops, barbers, services, serviceCategories,
@@ -58,6 +58,9 @@ export interface IStorage {
   updateAppointmentStatus(id: string, status: string): Promise<Appointment | undefined>;
   getUpcomingUnremindedAppointments(date: string): Promise<Appointment[]>;
   markReminderSent(id: string): Promise<void>;
+  getAppointmentsForReview(): Promise<Appointment[]>;
+  markReviewRequestSent(id: string): Promise<void>;
+  markReviewCompleted(id: string): Promise<void>;
 
   // Products
   getProducts(barbershopId: string): Promise<Product[]>;
@@ -85,7 +88,20 @@ export interface IStorage {
   // Reviews
   getReviews(barbershopId: string): Promise<Review[]>;
   createReview(data: InsertReview): Promise<Review>;
+  createReviewFromWA(data: {
+    barbershopId: string;
+    barberId: string | null;
+    appointmentId: string;
+    rating: number | null;
+    barbershopRating: number | null;
+    comment: string | null;
+    clientPhone: string;
+    clientName: string | null;
+    isPublic: boolean;
+  }): Promise<Review>;
   updateReviewReply(id: string, reply: string): Promise<Review | undefined>;
+  getLastReviewByPhone(phone: string, barbershopId: string): Promise<Review | undefined>;
+  getBarberAverageRating(barberId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -308,6 +324,40 @@ export class DatabaseStorage implements IStorage {
       .where(eq(appointments.id, id));
   }
 
+  async getAppointmentsForReview(): Promise<Appointment[]> {
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    const fiveDaysAgoStr = fiveDaysAgo.toISOString().slice(0, 10);
+
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    return db.select().from(appointments)
+      .where(
+        and(
+          gte(appointments.date, fiveDaysAgoStr),
+          lte(appointments.date, todayStr),
+          eq(appointments.reviewRequestSent, false),
+          eq(appointments.reviewCompleted, false),
+          sql`${appointments.status} != 'cancelled'`,
+          sql`${appointments.clientPhone} IS NOT NULL AND ${appointments.clientPhone} != ''`
+        )
+      );
+  }
+
+  async markReviewRequestSent(id: string): Promise<void> {
+    await db.update(appointments)
+      .set({ reviewRequestSent: true, reviewRequestSentAt: new Date(), updatedAt: new Date() })
+      .where(eq(appointments.id, id));
+  }
+
+  async markReviewCompleted(id: string): Promise<void> {
+    await db.update(appointments)
+      .set({ reviewCompleted: true, updatedAt: new Date() })
+      .where(eq(appointments.id, id));
+  }
+
   // Products
   async getProducts(barbershopId: string): Promise<Product[]> {
     return db.select().from(products).where(eq(products.barbershopId, barbershopId));
@@ -397,6 +447,58 @@ export class DatabaseStorage implements IStorage {
       .where(eq(reviews.id, id))
       .returning();
     return review;
+  }
+
+  async createReviewFromWA(data: {
+    barbershopId: string;
+    barberId: string | null;
+    appointmentId: string;
+    rating: number | null;
+    barbershopRating: number | null;
+    comment: string | null;
+    clientPhone: string;
+    clientName: string | null;
+    isPublic: boolean;
+  }): Promise<Review> {
+    const [review] = await db.insert(reviews).values({
+      barbershopId: data.barbershopId,
+      barberId: data.barberId ?? undefined,
+      appointmentId: data.appointmentId,
+      rating: data.rating ?? undefined,
+      barbershopRating: data.barbershopRating ?? undefined,
+      comment: data.comment ?? undefined,
+      clientPhone: data.clientPhone,
+      clientName: data.clientName ?? undefined,
+      isPublic: data.isPublic,
+    }).returning();
+    return review;
+  }
+
+  async getLastReviewByPhone(phone: string, barbershopId: string): Promise<Review | undefined> {
+    const [review] = await db.select().from(reviews)
+      .where(
+        and(
+          eq(reviews.barbershopId, barbershopId),
+          eq(reviews.clientPhone, phone)
+        )
+      )
+      .orderBy(desc(reviews.createdAt))
+      .limit(1);
+    return review;
+  }
+
+  async getBarberAverageRating(barberId: string): Promise<number> {
+    const result = await db.select({
+      avg: sql<number>`AVG(${reviews.rating})`,
+      count: sql<number>`COUNT(*)`,
+    }).from(reviews)
+      .where(
+        and(
+          eq(reviews.barberId, barberId),
+          sql`${reviews.rating} IS NOT NULL`
+        )
+      );
+    return Math.round((result[0]?.avg || 0) * 10) / 10;
   }
 }
 
