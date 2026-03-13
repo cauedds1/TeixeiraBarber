@@ -60,6 +60,7 @@ export default function ClientBooking() {
   const [selectedTime, setSelectedTime] = useState("");
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
   const [expandedBarber, setExpandedBarber] = useState<string | null>(null);
+  const [showAllServices, setShowAllServices] = useState(false);
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [booked, setBooked] = useState(false);
@@ -341,10 +342,19 @@ export default function ClientBooking() {
               )}
 
               {hasFeatured && otherServices.length > 0 && (
-                <p className="text-xs font-semibold text-white/30 uppercase tracking-widest pt-2">Todos os serviços</p>
+                <button
+                  onClick={() => setShowAllServices(v => !v)}
+                  className="w-full flex items-center justify-between pt-2 group"
+                  data-testid="button-toggle-all-services"
+                >
+                  <span className="text-xs font-semibold text-white/30 uppercase tracking-widest group-hover:text-white/50 transition-colors">
+                    Todos os serviços ({otherServices.length})
+                  </span>
+                  <ChevronDown className={`h-4 w-4 text-white/30 group-hover:text-white/50 transition-all duration-200 ${showAllServices ? "rotate-180" : ""}`} />
+                </button>
               )}
 
-              {otherServices.length > 0 && (
+              {otherServices.length > 0 && (hasFeatured ? showAllServices : true) && (
                 <div className="space-y-2.5">
                   {otherServices.map((service) => {
                     const sel = selectedService?.id === service.id;
