@@ -33,6 +33,7 @@ Full-stack barbershop management system for Teixeira Barbearia (Kobrasol, São J
 - `/services` — Serviços (price/duration management, active toggle, edit/delete)
 - `/products` — Produtos (inventory, margin calculation, stock alerts, edit/delete)
 - `/whatsapp` — WhatsApp Bot (Baileys QR connection, AI chat, auto notifications)
+- `/financeiro` — Financeiro (5-tab financial control: cashflow, bills, fixed expenses, commissions, revenue detail)
 - `/settings` — Configurações
 
 ### API Endpoints
@@ -51,6 +52,21 @@ Full-stack barbershop management system for Teixeira Barbearia (Kobrasol, São J
 - `POST /api/public/appointments` — Create booking (with server-side overlap validation, sends WhatsApp notification)
 - `GET /api/whatsapp/status` — WhatsApp connection status + QR code (authenticated)
 - `POST /api/whatsapp/reconnect` — Trigger WhatsApp reconnect (authenticated)
+- `GET/POST /api/finances/transactions` — Transaction list + manual creation
+- `GET /api/finances/cashflow?start=X&end=Y` — Cashflow with totals
+- `GET/POST/PATCH/DELETE /api/finances/bills` — Bills (payable/receivable) CRUD
+- `PATCH /api/finances/bills/:id/pay` — Mark bill as paid + auto-create transaction
+- `GET /api/finances/bills/summary` — Pending totals (payable/receivable)
+- `GET /api/finances/commissions` — Commission summary per barber
+- `POST /api/finances/commissions/pay` — Register commission payment
+- `GET/POST/PATCH/DELETE /api/finances/fixed-expenses` — Recurring expenses CRUD
+- `GET /api/finances/revenue-detail?start=X&end=Y` — Revenue breakdown by service/product
+
+## Financial Module
+- **Auto-transaction**: When appointment status changes to `completed`, a transaction is auto-created with commission calculation based on barber's commissionRate
+- **Bills**: Unified payable/receivable system with "mark as paid" auto-creating corresponding transaction
+- **Commissions**: Accumulated from transaction commissionAmount field; payment resets pending balance
+- **Schema tables**: `transactions`, `bills`, `fixedExpenses`, `commissionPayments`
 
 ## Business Info
 - **Address**: Rua Koesa, 430, Sala 03, Kobrasol, São José – SC
@@ -73,6 +89,7 @@ Full-stack barbershop management system for Teixeira Barbearia (Kobrasol, São J
 - `client/src/pages/services.tsx` — Services management
 - `client/src/pages/products.tsx` — Products/inventory management
 - `client/src/pages/appointments.tsx` — ERP agenda page (dark/gold, date nav, status actions)
+- `client/src/pages/finances.tsx` — Financial module (5-tab: cashflow, bills, fixed expenses, commissions, revenue)
 - `client/src/pages/client-booking.tsx` — Public booking page (5-step stepper, availability API)
 - `server/whatsapp.ts` — Baileys WhatsApp singleton (QR, send, reconnect, session persistence)
 - `server/whatsapp-ai.ts` — OpenAI gpt-4o-mini handler for auto-replies (OPENAI_API_KEY required)

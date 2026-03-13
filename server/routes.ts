@@ -467,6 +467,30 @@ export async function registerRoutes(
       }
       const appointment = await storage.updateAppointmentStatus(req.params.id, req.body.status);
 
+      if (req.body.status === "completed" && existing.status !== "completed") {
+        try {
+          const price = parseFloat(existing.price?.toString() || "0");
+          const barber = await storage.getBarber(existing.barberId);
+          const service = await storage.getService(existing.serviceId);
+          const rate = parseFloat(barber?.commissionRate?.toString() || "0");
+          const commissionAmount = (price * rate) / 100;
+
+          await storage.createTransaction({
+            barbershopId: barbershop.id,
+            appointmentId: existing.id,
+            barberId: existing.barberId,
+            clientId: existing.clientId || undefined,
+            type: "service",
+            category: service?.name || "Serviço",
+            description: `${service?.name || "Serviço"} — ${existing.clientName || "Cliente"}`,
+            amount: existing.price,
+            commissionAmount: commissionAmount > 0 ? commissionAmount.toFixed(2) : undefined,
+            paymentMethod: req.body.paymentMethod || undefined,
+            date: existing.date,
+          });
+        } catch (_) {}
+      }
+
       if (req.body.status === "cancelled" && existing.clientPhone) {
         try {
           const dataFmt = format(new Date(existing.date + "T12:00:00"), "dd/MM/yyyy");
@@ -787,6 +811,20 @@ export async function registerRoutes(
     }
   });
 
+  // Manual transaction creation
+  app.post("/api/finances/transactions", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const txn = await storage.createTransaction({
+        ...req.body,
+        barbershopId: barbershop.id,
+      });
+      res.json(txn);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao criar lançamento" });
+    }
+  });
+
   // Commissions pending per barber
   app.get("/api/finances/commissions", isAuthenticated, async (req: Request, res: Response) => {
     try {
@@ -903,6 +941,78 @@ export async function registerRoutes(
       res.json({ byService, byProduct });
     } catch (error) {
       res.status(500).json({ message: "Erro ao buscar receita detalhada" });
+    }
+  });
+
+  // Bills CRUD
+  app.get("/api/finances/bills", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const allBills = await storage.getBills(barbershop.id);
+      res.json(allBills);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar contas" });
+    }
+  });
+
+  app.post("/api/finances/bills", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const bill = await storage.createBill({ ...req.body, barbershopId: barbershop.id });
+      res.json(bill);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao criar conta" });
+    }
+  });
+
+  app.patch("/api/finances/bills/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const bill = await storage.updateBill(req.params.id, req.body);
+      res.json(bill);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao atualizar conta" });
+    }
+  });
+
+  app.delete("/api/finances/bills/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      await storage.deleteBill(req.params.id);
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao excluir conta" });
+    }
+  });
+
+  app.patch("/api/finances/bills/:id/pay", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const bill = await storage.markBillPaid(req.params.id);
+      if (!bill) return res.status(404).json({ message: "Conta não encontrada" });
+
+      const today = new Date().toISOString().slice(0, 10);
+      await storage.createTransaction({
+        barbershopId: barbershop.id,
+        type: bill.billType === "payable" ? "expense" : "service",
+        category: bill.billType === "payable" ? "Conta a Pagar" : "Conta a Receber",
+        description: bill.title,
+        amount: bill.amount,
+        paymentMethod: bill.paymentMethod || undefined,
+        date: today,
+      });
+
+      res.json(bill);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao marcar conta como paga" });
+    }
+  });
+
+  app.get("/api/finances/bills/summary", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const summary = await storage.getBillsSummary(barbershop.id);
+      res.json(summary);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar resumo de contas" });
     }
   });
 

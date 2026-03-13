@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,8 @@ import {
   Receipt,
   Scissors,
   Package,
+  FileText,
+  Eye,
 } from "lucide-react";
 
 const fmtBRL = (v: number) =>
@@ -65,10 +68,19 @@ function buildPeriodDates(period: string) {
   };
 }
 
-// ─── Fluxo de Caixa ────────────────────────────────────────────────────────
 function CashflowTab() {
+  const { toast } = useToast();
   const [period, setPeriod] = useState("this_month");
   const { start, end } = buildPeriodDates(period);
+  const [manualDialog, setManualDialog] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    type: "service" as string,
+    amount: "",
+    paymentMethod: "",
+    description: "",
+    category: "",
+    date: new Date().toISOString().slice(0, 10),
+  });
 
   const { data, isLoading } = useQuery<{
     transactions: any[];
@@ -80,6 +92,15 @@ function CashflowTab() {
     queryFn: () => fetch(`/api/finances/cashflow?start=${start}&end=${end}`).then(r => r.json()),
   });
 
+  const createMut = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/finances/transactions", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/finances/cashflow"] });
+      setManualDialog(false);
+      toast({ title: "Lançamento criado com sucesso" });
+    },
+  });
+
   const txns = data?.transactions ?? [];
 
   const typeLabel: Record<string, string> = {
@@ -87,6 +108,7 @@ function CashflowTab() {
     product: "Produto",
     expense: "Despesa",
     refund: "Reembolso",
+    income: "Entrada",
     other: "Outro",
   };
 
@@ -95,8 +117,32 @@ function CashflowTab() {
     product: "bg-blue-500/20 text-blue-400",
     expense: "bg-red-500/20 text-red-400",
     refund: "bg-orange-500/20 text-orange-400",
+    income: "bg-green-500/20 text-green-400",
     other: "bg-white/10 text-white/60",
   };
+
+  function openManual() {
+    setManualForm({
+      type: "service",
+      amount: "",
+      paymentMethod: "",
+      description: "",
+      category: "",
+      date: new Date().toISOString().slice(0, 10),
+    });
+    setManualDialog(true);
+  }
+
+  function handleManualSave() {
+    createMut.mutate({
+      type: manualForm.type,
+      amount: manualForm.amount,
+      paymentMethod: manualForm.paymentMethod || null,
+      description: manualForm.description,
+      category: manualForm.category || null,
+      date: manualForm.date,
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -110,6 +156,14 @@ function CashflowTab() {
             <SelectItem value="last_month">Mês Passado</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          onClick={openManual}
+          className="bg-[#C9A24D] hover:bg-[#b8913f] text-black font-semibold ml-auto"
+          data-testid="button-add-manual-transaction"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Lançamento Manual
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -121,7 +175,7 @@ function CashflowTab() {
               </div>
               <div>
                 <p className="text-white/50 text-xs uppercase tracking-wider">Entradas</p>
-                <p className="text-xl font-bold text-green-400">{fmtBRL(data?.totalIn ?? 0)}</p>
+                <p className="text-xl font-bold text-green-400" data-testid="text-cashflow-in">{fmtBRL(data?.totalIn ?? 0)}</p>
               </div>
             </div>
           </CardContent>
@@ -134,7 +188,7 @@ function CashflowTab() {
               </div>
               <div>
                 <p className="text-white/50 text-xs uppercase tracking-wider">Saídas</p>
-                <p className="text-xl font-bold text-red-400">{fmtBRL(data?.totalOut ?? 0)}</p>
+                <p className="text-xl font-bold text-red-400" data-testid="text-cashflow-out">{fmtBRL(data?.totalOut ?? 0)}</p>
               </div>
             </div>
           </CardContent>
@@ -147,7 +201,7 @@ function CashflowTab() {
               </div>
               <div>
                 <p className="text-white/50 text-xs uppercase tracking-wider">Saldo</p>
-                <p className={`text-xl font-bold ${(data?.balance ?? 0) >= 0 ? "text-[#C9A24D]" : "text-red-400"}`}>
+                <p className={`text-xl font-bold ${(data?.balance ?? 0) >= 0 ? "text-[#C9A24D]" : "text-red-400"}`} data-testid="text-cashflow-balance">
                   {fmtBRL(data?.balance ?? 0)}
                 </p>
               </div>
@@ -194,11 +248,431 @@ function CashflowTab() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={manualDialog} onOpenChange={setManualDialog}>
+        <DialogContent className="bg-[#1a1a1a] border-white/10 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Lançamento Manual</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-white/70">Tipo</Label>
+              <Select value={manualForm.type} onValueChange={v => setManualForm(f => ({ ...f, type: v }))}>
+                <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1" data-testid="select-manual-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
+                  <SelectItem value="service">Entrada (Serviço)</SelectItem>
+                  <SelectItem value="product">Entrada (Produto)</SelectItem>
+                  <SelectItem value="income">Entrada (Outro)</SelectItem>
+                  <SelectItem value="expense">Saída (Despesa)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-white/70">Valor (R$)</Label>
+                <Input
+                  type="number"
+                  value={manualForm.amount}
+                  onChange={e => setManualForm(f => ({ ...f, amount: e.target.value }))}
+                  className="bg-white/5 border-white/10 text-white mt-1"
+                  placeholder="0,00"
+                  data-testid="input-manual-amount"
+                />
+              </div>
+              <div>
+                <Label className="text-white/70">Data</Label>
+                <Input
+                  type="date"
+                  value={manualForm.date}
+                  onChange={e => setManualForm(f => ({ ...f, date: e.target.value }))}
+                  className="bg-white/5 border-white/10 text-white mt-1"
+                  data-testid="input-manual-date"
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-white/70">Forma de Pagamento</Label>
+              <Select value={manualForm.paymentMethod} onValueChange={v => setManualForm(f => ({ ...f, paymentMethod: v }))}>
+                <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1" data-testid="select-manual-payment">
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="cash">Dinheiro</SelectItem>
+                  <SelectItem value="credit">Cartão de Crédito</SelectItem>
+                  <SelectItem value="debit">Cartão de Débito</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-white/70">Descrição</Label>
+              <Input
+                value={manualForm.description}
+                onChange={e => setManualForm(f => ({ ...f, description: e.target.value }))}
+                className="bg-white/5 border-white/10 text-white mt-1"
+                placeholder="Descreva o lançamento..."
+                data-testid="input-manual-description"
+              />
+            </div>
+            <div>
+              <Label className="text-white/70">Categoria</Label>
+              <Input
+                value={manualForm.category}
+                onChange={e => setManualForm(f => ({ ...f, category: e.target.value }))}
+                className="bg-white/5 border-white/10 text-white mt-1"
+                placeholder="Ex: Serviço, Produto, Aluguel..."
+                data-testid="input-manual-category"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setManualDialog(false)} className="text-white/60 hover:text-white">Cancelar</Button>
+            <Button
+              onClick={handleManualSave}
+              disabled={createMut.isPending || !manualForm.amount || !manualForm.description}
+              className="bg-[#C9A24D] hover:bg-[#b8913f] text-black font-semibold"
+              data-testid="button-save-manual-transaction"
+            >
+              {createMut.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-// ─── Contas a Pagar ─────────────────────────────────────────────────────────
+function BillsTab() {
+  const { toast } = useToast();
+  const [subTab, setSubTab] = useState<"payable" | "receivable">("payable");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [form, setForm] = useState({
+    billType: "payable" as string,
+    title: "",
+    amount: "",
+    dueDate: "",
+    supplier: "",
+    paymentMethod: "",
+    notes: "",
+  });
+
+  const { data: allBills = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/finances/bills"],
+  });
+
+  const { data: summary } = useQuery<{ totalPayable: number; totalReceivable: number }>({
+    queryKey: ["/api/finances/bills", "summary"],
+    queryFn: () => fetch("/api/finances/bills/summary").then(r => r.json()),
+  });
+
+  const createMut = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/finances/bills", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/finances/bills"] });
+      setDialogOpen(false);
+      toast({ title: "Conta criada com sucesso" });
+    },
+  });
+
+  const payMut = useMutation({
+    mutationFn: (id: string) => apiRequest("PATCH", `/api/finances/bills/${id}/pay`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/finances/bills"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/finances/cashflow"] });
+      toast({ title: "Conta marcada como paga" });
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/finances/bills/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/finances/bills"] });
+      toast({ title: "Conta excluída" });
+    },
+  });
+
+  const filtered = (allBills as any[]).filter((b: any) => b.billType === subTab);
+  const totalPayable = summary?.totalPayable ?? 0;
+  const totalReceivable = summary?.totalReceivable ?? 0;
+  const forecastBalance = totalReceivable - totalPayable;
+
+  function openCreate() {
+    setForm({
+      billType: subTab,
+      title: "",
+      amount: "",
+      dueDate: "",
+      supplier: "",
+      paymentMethod: "",
+      notes: "",
+    });
+    setDialogOpen(true);
+  }
+
+  function handleSave() {
+    createMut.mutate({
+      billType: form.billType,
+      title: form.title,
+      amount: form.amount,
+      dueDate: form.dueDate,
+      supplier: form.supplier || null,
+      paymentMethod: form.paymentMethod || null,
+      notes: form.notes || null,
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="bg-[#1a1a1a] border-white/10">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-red-500/10">
+                <ArrowDownCircle className="h-5 w-5 text-red-400" />
+              </div>
+              <div>
+                <p className="text-white/50 text-xs uppercase tracking-wider">Total a Pagar</p>
+                <p className="text-xl font-bold text-red-400" data-testid="text-bills-payable">{fmtBRL(totalPayable)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-[#1a1a1a] border-white/10">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <ArrowUpCircle className="h-5 w-5 text-green-400" />
+              </div>
+              <div>
+                <p className="text-white/50 text-xs uppercase tracking-wider">Total a Receber</p>
+                <p className="text-xl font-bold text-green-400" data-testid="text-bills-receivable">{fmtBRL(totalReceivable)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-[#1a1a1a] border-white/10">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-[#C9A24D]/10">
+                <DollarSign className="h-5 w-5 text-[#C9A24D]" />
+              </div>
+              <div>
+                <p className="text-white/50 text-xs uppercase tracking-wider">Saldo Previsto</p>
+                <p className={`text-xl font-bold ${forecastBalance >= 0 ? "text-[#C9A24D]" : "text-red-400"}`} data-testid="text-bills-forecast">
+                  {fmtBRL(forecastBalance)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="flex bg-[#1a1a1a] border border-white/10 rounded-lg p-1 gap-1">
+          <button
+            onClick={() => setSubTab("payable")}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${subTab === "payable" ? "bg-[#C9A24D] text-black" : "text-white/60 hover:text-white"}`}
+            data-testid="subtab-payable"
+          >
+            <ArrowDownCircle className="h-4 w-4 mr-2 inline-block" />
+            A Pagar
+          </button>
+          <button
+            onClick={() => setSubTab("receivable")}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${subTab === "receivable" ? "bg-[#C9A24D] text-black" : "text-white/60 hover:text-white"}`}
+            data-testid="subtab-receivable"
+          >
+            <ArrowUpCircle className="h-4 w-4 mr-2 inline-block" />
+            A Receber
+          </button>
+        </div>
+        <Button
+          onClick={openCreate}
+          className="bg-[#C9A24D] hover:bg-[#b8913f] text-black font-semibold ml-auto"
+          data-testid="button-add-bill"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Adicionar Conta
+        </Button>
+      </div>
+
+      <Card className="bg-[#1a1a1a] border-white/10">
+        <CardHeader className="border-b border-white/5 px-5 py-4">
+          <CardTitle className="text-white text-base">
+            {subTab === "payable" ? "Contas a Pagar" : "Contas a Receber"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8 text-center text-white/40">Carregando...</div>
+          ) : filtered.length === 0 ? (
+            <div className="p-8 text-center text-white/40">
+              Nenhuma conta {subTab === "payable" ? "a pagar" : "a receber"} cadastrada
+            </div>
+          ) : (
+            <div className="divide-y divide-white/5">
+              {filtered.map((b: any) => (
+                <div key={b.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 hover:bg-white/[0.03] transition-colors" data-testid={`row-bill-${b.id}`}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`p-2 rounded-lg shrink-0 ${b.billType === "payable" ? "bg-red-500/10" : "bg-green-500/10"}`}>
+                      <FileText className={`h-4 w-4 ${b.billType === "payable" ? "text-red-400" : "text-green-400"}`} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-white font-medium text-sm truncate">{b.title}</p>
+                      <p className="text-white/40 text-xs">
+                        Vence: {b.dueDate}
+                        {b.supplier ? ` • ${b.supplier}` : ""}
+                        {b.paymentMethod ? ` • ${b.paymentMethod}` : ""}
+                      </p>
+                      {b.notes && (
+                        <p className="text-white/30 text-xs mt-0.5 truncate">{b.notes}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`font-semibold text-sm ${b.billType === "payable" ? "text-red-400" : "text-green-400"}`}>
+                      {fmtBRL(parseFloat(b.amount || "0"))}
+                    </span>
+                    <Badge className={`text-xs border-0 ${b.status === "paid" ? "bg-green-500/15 text-green-400" : "bg-yellow-500/15 text-yellow-400"}`}>
+                      {b.status === "paid" ? "Pago" : "Pendente"}
+                    </Badge>
+                    {b.status === "pending" && (
+                      <Button
+                        size="sm"
+                        onClick={() => payMut.mutate(b.id)}
+                        disabled={payMut.isPending}
+                        className="bg-green-600 hover:bg-green-700 text-white text-xs"
+                        data-testid={`button-pay-bill-${b.id}`}
+                      >
+                        <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                        Pagar
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 hover:bg-red-500/10 text-white/30 hover:text-red-400"
+                      onClick={() => deleteMut.mutate(b.id)}
+                      data-testid={`button-delete-bill-${b.id}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="bg-[#1a1a1a] border-white/10 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Nova Conta</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-white/70">Tipo</Label>
+              <Select value={form.billType} onValueChange={v => setForm(f => ({ ...f, billType: v }))}>
+                <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1" data-testid="select-bill-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
+                  <SelectItem value="payable">A Pagar</SelectItem>
+                  <SelectItem value="receivable">A Receber</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-white/70">Título</Label>
+              <Input
+                value={form.title}
+                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                className="bg-white/5 border-white/10 text-white mt-1"
+                placeholder="Ex: Aluguel, Fornecedor..."
+                data-testid="input-bill-title"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-white/70">Valor (R$)</Label>
+                <Input
+                  type="number"
+                  value={form.amount}
+                  onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+                  className="bg-white/5 border-white/10 text-white mt-1"
+                  placeholder="0,00"
+                  data-testid="input-bill-amount"
+                />
+              </div>
+              <div>
+                <Label className="text-white/70">Vencimento</Label>
+                <Input
+                  type="date"
+                  value={form.dueDate}
+                  onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))}
+                  className="bg-white/5 border-white/10 text-white mt-1"
+                  data-testid="input-bill-due-date"
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-white/70">Fornecedor / Origem</Label>
+              <Input
+                value={form.supplier}
+                onChange={e => setForm(f => ({ ...f, supplier: e.target.value }))}
+                className="bg-white/5 border-white/10 text-white mt-1"
+                placeholder="Nome do fornecedor ou origem"
+                data-testid="input-bill-supplier"
+              />
+            </div>
+            <div>
+              <Label className="text-white/70">Forma de Pagamento</Label>
+              <Select value={form.paymentMethod} onValueChange={v => setForm(f => ({ ...f, paymentMethod: v }))}>
+                <SelectTrigger className="bg-white/5 border-white/10 text-white mt-1" data-testid="select-bill-payment">
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="cash">Dinheiro</SelectItem>
+                  <SelectItem value="credit">Cartão de Crédito</SelectItem>
+                  <SelectItem value="debit">Cartão de Débito</SelectItem>
+                  <SelectItem value="boleto">Boleto</SelectItem>
+                  <SelectItem value="transfer">Transferência</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-white/70">Observações</Label>
+              <Textarea
+                value={form.notes}
+                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                className="bg-white/5 border-white/10 text-white mt-1 resize-none"
+                rows={2}
+                placeholder="Observações adicionais..."
+                data-testid="input-bill-notes"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setDialogOpen(false)} className="text-white/60 hover:text-white">Cancelar</Button>
+            <Button
+              onClick={handleSave}
+              disabled={createMut.isPending || !form.title || !form.amount || !form.dueDate}
+              className="bg-[#C9A24D] hover:bg-[#b8913f] text-black font-semibold"
+              data-testid="button-save-bill"
+            >
+              {createMut.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 function FixedExpensesTab() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -394,112 +868,6 @@ function FixedExpensesTab() {
   );
 }
 
-// ─── Contas a Receber ────────────────────────────────────────────────────────
-function ReceivablesTab() {
-  const [days, setDays] = useState("7");
-
-  const { data, isLoading } = useQuery<{ appointments: any[]; total: number }>({
-    queryKey: ["/api/finances/receivables", days],
-    queryFn: () => fetch(`/api/finances/receivables?days=${days}`).then(r => r.json()),
-  });
-
-  const appts = data?.appointments ?? [];
-
-  const statusLabel: Record<string, string> = {
-    confirmed: "Confirmado",
-    pending: "Pendente",
-  };
-
-  const statusClass: Record<string, string> = {
-    confirmed: "bg-green-500/15 text-green-400 border-0",
-    pending: "bg-yellow-500/15 text-yellow-400 border-0",
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Select value={days} onValueChange={setDays}>
-          <SelectTrigger className="w-48 bg-white/5 border-white/10 text-white" data-testid="select-receivables-days">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
-            <SelectItem value="7">Próximos 7 dias</SelectItem>
-            <SelectItem value="14">Próximos 14 dias</SelectItem>
-            <SelectItem value="30">Próximos 30 dias</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="bg-[#1a1a1a] border-white/10">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-[#C9A24D]/10">
-                <TrendingUp className="h-5 w-5 text-[#C9A24D]" />
-              </div>
-              <div>
-                <p className="text-white/50 text-xs uppercase tracking-wider">A Receber</p>
-                <p className="text-xl font-bold text-[#C9A24D]">{fmtBRL(data?.total ?? 0)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-[#1a1a1a] border-white/10">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Calendar className="h-5 w-5 text-blue-400" />
-              </div>
-              <div>
-                <p className="text-white/50 text-xs uppercase tracking-wider">Agendamentos</p>
-                <p className="text-xl font-bold text-blue-400">{appts.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="bg-[#1a1a1a] border-white/10">
-        <CardHeader className="border-b border-white/5 px-5 py-4">
-          <CardTitle className="text-white text-base">Agendamentos Futuros</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-8 text-center text-white/40">Carregando...</div>
-          ) : appts.length === 0 ? (
-            <div className="p-8 text-center text-white/40">Nenhum agendamento futuro no período</div>
-          ) : (
-            <div className="divide-y divide-white/5">
-              {appts.map((a: any) => (
-                <div key={a.id} className="flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors" data-testid={`row-receivable-${a.id}`}>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-blue-500/10">
-                      <Clock className="h-4 w-4 text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-white font-medium text-sm">{a.clientName || "Cliente"}</p>
-                      <p className="text-white/40 text-xs">
-                        {a.date} às {a.startTime} • {a.barberName || "Barbeiro"} • {a.serviceName || "Serviço"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Badge className={`${statusClass[a.status] ?? "bg-white/10 text-white/40 border-0"} text-xs`}>
-                      {statusLabel[a.status] ?? a.status}
-                    </Badge>
-                    <span className="text-[#C9A24D] font-semibold text-sm">{fmtBRL(parseFloat(a.price || "0"))}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// ─── Comissões ───────────────────────────────────────────────────────────────
 function CommissionsTab() {
   const { toast } = useToast();
   const [payDialog, setPayDialog] = useState<any>(null);
@@ -648,7 +1016,6 @@ function CommissionsTab() {
   );
 }
 
-// ─── Receita Detalhada ───────────────────────────────────────────────────────
 function RevenueDetailTab() {
   const [period, setPeriod] = useState("this_month");
   const { start, end } = buildPeriodDates(period);
@@ -754,7 +1121,6 @@ function RevenueDetailTab() {
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Finances() {
   return (
     <div className="p-6 space-y-6 bg-[#0e0e0e] min-h-screen">
@@ -774,20 +1140,20 @@ export default function Finances() {
             Fluxo de Caixa
           </TabsTrigger>
           <TabsTrigger
+            value="bills"
+            className="data-[state=active]:bg-[#C9A24D] data-[state=active]:text-black text-white/60 hover:text-white text-sm px-4 py-2"
+            data-testid="tab-bills"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Contas
+          </TabsTrigger>
+          <TabsTrigger
             value="fixed"
             className="data-[state=active]:bg-[#C9A24D] data-[state=active]:text-black text-white/60 hover:text-white text-sm px-4 py-2"
             data-testid="tab-fixed-expenses"
           >
-            <ArrowDownCircle className="h-4 w-4 mr-2" />
-            Contas a Pagar
-          </TabsTrigger>
-          <TabsTrigger
-            value="receivables"
-            className="data-[state=active]:bg-[#C9A24D] data-[state=active]:text-black text-white/60 hover:text-white text-sm px-4 py-2"
-            data-testid="tab-receivables"
-          >
-            <ArrowUpCircle className="h-4 w-4 mr-2" />
-            Contas a Receber
+            <Receipt className="h-4 w-4 mr-2" />
+            Despesas Fixas
           </TabsTrigger>
           <TabsTrigger
             value="commissions"
@@ -810,11 +1176,11 @@ export default function Finances() {
         <TabsContent value="cashflow">
           <CashflowTab />
         </TabsContent>
+        <TabsContent value="bills">
+          <BillsTab />
+        </TabsContent>
         <TabsContent value="fixed">
           <FixedExpensesTab />
-        </TabsContent>
-        <TabsContent value="receivables">
-          <ReceivablesTab />
         </TabsContent>
         <TabsContent value="commissions">
           <CommissionsTab />

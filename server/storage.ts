@@ -4,7 +4,7 @@ import {
   users, barbershops, barbers, services, serviceCategories,
   clients, appointments, products, transactions, loyaltyPlans,
   subscriptionPackages, coupons, reviews, barberTimeOff, notifications,
-  fixedExpenses, commissionPayments,
+  fixedExpenses, commissionPayments, bills,
   type User, type UpsertUser, type Barbershop, type InsertBarbershop,
   type Barber, type InsertBarber, type Service, type InsertService,
   type ServiceCategory, type InsertServiceCategory,
@@ -14,6 +14,7 @@ import {
   type Coupon, type InsertCoupon, type Review, type InsertReview,
   type FixedExpense, type InsertFixedExpense,
   type CommissionPayment, type InsertCommissionPayment,
+  type Bill, type InsertBill,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -86,6 +87,15 @@ export interface IStorage {
   // Commission Payments
   getCommissionPayments(barbershopId: string): Promise<CommissionPayment[]>;
   createCommissionPayment(data: InsertCommissionPayment): Promise<CommissionPayment>;
+
+  // Bills
+  getBills(barbershopId: string): Promise<Bill[]>;
+  getBill(id: string): Promise<Bill | undefined>;
+  createBill(data: InsertBill): Promise<Bill>;
+  updateBill(id: string, data: Partial<InsertBill>): Promise<Bill | undefined>;
+  deleteBill(id: string): Promise<void>;
+  markBillPaid(id: string): Promise<Bill | undefined>;
+  getBillsSummary(barbershopId: string): Promise<{ totalPayable: number; totalReceivable: number }>;
 
   // Finance aggregations
   getUpcomingAppointments(barbershopId: string, days: number): Promise<any[]>;
@@ -564,6 +574,54 @@ export class DatabaseStorage implements IStorage {
   async createCommissionPayment(data: InsertCommissionPayment): Promise<CommissionPayment> {
     const [payment] = await db.insert(commissionPayments).values(data).returning();
     return payment;
+  }
+
+  // Bills
+  async getBills(barbershopId: string): Promise<Bill[]> {
+    return db.select().from(bills)
+      .where(eq(bills.barbershopId, barbershopId))
+      .orderBy(desc(bills.createdAt));
+  }
+
+  async getBill(id: string): Promise<Bill | undefined> {
+    const [bill] = await db.select().from(bills).where(eq(bills.id, id));
+    return bill;
+  }
+
+  async createBill(data: InsertBill): Promise<Bill> {
+    const [bill] = await db.insert(bills).values(data).returning();
+    return bill;
+  }
+
+  async updateBill(id: string, data: Partial<InsertBill>): Promise<Bill | undefined> {
+    const [bill] = await db.update(bills).set(data).where(eq(bills.id, id)).returning();
+    return bill;
+  }
+
+  async deleteBill(id: string): Promise<void> {
+    await db.delete(bills).where(eq(bills.id, id));
+  }
+
+  async markBillPaid(id: string): Promise<Bill | undefined> {
+    const [bill] = await db.update(bills)
+      .set({ status: "paid", paidAt: new Date() })
+      .where(eq(bills.id, id))
+      .returning();
+    return bill;
+  }
+
+  async getBillsSummary(barbershopId: string): Promise<{ totalPayable: number; totalReceivable: number }> {
+    const pending = await db.select().from(bills)
+      .where(and(eq(bills.barbershopId, barbershopId), eq(bills.status, "pending")));
+
+    let totalPayable = 0;
+    let totalReceivable = 0;
+    for (const b of pending) {
+      const amt = parseFloat(b.amount?.toString() || "0");
+      if (b.billType === "payable") totalPayable += amt;
+      else totalReceivable += amt;
+    }
+    return { totalPayable, totalReceivable };
   }
 
   // Upcoming appointments (for Contas a Receber)

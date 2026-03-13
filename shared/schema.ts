@@ -251,6 +251,22 @@ export const commissionPayments = pgTable("commission_payments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Bills (unified payable / receivable)
+export const bills = pgTable("bills", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  barbershopId: varchar("barbershop_id").references(() => barbershops.id).notNull(),
+  billType: varchar("bill_type", { length: 20 }).notNull(), // payable, receivable
+  title: varchar("title", { length: 255 }).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  dueDate: date("due_date").notNull(),
+  supplier: varchar("supplier", { length: 255 }),
+  paymentMethod: varchar("payment_method", { length: 20 }),
+  status: varchar("status", { length: 20 }).default("pending"), // pending, paid
+  notes: text("notes"),
+  paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Loyalty Plans
 export const loyaltyPlans = pgTable("loyalty_plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -443,6 +459,7 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
 export const insertRevenueGoalSchema = createInsertSchema(revenueGoals).omit({ id: true, createdAt: true });
 export const insertFixedExpenseSchema = createInsertSchema(fixedExpenses).omit({ id: true, createdAt: true });
 export const insertCommissionPaymentSchema = createInsertSchema(commissionPayments).omit({ id: true, createdAt: true });
+export const insertBillSchema = createInsertSchema(bills).omit({ id: true, createdAt: true });
 
 // Types
 export type UpsertUser = typeof users.$inferInsert;
@@ -481,3 +498,5 @@ export type InsertFixedExpense = z.infer<typeof insertFixedExpenseSchema>;
 export type FixedExpense = typeof fixedExpenses.$inferSelect;
 export type InsertCommissionPayment = z.infer<typeof insertCommissionPaymentSchema>;
 export type CommissionPayment = typeof commissionPayments.$inferSelect;
+export type InsertBill = z.infer<typeof insertBillSchema>;
+export type Bill = typeof bills.$inferSelect;
