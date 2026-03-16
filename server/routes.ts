@@ -30,10 +30,12 @@ export async function registerRoutes(
   const getBarbershopForUser = async (userId: string) => {
     let barbershop = await storage.getBarbershopByOwner(userId);
     if (!barbershop) {
+      barbershop = await storage.getBarbershopBySlug("teixeira");
+    }
+    if (!barbershop) {
       barbershop = await storage.getFirstBarbershop();
     }
     if (!barbershop) {
-      const user = await storage.getUser(userId);
       barbershop = await storage.createBarbershop({
         ownerId: userId,
         name: "Teixeira Barbearia",

@@ -199,41 +199,40 @@ export async function seedOwner() {
         await db.update(users).set({ passwordHash: hash, role: "owner" }).where(eq(users.id, existingOwner.id));
         console.log("Owner password updated: admin@teixeira.com");
       }
-      return;
+    } else {
+      const hash = await hashPassword("teixeira2024");
+      const [owner] = await db
+        .insert(users)
+        .values({
+          email: "admin@teixeira.com",
+          passwordHash: hash,
+          firstName: "Admin",
+          lastName: "Teixeira",
+          role: "owner",
+        })
+        .returning();
+
+      const [existingShop] = await db
+        .select()
+        .from(barbershops)
+        .where(eq(barbershops.ownerId, owner.id));
+
+      if (!existingShop) {
+        await db.insert(barbershops).values({
+          ownerId: owner.id,
+          name: "Teixeira Barbearia",
+          slug: "teixeira",
+          phone: "5548999505167",
+          email: "admin@teixeira.com",
+          address: "Rua Koesa, 430, Sala 03",
+          city: "São José",
+          state: "SC",
+          neighborhood: "Kobrasol",
+        });
+      }
+
+      console.log("Owner seeded: admin@teixeira.com / teixeira2024");
     }
-
-    const hash = await hashPassword("teixeira2024");
-    const [owner] = await db
-      .insert(users)
-      .values({
-        email: "admin@teixeira.com",
-        passwordHash: hash,
-        firstName: "Admin",
-        lastName: "Teixeira",
-        role: "owner",
-      })
-      .returning();
-
-    const [existingShop] = await db
-      .select()
-      .from(barbershops)
-      .where(eq(barbershops.ownerId, owner.id));
-
-    if (!existingShop) {
-      await db.insert(barbershops).values({
-        ownerId: owner.id,
-        name: "Teixeira Barbearia",
-        slug: "teixeira",
-        phone: "5548999505167",
-        email: "admin@teixeira.com",
-        address: "Rua Koesa, 430, Sala 03",
-        city: "São José",
-        state: "SC",
-        neighborhood: "Kobrasol",
-      });
-    }
-
-    console.log("Owner seeded: admin@teixeira.com / teixeira2024");
   } catch (error) {
     console.error("Error seeding owner:", error);
   }
