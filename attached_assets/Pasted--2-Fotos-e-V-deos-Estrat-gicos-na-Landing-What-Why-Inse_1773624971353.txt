@@ -1,0 +1,29 @@
+#2 - Fotos e Vídeos Estratégicos na Landing
+What & Why
+Inserir as mídias reais da barbearia em pontos estratégicos da landing page sem criar seção nova, mantendo UX intacta. Cada mídia enriquece a seção onde está inserida com uma legenda discreta.
+
+Done looks like
+Vídeo drone (mp4, muted, autoplay, loop) aparece logo após o Hero em um player full-width com overlay "Conheça Nossa Barbearia" e sub-legenda discreta — perto do topo sem bloquear CTAs
+Foto do interior (barbeiros trabalhando) aparece como faixa panorâmica full-width entre a seção Serviços e a seção Equipe, com legenda "Ambiente pensado para você" sobreposta e overlay escuro para preservar contraste
+Foto da fachada aparece na seção Contato ao lado das informações de endereço, com legenda "Rua Koesa, 430 – Kobrasol, São José"
+Todas as imagens têm loading="lazy" e aspect-ratio fixo (sem layout shift)
+O vídeo tem um poster (primeiro frame) para não mostrar tela preta enquanto carrega
+Layout totalmente responsivo: em mobile o vídeo fica com altura reduzida, imagens empilham adequadamente
+O design segue o padrão da landing: fundo escuro, detalhes dourados (#C9A24D), sem elementos fora do estilo atual
+Out of scope
+Seção/aba de galeria separada
+Lightbox ao clicar nas fotos
+Upload via painel admin
+Efeitos de parallax
+Tasks
+Seção de vídeo pós-Hero — Inserir o vídeo drone em um bloco full-width logo após a seção Hero (antes de #servicos), com autoplay, muted, loop, poster, e legenda "Conheça Nossa Barbearia" sobreposta com overlay escuro sutil.
+
+Faixa de foto interior entre Serviços e Equipe — Inserir a foto do interior como divisor atmosférico full-width com overlay escuro e legenda centralizada estilizada no padrão dourado da landing.
+
+Foto da fachada na seção Contato — Adicionar a foto da fachada ao lado (ou acima em mobile) das informações de endereço na seção de contato, com legenda discreta.
+
+Relevant files
+client/src/pages/landing.tsx
+@assets/WhatsApp_Video_2026-03-15_at_22.13.50_1773624658523.mp4
+@assets/WhatsApp_Image_2026-03-15_at_22.13.50_1773624658523.jpeg
+@assets/WhatsApp_Image_2026-03-15_at_22.13.51_1773624658521.jpeg

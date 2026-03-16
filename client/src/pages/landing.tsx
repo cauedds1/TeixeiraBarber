@@ -1,32 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, MapPin, Phone, Clock, Star, Scissors, ChevronDown, Menu, X, Instagram, MessageCircle, Calendar, Award, Users, Lock, Camera, Play } from "lucide-react";
+import { ArrowRight, MapPin, Phone, Clock, Star, Scissors, ChevronDown, Menu, X, Instagram, MessageCircle, Calendar, Award, Users, Lock } from "lucide-react";
 import teixeiraLogoPath from "@assets/logo.png";
-import galleryImg1 from "@assets/image_1766152596363.png";
-import galleryImg2 from "@assets/image_1766090136386.png";
-import galleryImg3 from "@assets/image_1766152301102.png";
-import galleryImg4 from "@assets/image_1766152163278.png";
-import galleryImg5 from "@assets/image_1766153745356.png";
-import galleryImg6 from "@assets/image_1766152799849.png";
+import interiorPhotoPath from "@assets/WhatsApp_Image_2026-03-15_at_22.13.50_1773624658523.jpeg";
+import facadePhotoPath from "@assets/WhatsApp_Image_2026-03-15_at_22.13.51_1773624658521.jpeg";
+import droneVideoPath from "@assets/WhatsApp_Video_2026-03-15_at_22.13.50_1773624658523.mp4";
 import type { Service, Barber, Barbershop, WorkSchedule } from "@shared/schema";
 import { DEFAULT_WORK_SCHEDULE } from "@shared/schema";
-
-/* ─── GALERIA: troque as fotos e o vídeo aqui ─────────────────────────── */
-const galleryMedia = {
-  video: {
-    url: "",
-    poster: galleryImg5,
-    alt: "Vídeo do ambiente da Teixeira Barbearia",
-  },
-  photos: [
-    { src: galleryImg1, alt: "Ambiente da Teixeira Barbearia" },
-    { src: galleryImg2, alt: "Logo Teixeira Barbearia" },
-    { src: galleryImg3, alt: "Marca Teixeira" },
-    { src: galleryImg4, alt: "Teixeira Barbearia Logo" },
-    { src: galleryImg5, alt: "Visual da barbearia" },
-    { src: galleryImg6, alt: "Sistema Premium Teixeira" },
-  ],
-};
 
 const WHATSAPP_NUMBER = "5548999505167";
 const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}`;
@@ -108,7 +88,6 @@ export default function Landing() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeReview, setActiveReview] = useState(0);
-  const [videoFailed, setVideoFailed] = useState(false);
   const reviewInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: barbershopData } = useQuery<Barbershop>({
@@ -256,7 +235,6 @@ export default function Landing() {
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8 text-sm text-white/70">
             <button onClick={() => scrollTo("servicos")} className="hover:text-[#C9A24D] transition-colors">Serviços</button>
-            <button onClick={() => scrollTo("galeria")} className="hover:text-[#C9A24D] transition-colors">Galeria</button>
             <button onClick={() => scrollTo("equipe")} className="hover:text-[#C9A24D] transition-colors">Equipe</button>
             <button onClick={() => scrollTo("avaliacoes")} className="hover:text-[#C9A24D] transition-colors">Avaliações</button>
             <button onClick={() => scrollTo("contato")} className="hover:text-[#C9A24D] transition-colors">Contato</button>
@@ -287,7 +265,6 @@ export default function Landing() {
           <div className="md:hidden bg-[#151515] border-t border-white/5 px-4 py-6 space-y-1">
             {[
               { label: "Serviços", id: "servicos" },
-              { label: "Galeria", id: "galeria" },
               { label: "Equipe", id: "equipe" },
               { label: "Avaliações", id: "avaliacoes" },
               { label: "Contato", id: "contato" },
@@ -400,6 +377,29 @@ export default function Landing() {
         </button>
       </section>
 
+      {/* ─── VÍDEO DRONE ──────────────────────────────────────────── */}
+      <section className="relative w-full overflow-hidden" data-testid="section-drone-video">
+        <div className="relative w-full h-[50vw] max-h-[520px] min-h-[220px]">
+          <video
+            src={droneVideoPath}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+            data-testid="video-drone"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0e0e0e]/60 via-black/20 to-[#0e0e0e]/70" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
+            <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-2">Conheça nosso espaço</p>
+            <h2 className="text-white text-2xl sm:text-3xl lg:text-4xl font-black drop-shadow-lg">
+              Teixeira Barbearia
+            </h2>
+            <p className="text-white/60 text-sm mt-2 max-w-xs">Kobrasol, São José – SC · Desde 2018</p>
+          </div>
+        </div>
+      </section>
+
       {/* ─── SERVIÇOS ─────────────────────────────────────────────── */}
       <section id="servicos" className="py-20 px-4">
         <div className="max-w-4xl mx-auto">
@@ -460,112 +460,20 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── GALERIA ──────────────────────────────────────────────── */}
-      <section id="galeria" className="py-20 px-4">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-3">Conheça nosso espaço</p>
-            <h2 className="text-3xl sm:text-4xl font-black">Galeria</h2>
-            <p className="text-white/40 mt-3 text-sm max-w-sm mx-auto">Ambiente pensado para você se sentir bem do começo ao fim.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {galleryMedia.video.url && !videoFailed ? (
-              <div className="relative rounded-2xl overflow-hidden bg-[#151515] border border-white/5 aspect-video md:row-span-2" data-testid="gallery-video">
-                <video
-                  src={galleryMedia.video.url}
-                  poster={galleryMedia.video.poster}
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  className="w-full h-full object-cover"
-                  onError={() => setVideoFailed(true)}
-                  onAbort={() => setVideoFailed(true)}
-                >
-                  <img
-                    src={galleryMedia.video.poster}
-                    alt={galleryMedia.video.alt}
-                    className="w-full h-full object-cover"
-                  />
-                </video>
-              </div>
-            ) : (
-              <div className="relative rounded-2xl overflow-hidden bg-[#151515] border border-white/5 aspect-video md:row-span-2 flex items-center justify-center" data-testid="gallery-video-placeholder">
-                <img
-                  src={galleryMedia.video.poster}
-                  alt={galleryMedia.video.alt}
-                  loading="lazy"
-                  className="absolute inset-0 w-full h-full object-cover opacity-60"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-                <div className="relative z-10 flex flex-col items-center gap-2 text-white/40">
-                  <div className="w-14 h-14 rounded-full bg-[#C9A24D]/20 border border-[#C9A24D]/30 flex items-center justify-center">
-                    <Play className="w-6 h-6 text-[#C9A24D] ml-0.5" />
-                  </div>
-                  <span className="text-xs">Vídeo em breve</span>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3 md:row-span-2">
-              {galleryMedia.photos.slice(0, 4).map((photo, i) => (
-                <div
-                  key={i}
-                  className="relative rounded-xl overflow-hidden bg-[#151515] border border-white/5 aspect-square group"
-                  data-testid={`gallery-photo-${i}`}
-                >
-                  <img
-                    src={photo.src}
-                    alt={photo.alt}
-                    loading="lazy"
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const fallback = target.nextElementSibling;
-                      if (fallback) (fallback as HTMLElement).style.display = 'flex';
-                    }}
-                  />
-                  <div className="hidden items-center justify-center absolute inset-0 bg-[#151515]">
-                    <Camera className="w-8 h-8 text-white/20" />
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {galleryMedia.photos.length > 4 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-              {galleryMedia.photos.slice(4).map((photo, i) => (
-                <div
-                  key={i + 4}
-                  className="relative rounded-xl overflow-hidden bg-[#151515] border border-white/5 aspect-[4/3] group"
-                  data-testid={`gallery-photo-${i + 4}`}
-                >
-                  <img
-                    src={photo.src}
-                    alt={photo.alt}
-                    loading="lazy"
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const fallback = target.nextElementSibling;
-                      if (fallback) (fallback as HTMLElement).style.display = 'flex';
-                    }}
-                  />
-                  <div className="hidden items-center justify-center absolute inset-0 bg-[#151515]">
-                    <Camera className="w-8 h-8 text-white/20" />
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </div>
-              ))}
-            </div>
-          )}
+      {/* ─── FOTO INTERIOR ────────────────────────────────────────── */}
+      <div className="relative w-full overflow-hidden h-[40vw] max-h-[420px] min-h-[200px]" data-testid="banner-interior">
+        <img
+          src={interiorPhotoPath}
+          alt="Ambiente interno da Teixeira Barbearia"
+          loading="lazy"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0e0e0e]/50 via-black/10 to-[#111111]/80" />
+        <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 text-center">
+          <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-1">Nosso ambiente</p>
+          <p className="text-white text-base sm:text-lg font-semibold drop-shadow">Ambiente profissional pensado para você</p>
         </div>
-      </section>
+      </div>
 
       {/* ─── EQUIPE ───────────────────────────────────────────────── */}
       <section id="equipe" className="py-20 px-4 bg-[#111111]">
@@ -731,9 +639,24 @@ export default function Landing() {
       {/* ─── CONTATO / LOCALIZAÇÃO ────────────────────────────────── */}
       <section id="contato" className="py-20 px-4">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
+          <div className="text-center mb-10">
             <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-3">Onde estamos</p>
             <h2 className="text-3xl sm:text-4xl font-black">Venha nos visitar</h2>
+          </div>
+
+          {/* Facade photo */}
+          <div className="relative w-full rounded-3xl overflow-hidden mb-8 h-52 sm:h-64" data-testid="banner-facade">
+            <img
+              src={facadePhotoPath}
+              alt="Fachada da Teixeira Barbearia"
+              loading="lazy"
+              className="absolute inset-0 w-full h-full object-cover object-center"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
+            <div className="absolute bottom-0 left-0 p-6">
+              <p className="text-white font-bold text-lg drop-shadow">Rua Koesa, 430 – Kobrasol, São José</p>
+              <p className="text-white/60 text-sm mt-0.5">48 99950-5167 · @teixeirabarbeariaoficial</p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
