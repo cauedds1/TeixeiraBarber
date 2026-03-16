@@ -379,14 +379,14 @@ export default function Landing() {
 
       {/* ─── VÍDEO DRONE ──────────────────────────────────────────── */}
       <section className="relative w-full overflow-hidden" data-testid="section-drone-video">
-        <div className="relative w-full h-[50vw] max-h-[520px] min-h-[220px]">
+        <div className="relative w-full">
           <video
             src={droneVideoPath}
             autoPlay
             muted
             loop
             playsInline
-            className="absolute inset-0 w-full h-full object-cover"
+            className="w-full h-auto block"
             data-testid="video-drone"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-[#0e0e0e]/60 via-black/20 to-[#0e0e0e]/70" />
@@ -461,12 +461,12 @@ export default function Landing() {
       </section>
 
       {/* ─── FOTO INTERIOR ────────────────────────────────────────── */}
-      <div className="relative w-full overflow-hidden h-[40vw] max-h-[420px] min-h-[200px]" data-testid="banner-interior">
+      <div className="relative w-full overflow-hidden" data-testid="banner-interior">
         <img
           src={interiorPhotoPath}
           alt="Ambiente interno da Teixeira Barbearia"
           loading="lazy"
-          className="absolute inset-0 w-full h-full object-cover"
+          className="w-full h-auto block"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#0e0e0e]/50 via-black/10 to-[#111111]/80" />
         <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 text-center">
@@ -645,12 +645,12 @@ export default function Landing() {
           </div>
 
           {/* Facade photo */}
-          <div className="relative w-full rounded-3xl overflow-hidden mb-8 h-52 sm:h-64" data-testid="banner-facade">
+          <div className="relative w-full rounded-3xl overflow-hidden mb-8" data-testid="banner-facade">
             <img
               src={facadePhotoPath}
               alt="Fachada da Teixeira Barbearia"
               loading="lazy"
-              className="absolute inset-0 w-full h-full object-cover object-center"
+              className="w-full h-auto block"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
             <div className="absolute bottom-0 left-0 p-6">
