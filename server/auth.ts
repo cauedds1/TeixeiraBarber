@@ -4,8 +4,8 @@ import connectPg from "connect-pg-simple";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { db } from "./db";
-import { users, barbershops } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { users, barbershops, barbers, services } from "@shared/schema";
+import { eq, ne } from "drizzle-orm";
 
 const scryptAsync = promisify(scrypt);
 
@@ -236,5 +236,20 @@ export async function seedOwner() {
     console.log("Owner seeded: admin@teixeira.com / teixeira2024");
   } catch (error) {
     console.error("Error seeding owner:", error);
+  }
+
+  try {
+    const [mainShop] = await db.select().from(barbershops).where(eq(barbershops.slug, "teixeira"));
+    if (mainShop) {
+      const orphanShops = await db.select().from(barbershops).where(ne(barbershops.slug, "teixeira"));
+      for (const orphan of orphanShops) {
+        await db.update(barbers).set({ barbershopId: mainShop.id }).where(eq(barbers.barbershopId, orphan.id));
+        await db.update(services).set({ barbershopId: mainShop.id }).where(eq(services.barbershopId, orphan.id));
+        await db.delete(barbershops).where(eq(barbershops.id, orphan.id));
+        console.log(`Migrated orphan barbershop "${orphan.name}" (${orphan.slug}) → teixeira`);
+      }
+    }
+  } catch (error) {
+    console.error("Error migrating orphan barbershops:", error);
   }
 }

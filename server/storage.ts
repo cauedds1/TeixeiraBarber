@@ -26,6 +26,7 @@ export interface IStorage {
   getBarbershop(id: string): Promise<Barbershop | undefined>;
   getBarbershopBySlug(slug: string): Promise<Barbershop | undefined>;
   getBarbershopByOwner(ownerId: string): Promise<Barbershop | undefined>;
+  getFirstBarbershop(): Promise<Barbershop | undefined>;
   createBarbershop(data: InsertBarbershop): Promise<Barbershop>;
   updateBarbershop(id: string, data: Partial<InsertBarbershop>): Promise<Barbershop | undefined>;
 
@@ -178,6 +179,11 @@ export class DatabaseStorage implements IStorage {
 
   async getBarbershopByOwner(ownerId: string): Promise<Barbershop | undefined> {
     const [barbershop] = await db.select().from(barbershops).where(eq(barbershops.ownerId, ownerId));
+    return barbershop;
+  }
+
+  async getFirstBarbershop(): Promise<Barbershop | undefined> {
+    const [barbershop] = await db.select().from(barbershops).limit(1);
     return barbershop;
   }
 
