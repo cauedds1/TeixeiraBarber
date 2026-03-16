@@ -193,7 +193,10 @@ export async function seedOwner() {
       .from(users)
       .where(eq(users.email, "admin@teixeira.com"));
 
+    let ownerId: string;
+
     if (existingOwner) {
+      ownerId = existingOwner.id;
       if (!existingOwner.passwordHash) {
         const hash = await hashPassword("teixeira2024");
         await db.update(users).set({ passwordHash: hash, role: "owner" }).where(eq(users.id, existingOwner.id));
@@ -211,27 +214,28 @@ export async function seedOwner() {
           role: "owner",
         })
         .returning();
-
-      const [existingShop] = await db
-        .select()
-        .from(barbershops)
-        .where(eq(barbershops.ownerId, owner.id));
-
-      if (!existingShop) {
-        await db.insert(barbershops).values({
-          ownerId: owner.id,
-          name: "Teixeira Barbearia",
-          slug: "teixeira",
-          phone: "5548999505167",
-          email: "admin@teixeira.com",
-          address: "Rua Koesa, 430, Sala 03",
-          city: "São José",
-          state: "SC",
-          neighborhood: "Kobrasol",
-        });
-      }
-
+      ownerId = owner.id;
       console.log("Owner seeded: admin@teixeira.com / teixeira2024");
+    }
+
+    const [existingShop] = await db
+      .select()
+      .from(barbershops)
+      .where(eq(barbershops.slug, "teixeira"));
+
+    if (!existingShop) {
+      await db.insert(barbershops).values({
+        ownerId,
+        name: "Teixeira Barbearia",
+        slug: "teixeira",
+        phone: "5548999505167",
+        email: "admin@teixeira.com",
+        address: "Rua Koesa, 430, Sala 03",
+        city: "São José",
+        state: "SC",
+        neighborhood: "Kobrasol",
+      });
+      console.log("Barbershop 'teixeira' created");
     }
   } catch (error) {
     console.error("Error seeding owner:", error);
