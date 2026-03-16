@@ -27,17 +27,14 @@ export async function registerRoutes(
   await seedOwner();
 
   // Get or create user's barbershop
-  const getBarbershopForUser = async (userId: string) => {
-    let barbershop = await storage.getBarbershopByOwner(userId);
-    if (!barbershop) {
-      barbershop = await storage.getBarbershopBySlug("teixeira");
-    }
+  const getBarbershopForUser = async (_userId: string) => {
+    let barbershop = await storage.getBarbershopBySlug("teixeira");
     if (!barbershop) {
       barbershop = await storage.getFirstBarbershop();
     }
     if (!barbershop) {
       barbershop = await storage.createBarbershop({
-        ownerId: userId,
+        ownerId: _userId,
         name: "Teixeira Barbearia",
         slug: "teixeira",
       });

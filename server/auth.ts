@@ -4,8 +4,8 @@ import connectPg from "connect-pg-simple";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { db } from "./db";
-import { users, barbershops, barbers, services } from "@shared/schema";
-import { eq, ne } from "drizzle-orm";
+import { users, barbershops } from "@shared/schema";
+import { eq, ne, sql } from "drizzle-orm";
 
 const scryptAsync = promisify(scrypt);
 
@@ -241,11 +241,27 @@ export async function seedOwner() {
     const [mainShop] = await db.select().from(barbershops).where(eq(barbershops.slug, "teixeira"));
     if (mainShop) {
       const orphanShops = await db.select().from(barbershops).where(ne(barbershops.slug, "teixeira"));
+      const dependentTables = [
+        "barbers", "service_categories", "services", "clients",
+        "appointments", "waitlist", "products", "transactions",
+        "expense_categories", "fixed_expenses", "commission_payments",
+        "bills", "loyalty_plans", "subscription_packages", "coupons",
+        "reviews", "notifications", "revenue_goals",
+      ];
       for (const orphan of orphanShops) {
-        await db.update(barbers).set({ barbershopId: mainShop.id }).where(eq(barbers.barbershopId, orphan.id));
-        await db.update(services).set({ barbershopId: mainShop.id }).where(eq(services.barbershopId, orphan.id));
-        await db.delete(barbershops).where(eq(barbershops.id, orphan.id));
-        console.log(`Migrated orphan barbershop "${orphan.name}" (${orphan.slug}) → teixeira`);
+        try {
+          await db.transaction(async (tx) => {
+            for (const table of dependentTables) {
+              await tx.execute(
+                sql`UPDATE ${sql.identifier(table)} SET barbershop_id = ${mainShop.id} WHERE barbershop_id = ${orphan.id}`
+              );
+            }
+            await tx.delete(barbershops).where(eq(barbershops.id, orphan.id));
+          });
+          console.log(`Migrated orphan barbershop "${orphan.name}" (${orphan.slug}) → teixeira`);
+        } catch (orphanError) {
+          console.error(`Failed to migrate orphan "${orphan.slug}":`, orphanError);
+        }
       }
     }
   } catch (error) {
