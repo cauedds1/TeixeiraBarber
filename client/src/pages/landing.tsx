@@ -168,6 +168,7 @@ export default function Landing() {
         initials: b.initials,
         color: b.color,
         coverPhotoUrl: null as string | null,
+        coverPhotoPosition: 50,
         cardBgColor: null as string | null,
         cardBgOpacity: 30,
         avgRating: 0,
@@ -179,6 +180,7 @@ export default function Landing() {
         initials: b.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(),
         color: teamColors[i % teamColors.length],
         coverPhotoUrl: b.coverPhotoUrl ?? null,
+        coverPhotoPosition: b.coverPhotoPosition ?? 50,
         cardBgColor: b.cardBgColor ?? null,
         cardBgOpacity: b.cardBgOpacity ?? 30,
         avgRating: (b as { avgRating?: number }).avgRating ?? 0,
@@ -543,7 +545,7 @@ export default function Landing() {
                   className={`h-36 md:h-52 flex items-center justify-center relative overflow-hidden${!(barber.coverPhotoUrl || barber.cardBgColor) ? " bg-gradient-to-b from-[#1e1e1e] to-[#0e0e0e]" : ""}`}
                   style={
                     barber.coverPhotoUrl
-                      ? { backgroundImage: `url(${barber.coverPhotoUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+                      ? { backgroundImage: `url(${barber.coverPhotoUrl})`, backgroundSize: "cover", backgroundPosition: `center ${barber.coverPhotoPosition ?? 50}%` }
                       : barber.cardBgColor
                       ? { backgroundColor: barber.cardBgColor }
                       : undefined

@@ -86,6 +86,7 @@ export const barbers = pgTable("barbers", {
   phone: varchar("phone", { length: 20 }),
   photoUrl: varchar("photo_url"),
   coverPhotoUrl: varchar("cover_photo_url"),
+  coverPhotoPosition: integer("cover_photo_position").default(50),
   cardBgColor: varchar("card_bg_color", { length: 20 }),
   cardBgOpacity: integer("card_bg_opacity").default(30),
   bio: text("bio"),

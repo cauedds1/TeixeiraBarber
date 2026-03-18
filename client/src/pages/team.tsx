@@ -33,6 +33,7 @@ const barberFormSchema = z.object({
   bio: z.string().optional(),
   photoUrl: z.string().optional(),
   coverPhotoUrl: z.string().optional(),
+  coverPhotoPosition: z.number().min(0).max(100).default(50),
   cardBgColor: z.string().optional(),
   cardBgOpacity: z.number().min(0).max(100).default(30),
   commissionRate: z.string().default("50"),
@@ -52,15 +53,19 @@ export default function Team() {
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [bgMode, setBgMode] = useState<"photo" | "color">("photo");
   const [showCoverEditor, setShowCoverEditor] = useState(false);
+  const [isDraggingCover, setIsDraggingCover] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
+  const coverDragRef = useRef<HTMLDivElement>(null);
+  const dragStartY = useRef<number>(0);
+  const dragStartPos = useRef<number>(50);
   const { toast } = useToast();
 
   const form = useForm<BarberFormData>({
     resolver: zodResolver(barberFormSchema),
     defaultValues: {
       name: "", email: "", phone: "", bio: "", photoUrl: "",
-      coverPhotoUrl: "", cardBgColor: "#1a1a1a", cardBgOpacity: 30,
+      coverPhotoUrl: "", coverPhotoPosition: 50, cardBgColor: "#1a1a1a", cardBgOpacity: 30,
       commissionRate: "50", workStartTime: "09:00", workEndTime: "19:00", isActive: true,
     },
   });
@@ -120,7 +125,7 @@ export default function Team() {
     setShowCoverEditor(false);
     form.reset({
       name: "", email: "", phone: "", bio: "", photoUrl: "",
-      coverPhotoUrl: "", cardBgColor: "#1a1a1a", cardBgOpacity: 30,
+      coverPhotoUrl: "", coverPhotoPosition: 50, cardBgColor: "#1a1a1a", cardBgOpacity: 30,
       commissionRate: "50", workStartTime: "09:00", workEndTime: "19:00", isActive: true,
     });
   };
@@ -137,6 +142,7 @@ export default function Team() {
       bio: barber.bio || "",
       photoUrl: barber.photoUrl || "",
       coverPhotoUrl: barber.coverPhotoUrl || "",
+      coverPhotoPosition: barber.coverPhotoPosition ?? 50,
       cardBgColor: barber.cardBgColor || "#1a1a1a",
       cardBgOpacity: barber.cardBgOpacity ?? 30,
       commissionRate: barber.commissionRate?.toString() || "50",
@@ -185,6 +191,25 @@ export default function Team() {
     if (coverFileInputRef.current) coverFileInputRef.current.value = "";
   };
 
+  const handleCoverDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    setIsDraggingCover(true);
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    dragStartY.current = clientY;
+    dragStartPos.current = form.getValues("coverPhotoPosition") ?? 50;
+  };
+
+  const handleCoverDragMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDraggingCover || !coverDragRef.current) return;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    const containerH = coverDragRef.current.clientHeight;
+    const deltaY = clientY - dragStartY.current;
+    const deltaPct = (deltaY / containerH) * 100;
+    const newPos = Math.max(0, Math.min(100, dragStartPos.current + deltaPct));
+    form.setValue("coverPhotoPosition", Math.round(newPos));
+  };
+
+  const handleCoverDragEnd = () => setIsDraggingCover(false);
+
   const onSubmit = (data: BarberFormData) => {
     const payload = {
       ...data,
@@ -210,6 +235,7 @@ export default function Team() {
 
   const opacityValue = form.watch("cardBgOpacity");
   const bgColorValue = form.watch("cardBgColor");
+  const coverPosition = form.watch("coverPhotoPosition") ?? 50;
 
   return (
     <div className="min-h-screen bg-[#0e0e0e] p-4 sm:p-6 lg:p-8">
@@ -268,7 +294,7 @@ export default function Team() {
                   className="relative h-28 flex items-center justify-center overflow-hidden"
                   style={
                     barber.coverPhotoUrl
-                      ? { backgroundImage: `url(${barber.coverPhotoUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+                      ? { backgroundImage: `url(${barber.coverPhotoUrl})`, backgroundSize: "cover", backgroundPosition: `center ${barber.coverPhotoPosition ?? 50}%` }
                       : barber.cardBgColor
                       ? { backgroundColor: barber.cardBgColor }
                       : { background: "linear-gradient(135deg, rgba(201,162,77,0.2), #1a1a1a, #151515)" }
@@ -388,7 +414,7 @@ export default function Team() {
                   onClick={() => setShowCoverEditor(true)}
                   style={
                     bgMode === "photo" && coverPreview
-                      ? { backgroundImage: `url(${coverPreview})`, backgroundSize: "cover", backgroundPosition: "center" }
+                      ? { backgroundImage: `url(${coverPreview})`, backgroundSize: "cover", backgroundPosition: `center ${coverPosition}%` }
                       : bgMode === "color" && bgColorValue
                       ? { backgroundColor: bgColorValue }
                       : undefined
@@ -498,12 +524,30 @@ export default function Team() {
                         {coverPreview ? (
                           <div className="relative">
                             <div
-                              className="w-full h-24 rounded-lg overflow-hidden relative"
-                              style={{ backgroundImage: `url(${coverPreview})`, backgroundSize: "cover", backgroundPosition: "center" }}
+                              ref={coverDragRef}
+                              className={`w-full h-32 rounded-lg overflow-hidden relative select-none ${isDraggingCover ? "cursor-grabbing" : "cursor-grab"}`}
+                              style={{
+                                backgroundImage: `url(${coverPreview})`,
+                                backgroundSize: "cover",
+                                backgroundPosition: `center ${coverPosition}%`,
+                              }}
+                              onMouseDown={handleCoverDragStart}
+                              onMouseMove={handleCoverDragMove}
+                              onMouseUp={handleCoverDragEnd}
+                              onMouseLeave={handleCoverDragEnd}
+                              onTouchStart={handleCoverDragStart}
+                              onTouchMove={handleCoverDragMove}
+                              onTouchEnd={handleCoverDragEnd}
+                              data-testid="cover-drag-area"
                             >
                               <div className="absolute inset-0 bg-black" style={{ opacity: opacityValue / 100 }} />
                               <div className="absolute inset-0 flex items-center justify-center">
                                 <div className="w-10 h-10 rounded-full bg-white/20 border border-white/40" />
+                              </div>
+                              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-black/60 rounded-full px-2.5 py-1">
+                                <svg className="w-3 h-3 text-white/70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+                                <span className="text-white/70 text-[10px] font-medium">Arraste para ajustar</span>
+                                <svg className="w-3 h-3 text-white/70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 19V5M5 12l7 7 7-7"/></svg>
                               </div>
                             </div>
                             <button
@@ -514,7 +558,10 @@ export default function Team() {
                             >
                               <X className="w-3.5 h-3.5 text-white" />
                             </button>
-                            <p className="text-white/30 text-xs mt-1">Prévia do cartão (círculo = foto de perfil)</p>
+                            <div className="flex items-center justify-between mt-1">
+                              <p className="text-white/30 text-xs">Prévia · círculo = foto de perfil</p>
+                              <p className="text-[#C9A24D]/60 text-xs font-mono">{coverPosition}%</p>
+                            </div>
                           </div>
                         ) : (
                           <button
