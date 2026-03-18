@@ -178,10 +178,10 @@ export default function Landing() {
         photoUrl: b.photoUrl,
         initials: b.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(),
         color: teamColors[i % teamColors.length],
-        coverPhotoUrl: (b as any).coverPhotoUrl as string | null,
-        cardBgColor: (b as any).cardBgColor as string | null,
-        cardBgOpacity: (b as any).cardBgOpacity ?? 60,
-        avgRating: (b as any).avgRating ?? 0,
+        coverPhotoUrl: b.coverPhotoUrl ?? null,
+        cardBgColor: b.cardBgColor ?? null,
+        cardBgOpacity: b.cardBgOpacity ?? 60,
+        avgRating: (b as { avgRating?: number }).avgRating ?? 0,
       }));
 
   useEffect(() => {
@@ -549,7 +549,7 @@ export default function Landing() {
                       : undefined
                   }
                 >
-                  {barber.coverPhotoUrl ? (
+                  {barber.coverPhotoUrl || barber.cardBgColor ? (
                     <div className="absolute inset-0 bg-black" style={{ opacity: (100 - barber.cardBgOpacity) / 100 }} />
                   ) : (
                     <div className="absolute inset-0 bg-[#0e0e0e]/30" />

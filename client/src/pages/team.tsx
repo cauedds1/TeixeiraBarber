@@ -24,6 +24,8 @@ import {
 import { z } from "zod";
 import type { Barber } from "@shared/schema";
 
+type BarberWithRating = Barber & { avgRating?: number };
+
 const barberFormSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
@@ -62,7 +64,7 @@ export default function Team() {
     },
   });
 
-  const { data: barbers, isLoading } = useQuery<Barber[]>({
+  const { data: barbers, isLoading } = useQuery<BarberWithRating[]>({
     queryKey: ["/api/barbers"],
   });
 
@@ -291,10 +293,10 @@ export default function Team() {
                   <div>
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-bold text-white text-lg">{barber.name}</h3>
-                      {(barber as any).avgRating > 0 && (
+                      {(barber.avgRating ?? 0) > 0 && (
                         <div className="flex items-center gap-1 shrink-0 mt-0.5" data-testid={`text-rating-${barber.id}`}>
                           <Star className="w-3.5 h-3.5 text-[#C9A24D] fill-current" />
-                          <span className="text-[#C9A24D] text-xs font-bold">{(barber as any).avgRating.toFixed(1)}</span>
+                          <span className="text-[#C9A24D] text-xs font-bold">{barber.avgRating!.toFixed(1)}</span>
                         </div>
                       )}
                     </div>
@@ -588,13 +590,38 @@ export default function Team() {
                       )} />
                     </div>
 
+                    {/* Opacity slider for color mode */}
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <label className="text-white/50 text-xs">Opacidade da cor</label>
+                        <span className="text-[#C9A24D] text-xs font-bold">{opacityValue}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={opacityValue}
+                        onChange={(e) => form.setValue("cardBgOpacity", parseInt(e.target.value))}
+                        data-testid="slider-color-opacity"
+                        className="w-full h-1.5 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#C9A24D] [&::-webkit-slider-thumb]:cursor-pointer"
+                      />
+                      <div className="flex justify-between text-white/20 text-xs">
+                        <span>Transparente</span>
+                        <span>Sólido</span>
+                      </div>
+                    </div>
+
                     {/* Color preview */}
                     <div
                       className="w-full h-16 rounded-lg flex items-center justify-center relative overflow-hidden"
                       style={{ backgroundColor: bgColorValue || "#1a1a1a" }}
                     >
-                      <div className="w-10 h-10 rounded-full bg-white/20 border border-white/40" />
-                      <p className="absolute bottom-1 right-2 text-white/30 text-xs">prévia</p>
+                      <div
+                        className="absolute inset-0 bg-black"
+                        style={{ opacity: (100 - opacityValue) / 100 }}
+                      />
+                      <div className="relative z-10 w-10 h-10 rounded-full bg-white/20 border border-white/40" />
+                      <p className="absolute bottom-1 right-2 text-white/30 text-xs z-10">prévia</p>
                     </div>
                   </div>
                 )}
