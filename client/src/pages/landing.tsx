@@ -161,12 +161,15 @@ export default function Landing() {
       }));
 
   const team = barbersError
-    ? fallbackTeam.map(b => ({
+    ? fallbackTeam.map((b, i) => ({
         name: b.name,
         role: b.bio || "Profissional",
         photoUrl: b.photoUrl,
         initials: b.initials,
         color: b.color,
+        coverPhotoUrl: null as string | null,
+        cardBgColor: null as string | null,
+        cardBgOpacity: 60,
         avgRating: 0,
       }))
     : (apiBarbers || []).map((b, i) => ({
@@ -175,6 +178,9 @@ export default function Landing() {
         photoUrl: b.photoUrl,
         initials: b.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(),
         color: teamColors[i % teamColors.length],
+        coverPhotoUrl: (b as any).coverPhotoUrl as string | null,
+        cardBgColor: (b as any).cardBgColor as string | null,
+        cardBgOpacity: (b as any).cardBgOpacity ?? 60,
         avgRating: (b as any).avgRating ?? 0,
       }));
 
@@ -533,16 +539,29 @@ export default function Landing() {
                 className="group bg-[#151515] border border-white/5 hover:border-[#C9A24D]/20 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-[#C9A24D]/5"
                 data-testid={`card-barber-${barber.name.toLowerCase().replace(/\s+/g, "-")}`}
               >
-                <div className={`h-36 md:h-52 bg-gradient-to-br ${barber.color} flex items-center justify-center relative overflow-hidden`}>
-                  <div className="absolute inset-0 bg-[#0e0e0e]/30" />
+                <div
+                  className={`h-36 md:h-52 flex items-center justify-center relative overflow-hidden${!(barber.coverPhotoUrl || barber.cardBgColor) ? ` bg-gradient-to-br ${barber.color}` : ""}`}
+                  style={
+                    barber.coverPhotoUrl
+                      ? { backgroundImage: `url(${barber.coverPhotoUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+                      : barber.cardBgColor
+                      ? { backgroundColor: barber.cardBgColor }
+                      : undefined
+                  }
+                >
+                  {barber.coverPhotoUrl ? (
+                    <div className="absolute inset-0 bg-black" style={{ opacity: (100 - barber.cardBgOpacity) / 100 }} />
+                  ) : (
+                    <div className="absolute inset-0 bg-[#0e0e0e]/30" />
+                  )}
                   {barber.photoUrl ? (
                     <img
                       src={barber.photoUrl}
                       alt={barber.name}
-                      className="relative w-20 h-20 rounded-full object-cover border-2 border-[#C9A24D]/40 shadow-lg"
+                      className="relative z-10 w-20 h-20 rounded-full object-cover border-2 border-[#C9A24D]/40 shadow-lg"
                     />
                   ) : (
-                    <div className="relative w-20 h-20 rounded-full bg-white/10 backdrop-blur border-2 border-[#C9A24D]/40 flex items-center justify-center">
+                    <div className="relative z-10 w-20 h-20 rounded-full bg-white/10 backdrop-blur border-2 border-[#C9A24D]/40 flex items-center justify-center">
                       <span className="text-2xl font-black text-[#C9A24D]">{barber.initials}</span>
                     </div>
                   )}

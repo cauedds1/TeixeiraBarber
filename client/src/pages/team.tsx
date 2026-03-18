@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import {
-  Plus, Search, Phone, Mail, Clock, Percent, Camera, Pencil, Trash2, UserPlus, Star,
+  Plus, Search, Phone, Mail, Clock, Percent, Camera, Pencil, Trash2, UserPlus, Star, Image, Palette, X,
 } from "lucide-react";
 import { z } from "zod";
 import type { Barber } from "@shared/schema";
@@ -30,6 +30,9 @@ const barberFormSchema = z.object({
   phone: z.string().optional(),
   bio: z.string().optional(),
   photoUrl: z.string().optional(),
+  coverPhotoUrl: z.string().optional(),
+  cardBgColor: z.string().optional(),
+  cardBgOpacity: z.number().min(0).max(100).default(60),
   commissionRate: z.string().default("50"),
   workStartTime: z.string().default("09:00"),
   workEndTime: z.string().default("19:00"),
@@ -44,13 +47,17 @@ export default function Team() {
   const [editingBarber, setEditingBarber] = useState<Barber | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Barber | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [bgMode, setBgMode] = useState<"photo" | "color">("photo");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const form = useForm<BarberFormData>({
     resolver: zodResolver(barberFormSchema),
     defaultValues: {
       name: "", email: "", phone: "", bio: "", photoUrl: "",
+      coverPhotoUrl: "", cardBgColor: "#1a1a1a", cardBgOpacity: 60,
       commissionRate: "50", workStartTime: "09:00", workEndTime: "19:00", isActive: true,
     },
   });
@@ -105,8 +112,11 @@ export default function Team() {
     setDialogOpen(false);
     setEditingBarber(null);
     setPhotoPreview(null);
+    setCoverPreview(null);
+    setBgMode("photo");
     form.reset({
       name: "", email: "", phone: "", bio: "", photoUrl: "",
+      coverPhotoUrl: "", cardBgColor: "#1a1a1a", cardBgOpacity: 60,
       commissionRate: "50", workStartTime: "09:00", workEndTime: "19:00", isActive: true,
     });
   };
@@ -114,12 +124,17 @@ export default function Team() {
   const openEdit = (barber: Barber) => {
     setEditingBarber(barber);
     setPhotoPreview(barber.photoUrl || null);
+    setCoverPreview(barber.coverPhotoUrl || null);
+    setBgMode(barber.coverPhotoUrl ? "photo" : "color");
     form.reset({
       name: barber.name,
       email: barber.email || "",
       phone: barber.phone || "",
       bio: barber.bio || "",
       photoUrl: barber.photoUrl || "",
+      coverPhotoUrl: barber.coverPhotoUrl || "",
+      cardBgColor: barber.cardBgColor || "#1a1a1a",
+      cardBgOpacity: barber.cardBgOpacity ?? 60,
       commissionRate: barber.commissionRate?.toString() || "50",
       workStartTime: barber.workStartTime || "09:00",
       workEndTime: barber.workEndTime || "19:00",
@@ -144,11 +159,38 @@ export default function Team() {
     reader.readAsDataURL(file);
   };
 
+  const handleCoverPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      toast({ title: "Imagem muito grande (máx 3MB)", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      setCoverPreview(base64);
+      form.setValue("coverPhotoUrl", base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeCoverPhoto = () => {
+    setCoverPreview(null);
+    form.setValue("coverPhotoUrl", "");
+    if (coverFileInputRef.current) coverFileInputRef.current.value = "";
+  };
+
   const onSubmit = (data: BarberFormData) => {
+    const payload = {
+      ...data,
+      coverPhotoUrl: bgMode === "photo" ? (data.coverPhotoUrl || "") : "",
+      cardBgColor: bgMode === "color" ? (data.cardBgColor || "#1a1a1a") : "",
+    };
     if (editingBarber) {
-      updateMutation.mutate({ id: editingBarber.id, data });
+      updateMutation.mutate({ id: editingBarber.id, data: payload });
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate(payload);
     }
   };
 
@@ -161,6 +203,9 @@ export default function Team() {
   const isPending = createMutation.isPending || updateMutation.isPending;
   const initials = (name: string) =>
     name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+
+  const opacityValue = form.watch("cardBgOpacity");
+  const bgColorValue = form.watch("cardBgColor");
 
   return (
     <div className="min-h-screen bg-[#0e0e0e] p-4 sm:p-6 lg:p-8">
@@ -215,19 +260,31 @@ export default function Team() {
                 className="group bg-[#151515] border border-white/5 hover:border-[#C9A24D]/20 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-[#C9A24D]/5"
                 data-testid={`card-barber-${barber.id}`}
               >
-                <div className="relative h-28 bg-gradient-to-br from-[#C9A24D]/20 via-[#1a1a1a] to-[#151515] flex items-center justify-center">
+                <div
+                  className="relative h-28 flex items-center justify-center overflow-hidden"
+                  style={
+                    barber.coverPhotoUrl
+                      ? { backgroundImage: `url(${barber.coverPhotoUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+                      : barber.cardBgColor
+                      ? { backgroundColor: barber.cardBgColor }
+                      : { background: "linear-gradient(135deg, rgba(201,162,77,0.2), #1a1a1a, #151515)" }
+                  }
+                >
+                  {barber.coverPhotoUrl && (
+                    <div className="absolute inset-0 bg-black" style={{ opacity: (100 - (barber.cardBgOpacity ?? 60)) / 100 }} />
+                  )}
                   {barber.photoUrl ? (
                     <img
                       src={barber.photoUrl}
                       alt={barber.name}
-                      className="w-20 h-20 rounded-full object-cover border-2 border-[#C9A24D]/40 shadow-lg"
+                      className="relative z-10 w-20 h-20 rounded-full object-cover border-2 border-[#C9A24D]/40 shadow-lg"
                     />
                   ) : (
-                    <div className="w-20 h-20 rounded-full bg-[#C9A24D]/10 border-2 border-[#C9A24D]/30 flex items-center justify-center">
+                    <div className="relative z-10 w-20 h-20 rounded-full bg-[#C9A24D]/10 border-2 border-[#C9A24D]/30 flex items-center justify-center">
                       <span className="text-2xl font-black text-[#C9A24D]">{initials(barber.name)}</span>
                     </div>
                   )}
-                  <div className={`absolute top-3 right-3 w-2.5 h-2.5 rounded-full ${barber.isActive ? "bg-green-500" : "bg-white/20"}`} />
+                  <div className={`absolute top-3 right-3 z-10 w-2.5 h-2.5 rounded-full ${barber.isActive ? "bg-green-500" : "bg-white/20"}`} />
                 </div>
 
                 <div className="p-5 space-y-3">
@@ -307,7 +364,7 @@ export default function Team() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); else setDialogOpen(true); }}>
-        <DialogContent className="max-w-lg bg-[#1a1a1a] border-white/10 text-white">
+        <DialogContent className="max-w-lg bg-[#1a1a1a] border-white/10 text-white max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white">
               {editingBarber ? "Editar Profissional" : "Novo Profissional"}
@@ -340,7 +397,7 @@ export default function Team() {
                   />
                 </div>
               </div>
-              <p className="text-center text-white/30 text-xs -mt-2">Clique para enviar foto (máx 2MB)</p>
+              <p className="text-center text-white/30 text-xs -mt-2">Clique para enviar foto de perfil (máx 2MB)</p>
 
               <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
@@ -411,6 +468,136 @@ export default function Team() {
                     <FormMessage />
                   </FormItem>
                 )} />
+              </div>
+
+              {/* ── Fundo do Cartão ─────────────────────────── */}
+              <div className="rounded-xl border border-white/10 bg-[#0e0e0e] p-4 space-y-3">
+                <p className="text-white/70 text-sm font-semibold">Fundo do Cartão (Landing Page)</p>
+
+                {/* Mode toggle */}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBgMode("photo")}
+                    data-testid="button-bg-mode-photo"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${bgMode === "photo" ? "bg-[#C9A24D] text-black" : "bg-white/5 text-white/50 hover:text-white"}`}
+                  >
+                    <Image className="w-3.5 h-3.5" />
+                    Foto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBgMode("color")}
+                    data-testid="button-bg-mode-color"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${bgMode === "color" ? "bg-[#C9A24D] text-black" : "bg-white/5 text-white/50 hover:text-white"}`}
+                  >
+                    <Palette className="w-3.5 h-3.5" />
+                    Cor
+                  </button>
+                </div>
+
+                {bgMode === "photo" ? (
+                  <div className="space-y-3">
+                    <input
+                      ref={coverFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleCoverPhotoChange}
+                      className="hidden"
+                      data-testid="input-cover-upload"
+                    />
+                    {coverPreview ? (
+                      <div className="relative">
+                        <div
+                          className="w-full h-24 rounded-lg overflow-hidden relative"
+                          style={{ backgroundImage: `url(${coverPreview})`, backgroundSize: "cover", backgroundPosition: "center" }}
+                        >
+                          <div className="absolute inset-0 bg-black" style={{ opacity: (100 - opacityValue) / 100 }} />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-full bg-white/20 border border-white/40" />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={removeCoverPhoto}
+                          className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/70 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors"
+                          data-testid="button-remove-cover"
+                        >
+                          <X className="w-3.5 h-3.5 text-white" />
+                        </button>
+                        <p className="text-white/30 text-xs mt-1">Prévia do cartão (círculo = foto de perfil)</p>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => coverFileInputRef.current?.click()}
+                        data-testid="button-upload-cover"
+                        className="w-full h-20 rounded-lg border border-dashed border-white/20 hover:border-[#C9A24D]/50 flex flex-col items-center justify-center gap-1.5 text-white/40 hover:text-[#C9A24D] transition-all"
+                      >
+                        <Image className="w-5 h-5" />
+                        <span className="text-xs">Clique para enviar foto de fundo (máx 3MB)</span>
+                      </button>
+                    )}
+
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <label className="text-white/50 text-xs">Visibilidade da foto</label>
+                        <span className="text-[#C9A24D] text-xs font-bold">{opacityValue}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={opacityValue}
+                        onChange={(e) => form.setValue("cardBgOpacity", parseInt(e.target.value))}
+                        data-testid="slider-bg-opacity"
+                        className="w-full h-1.5 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#C9A24D] [&::-webkit-slider-thumb]:cursor-pointer"
+                      />
+                      <div className="flex justify-between text-white/20 text-xs">
+                        <span>Escuro</span>
+                        <span>Nítido</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <FormField control={form.control} name="cardBgColor" render={({ field }) => (
+                        <FormItem className="flex-1">
+                          <FormLabel className="text-white/50 text-xs">Cor de fundo</FormLabel>
+                          <FormControl>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={field.value || "#1a1a1a"}
+                                onChange={field.onChange}
+                                data-testid="input-bg-color"
+                                className="w-10 h-10 rounded-lg cursor-pointer border border-white/10 bg-transparent p-0.5"
+                              />
+                              <Input
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                                placeholder="#1a1a1a"
+                                className="bg-[#151515] border-white/10 text-white text-sm font-mono"
+                                data-testid="input-bg-color-hex"
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+
+                    {/* Color preview */}
+                    <div
+                      className="w-full h-16 rounded-lg flex items-center justify-center relative overflow-hidden"
+                      style={{ backgroundColor: bgColorValue || "#1a1a1a" }}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-white/20 border border-white/40" />
+                      <p className="absolute bottom-1 right-2 text-white/30 text-xs">prévia</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <FormField control={form.control} name="isActive" render={({ field }) => (
