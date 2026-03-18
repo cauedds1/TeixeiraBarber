@@ -276,11 +276,12 @@ export default function OwnerDashboard() {
         ) : (
           <>
             <Card className="bg-[#141414]/80 backdrop-blur-sm border-white/5 hover:border-[#C9A24D]/20 transition-colors" data-testid="card-occupancy">
-              <CardContent className="p-5 flex items-center gap-4">
+              <CardContent className="p-5 flex items-center gap-4 overflow-hidden">
                 <OccupancyRing rate={stats?.occupancyRate || 0} />
-                <div>
+                <div className="min-w-0">
                   <p className="text-white/40 text-xs uppercase tracking-wider">Ocupação</p>
-                  <p className="text-white text-lg font-bold mt-0.5">{stats?.todayAppointments || 0} agendamentos</p>
+                  <p className="text-white text-2xl font-bold mt-1 leading-none">{stats?.todayAppointments || 0}</p>
+                  <p className="text-white/40 text-xs mt-0.5">agendamentos</p>
                   <p className="text-white/30 text-xs mt-0.5">{stats?.pendingAppointments || 0} pendente(s)</p>
                 </div>
               </CardContent>
