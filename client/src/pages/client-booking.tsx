@@ -165,9 +165,10 @@ export default function ClientBooking() {
     if (selectedDate === todayStr) {
       const now = new Date();
       const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const roundedNow = Math.ceil(nowMinutes / 30) * 30;
       return slots.filter((time) => {
         const [h, m] = time.split(":").map(Number);
-        return h * 60 + m > nowMinutes;
+        return h * 60 + m > roundedNow;
       });
     }
     return slots;
@@ -361,7 +362,7 @@ export default function ClientBooking() {
                                     <button onClick={(e) => { e.stopPropagation(); setExpandedDesc(prev => { const next = new Set(prev); next.has(String(service.id)) ? next.delete(String(service.id)) : next.add(String(service.id)); return next; }); }} className="text-[10px] text-[#C9A24D]/70 hover:text-[#C9A24D] mt-0.5 font-medium" data-testid={`btn-lerMais-${service.id}`}>{expandedDesc.has(String(service.id)) ? "← Ler menos" : "Ler mais →"}</button>
                                   </div>
                                 ) : (
-                                  <p className="text-xs text-white/30 mt-0.5 line-clamp-2">{service.description}</p>
+                                  <p className="text-xs text-white/30 mt-0.5">{service.description}</p>
                                 )
                               )}
                               <p className="text-xs text-white/25 mt-1 flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{service.duration} min</p>
@@ -413,7 +414,7 @@ export default function ClientBooking() {
                                   <button onClick={(e) => { e.stopPropagation(); setExpandedDesc(prev => { const next = new Set(prev); next.has(String(service.id)) ? next.delete(String(service.id)) : next.add(String(service.id)); return next; }); }} className="text-[10px] text-[#C9A24D]/70 hover:text-[#C9A24D] mt-0.5 font-medium" data-testid={`btn-lerMais-${service.id}`}>{expandedDesc.has(String(service.id)) ? "← Ler menos" : "Ler mais →"}</button>
                                 </div>
                               ) : (
-                                <p className="text-xs text-white/30 mt-0.5 line-clamp-2">{service.description}</p>
+                                <p className="text-xs text-white/30 mt-0.5">{service.description}</p>
                               )
                             )}
                             <p className="text-xs text-white/25 mt-1 flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{service.duration} min</p>
