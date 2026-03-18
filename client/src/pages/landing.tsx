@@ -550,7 +550,7 @@ export default function Landing() {
                   }
                 >
                   {barber.coverPhotoUrl || barber.cardBgColor ? (
-                    <div className="absolute inset-0 bg-black" style={{ opacity: (100 - barber.cardBgOpacity) / 100 }} />
+                    <div className="absolute inset-0 bg-black" style={{ opacity: barber.cardBgOpacity / 100 }} />
                   ) : (
                     <div className="absolute inset-0 bg-[#0e0e0e]/30" />
                   )}

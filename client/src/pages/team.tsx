@@ -59,7 +59,7 @@ export default function Team() {
     resolver: zodResolver(barberFormSchema),
     defaultValues: {
       name: "", email: "", phone: "", bio: "", photoUrl: "",
-      coverPhotoUrl: "", cardBgColor: "#1a1a1a", cardBgOpacity: 60,
+      coverPhotoUrl: "", cardBgColor: "#1a1a1a", cardBgOpacity: 30,
       commissionRate: "50", workStartTime: "09:00", workEndTime: "19:00", isActive: true,
     },
   });
@@ -118,7 +118,7 @@ export default function Team() {
     setBgMode("photo");
     form.reset({
       name: "", email: "", phone: "", bio: "", photoUrl: "",
-      coverPhotoUrl: "", cardBgColor: "#1a1a1a", cardBgOpacity: 60,
+      coverPhotoUrl: "", cardBgColor: "#1a1a1a", cardBgOpacity: 30,
       commissionRate: "50", workStartTime: "09:00", workEndTime: "19:00", isActive: true,
     });
   };
@@ -514,7 +514,7 @@ export default function Team() {
                           className="w-full h-24 rounded-lg overflow-hidden relative"
                           style={{ backgroundImage: `url(${coverPreview})`, backgroundSize: "cover", backgroundPosition: "center" }}
                         >
-                          <div className="absolute inset-0 bg-black" style={{ opacity: (100 - opacityValue) / 100 }} />
+                          <div className="absolute inset-0 bg-black" style={{ opacity: opacityValue / 100 }} />
                           <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-10 h-10 rounded-full bg-white/20 border border-white/40" />
                           </div>
@@ -556,8 +556,8 @@ export default function Team() {
                         className="w-full h-1.5 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#C9A24D] [&::-webkit-slider-thumb]:cursor-pointer"
                       />
                       <div className="flex justify-between text-white/20 text-xs">
-                        <span>Escuro</span>
                         <span>Nítido</span>
+                        <span>Escuro</span>
                       </div>
                     </div>
                   </div>
@@ -606,8 +606,8 @@ export default function Team() {
                         className="w-full h-1.5 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#C9A24D] [&::-webkit-slider-thumb]:cursor-pointer"
                       />
                       <div className="flex justify-between text-white/20 text-xs">
-                        <span>Transparente</span>
-                        <span>Sólido</span>
+                        <span>Nítido</span>
+                        <span>Escuro</span>
                       </div>
                     </div>
 
@@ -618,7 +618,7 @@ export default function Team() {
                     >
                       <div
                         className="absolute inset-0 bg-black"
-                        style={{ opacity: (100 - opacityValue) / 100 }}
+                        style={{ opacity: opacityValue / 100 }}
                       />
                       <div className="relative z-10 w-10 h-10 rounded-full bg-white/20 border border-white/40" />
                       <p className="absolute bottom-1 right-2 text-white/30 text-xs z-10">prévia</p>

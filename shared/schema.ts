@@ -87,7 +87,7 @@ export const barbers = pgTable("barbers", {
   photoUrl: varchar("photo_url"),
   coverPhotoUrl: varchar("cover_photo_url"),
   cardBgColor: varchar("card_bg_color", { length: 20 }),
-  cardBgOpacity: integer("card_bg_opacity").default(60),
+  cardBgOpacity: integer("card_bg_opacity").default(30),
   bio: text("bio"),
   commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).default("50.00"),
   isActive: boolean("is_active").default(true),
