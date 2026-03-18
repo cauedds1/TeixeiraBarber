@@ -359,7 +359,7 @@ export default function ClientBooking() {
                                 service.description.length > 120 ? (
                                   <div>
                                     <p className={`text-xs text-white/30 mt-0.5 ${expandedDesc.has(String(service.id)) ? "" : "line-clamp-2"}`}>{service.description}</p>
-                                    <button onClick={(e) => { e.stopPropagation(); setExpandedDesc(prev => { const next = new Set(prev); next.has(String(service.id)) ? next.delete(String(service.id)) : next.add(String(service.id)); return next; }); }} className="text-[10px] text-[#C9A24D]/70 hover:text-[#C9A24D] mt-0.5 font-medium" data-testid={`btn-lerMais-${service.id}`}>{expandedDesc.has(String(service.id)) ? "← Ler menos" : "Ler mais →"}</button>
+                                    <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); setExpandedDesc(prev => { const next = new Set(prev); next.has(String(service.id)) ? next.delete(String(service.id)) : next.add(String(service.id)); return next; }); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); setExpandedDesc(prev => { const next = new Set(prev); next.has(String(service.id)) ? next.delete(String(service.id)) : next.add(String(service.id)); return next; }); } }} className="cursor-pointer text-[10px] text-[#C9A24D]/70 hover:text-[#C9A24D] mt-0.5 font-medium select-none" data-testid={`btn-lerMais-${service.id}`}>{expandedDesc.has(String(service.id)) ? "← Ler menos" : "Ler mais →"}</span>
                                   </div>
                                 ) : (
                                   <p className="text-xs text-white/30 mt-0.5">{service.description}</p>
@@ -411,7 +411,7 @@ export default function ClientBooking() {
                               service.description.length > 120 ? (
                                 <div>
                                   <p className={`text-xs text-white/30 mt-0.5 ${expandedDesc.has(String(service.id)) ? "" : "line-clamp-2"}`}>{service.description}</p>
-                                  <button onClick={(e) => { e.stopPropagation(); setExpandedDesc(prev => { const next = new Set(prev); next.has(String(service.id)) ? next.delete(String(service.id)) : next.add(String(service.id)); return next; }); }} className="text-[10px] text-[#C9A24D]/70 hover:text-[#C9A24D] mt-0.5 font-medium" data-testid={`btn-lerMais-${service.id}`}>{expandedDesc.has(String(service.id)) ? "← Ler menos" : "Ler mais →"}</button>
+                                  <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); setExpandedDesc(prev => { const next = new Set(prev); next.has(String(service.id)) ? next.delete(String(service.id)) : next.add(String(service.id)); return next; }); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); setExpandedDesc(prev => { const next = new Set(prev); next.has(String(service.id)) ? next.delete(String(service.id)) : next.add(String(service.id)); return next; }); } }} className="cursor-pointer text-[10px] text-[#C9A24D]/70 hover:text-[#C9A24D] mt-0.5 font-medium select-none" data-testid={`btn-lerMais-${service.id}`}>{expandedDesc.has(String(service.id)) ? "← Ler menos" : "Ler mais →"}</span>
                                 </div>
                               ) : (
                                 <p className="text-xs text-white/30 mt-0.5">{service.description}</p>
