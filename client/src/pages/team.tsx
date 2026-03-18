@@ -380,13 +380,13 @@ export default function Team() {
                 {/* Cover area — click opens the cover section below */}
                 <div
                   className={`relative h-36 rounded-xl overflow-hidden flex items-center justify-center cursor-pointer group/cover${
-                    !coverPreview && !(bgMode === "color" && bgColorValue)
+                    !(bgMode === "photo" && coverPreview) && !(bgMode === "color" && bgColorValue)
                       ? " bg-gradient-to-b from-[#1e1e1e] to-[#0e0e0e]"
                       : ""
                   }`}
                   onClick={() => coverSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
                   style={
-                    coverPreview
+                    bgMode === "photo" && coverPreview
                       ? { backgroundImage: `url(${coverPreview})`, backgroundSize: "cover", backgroundPosition: "center" }
                       : bgMode === "color" && bgColorValue
                       ? { backgroundColor: bgColorValue }
@@ -395,7 +395,7 @@ export default function Team() {
                   data-testid="cover-preview-header"
                 >
                   {/* Opacity overlay */}
-                  {(coverPreview || (bgMode === "color" && bgColorValue)) && (
+                  {((bgMode === "photo" && coverPreview) || (bgMode === "color" && bgColorValue)) && (
                     <div className="absolute inset-0 bg-black" style={{ opacity: opacityValue / 100 }} />
                   )}
 
