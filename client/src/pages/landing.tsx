@@ -305,12 +305,12 @@ export default function Landing() {
             Est. 2018 · Kobrasol, São José
           </div>
 
-          {/* Logo */}
-          <div className="flex justify-center md:justify-start">
+          {/* Logo — visible on mobile only; desktop has it in the fixed navbar */}
+          <div className="flex justify-center md:hidden">
             <img
               src={teixeiraLogoPath}
               alt="Teixeira Barbearia"
-              className="w-48 sm:w-64 md:w-44 h-auto drop-shadow-2xl"
+              className="w-48 sm:w-64 h-auto drop-shadow-2xl"
             />
           </div>
 
