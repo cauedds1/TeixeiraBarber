@@ -8,6 +8,7 @@ import {
   CalendarDays,
   MessageCircle,
   DollarSign,
+  BarChart3,
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,6 +34,7 @@ const menuItems = [
   { title: "Produtos", url: "/products", icon: Package },
   { title: "WhatsApp", url: "/whatsapp", icon: MessageCircle },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign },
+  { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
 

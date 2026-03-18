@@ -1260,55 +1260,229 @@ export async function registerRoutes(
     }
   });
 
-  // Reports
-  app.get("/api/reports", isAuthenticated, async (req: Request, res: Response) => {
+  // ===== REPORTS =====
+  function getReportDateRange(period?: string, startDate?: string, endDate?: string): { start: string; end: string } {
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    if (startDate && endDate) return { start: startDate, end: endDate };
+    switch (period) {
+      case "week": {
+        const s = new Date(today); s.setDate(today.getDate() - 6);
+        return { start: s.toISOString().slice(0, 10), end: todayStr };
+      }
+      case "quarter": {
+        const s = new Date(today); s.setDate(today.getDate() - 89);
+        return { start: s.toISOString().slice(0, 10), end: todayStr };
+      }
+      case "year": {
+        const s = new Date(today); s.setFullYear(today.getFullYear() - 1); s.setDate(s.getDate() + 1);
+        return { start: s.toISOString().slice(0, 10), end: todayStr };
+      }
+      default: {
+        const s = new Date(today); s.setDate(today.getDate() - 29);
+        return { start: s.toISOString().slice(0, 10), end: todayStr };
+      }
+    }
+  }
+
+  app.get("/api/reports/overview", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const barbershop = await getBarbershopForUser((req.user as any).id);
-      const transactions = await storage.getTransactions(barbershop.id);
-      const appointments = await storage.getAppointments(barbershop.id);
-      const clients = await storage.getClients(barbershop.id);
-      const services = await storage.getServices(barbershop.id);
-      const barbers = await storage.getBarbers(barbershop.id);
+      const { period, startDate, endDate } = req.query as Record<string, string>;
+      const { start, end } = getReportDateRange(period, startDate, endDate);
 
-      const totalRevenue = transactions
-        .filter((t) => t.type !== "expense" && t.type !== "refund")
+      const [apts, txns] = await Promise.all([
+        storage.getAppointmentsByPeriod(barbershop.id, start, end),
+        storage.getTransactionsByPeriod(barbershop.id, start, end),
+      ]);
+
+      const completed = apts.filter(a => a.status === "completed");
+      const revenue = txns
+        .filter(t => t.type !== "expense" && t.type !== "refund")
         .reduce((sum, t) => sum + parseFloat(t.amount?.toString() || "0"), 0);
 
+      const uniqueClients = new Set(completed.filter(a => a.clientId).map(a => a.clientId)).size;
+      const avgTicket = completed.length > 0 ? revenue / completed.length : 0;
+
+      // Daily revenue grouped by date
+      const dailyMap: Record<string, number> = {};
+      txns.filter(t => t.type !== "expense" && t.type !== "refund").forEach(t => {
+        dailyMap[t.date] = (dailyMap[t.date] || 0) + parseFloat(t.amount?.toString() || "0");
+      });
+      const dailyRevenue = Object.entries(dailyMap)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, rev]) => ({ date, revenue: rev }));
+
+      // Peak hours from completed appointments
+      const hourMap: Record<string, number> = {};
+      completed.forEach(a => {
+        if (a.startTime) {
+          const hour = a.startTime.slice(0, 5);
+          hourMap[hour] = (hourMap[hour] || 0) + 1;
+        }
+      });
+      const peakHours = Object.entries(hourMap)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([hour, count]) => ({ hour, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
+
+      res.json({ totalRevenue: revenue, totalAppointments: completed.length, uniqueClients, averageTicket: avgTicket, dailyRevenue, peakHours });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar relatório" });
+    }
+  });
+
+  app.get("/api/reports/barbers", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const { period, startDate, endDate, barberId } = req.query as Record<string, string>;
+      const { start, end } = getReportDateRange(period, startDate, endDate);
+
+      const [barbers, allApts, allServices] = await Promise.all([
+        storage.getBarbers(barbershop.id),
+        storage.getAppointmentsByPeriod(barbershop.id, start, end),
+        storage.getServices(barbershop.id),
+      ]);
+
+      const serviceMap = new Map(allServices.map(s => [s.id, s]));
+      const completed = allApts.filter(a => a.status === "completed");
+
+      const result = barbers.map(barber => {
+        const barberApts = completed.filter(a => a.barberId === barber.id);
+        const revenue = barberApts.reduce((sum, a) => {
+          return sum + parseFloat((a.finalPrice || a.price)?.toString() || "0");
+        }, 0);
+        const commission = revenue * parseFloat(barber.commissionRate?.toString() || "0") / 100;
+        const avgTicket = barberApts.length > 0 ? revenue / barberApts.length : 0;
+
+        const svcCount: Record<string, number> = {};
+        barberApts.forEach(a => { svcCount[a.serviceId] = (svcCount[a.serviceId] || 0) + 1; });
+        const topSvcId = Object.entries(svcCount).sort(([,a],[,b]) => b - a)[0]?.[0];
+        const topService = topSvcId ? serviceMap.get(topSvcId)?.name || "" : "";
+
+        const details = barberId && barberId !== "all"
+          ? barberApts.map(a => ({
+              id: a.id,
+              date: a.date,
+              startTime: a.startTime,
+              clientName: a.clientName || "—",
+              service: serviceMap.get(a.serviceId)?.name || "—",
+              price: parseFloat((a.finalPrice || a.price)?.toString() || "0"),
+            }))
+          : undefined;
+
+        return {
+          id: barber.id,
+          name: barber.name,
+          photoUrl: barber.photoUrl,
+          appointments: barberApts.length,
+          revenue,
+          commission,
+          averageTicket: avgTicket,
+          topService,
+          commissionRate: parseFloat(barber.commissionRate?.toString() || "0"),
+          ...(details !== undefined && { appointmentDetails: details }),
+        };
+      });
+
+      const filtered = barberId && barberId !== "all" ? result.filter(b => b.id === barberId) : result;
+      res.json(filtered.sort((a, b) => b.revenue - a.revenue));
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar relatório de barbeiros" });
+    }
+  });
+
+  app.get("/api/reports/products", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const { period, startDate, endDate } = req.query as Record<string, string>;
+      const { start, end } = getReportDateRange(period, startDate, endDate);
+
+      const [allProducts, apPeriod] = await Promise.all([
+        storage.getProducts(barbershop.id),
+        storage.getAppointmentProductsByPeriod(barbershop.id, start, end),
+      ]);
+
+      const soldMap: Record<string, { qty: number; revenue: number }> = {};
+      apPeriod.forEach(ap => {
+        if (!soldMap[ap.productId]) soldMap[ap.productId] = { qty: 0, revenue: 0 };
+        soldMap[ap.productId].qty += ap.quantity;
+        soldMap[ap.productId].revenue += ap.quantity * parseFloat(ap.unitPrice?.toString() || "0");
+      });
+
+      const productRows = allProducts.map(p => {
+        const sold = soldMap[p.id] || { qty: 0, revenue: 0 };
+        const cost = parseFloat(p.costPrice?.toString() || "0");
+        const grossProfit = sold.revenue - cost * sold.qty;
+        const stock = p.stockQuantity || 0;
+        const threshold = p.lowStockThreshold || 5;
+
+        let status = "parado";
+        if (stock <= threshold && stock > 0) status = "estoque_baixo";
+        else if (sold.qty >= 5) status = "em_alta";
+        else if (sold.qty >= 1) status = "ativo";
+        else status = "parado";
+
+        return {
+          id: p.id,
+          name: p.name,
+          unitsSold: sold.qty,
+          revenue: sold.revenue,
+          grossProfit,
+          stockQuantity: stock,
+          lowStockThreshold: threshold,
+          status,
+        };
+      });
+
+      const totalUnitsSold = productRows.reduce((s, p) => s + p.unitsSold, 0);
+      const totalRevenue = productRows.reduce((s, p) => s + p.revenue, 0);
+      const stagnantCount = productRows.filter(p => p.unitsSold === 0).length;
+
       res.json({
-        totalRevenue,
-        totalAppointments: appointments.length,
-        newClients: clients.length,
-        averageTicket: appointments.length > 0 ? totalRevenue / appointments.length : 0,
-        topServices: services.slice(0, 5).map((s) => ({
-          name: s.name,
-          count: Math.floor(Math.random() * 50),
-          revenue: Math.floor(Math.random() * 5000),
-        })),
-        topBarbers: barbers.slice(0, 5).map((b) => ({
-          name: b.name,
-          appointments: Math.floor(Math.random() * 100),
-          revenue: Math.floor(Math.random() * 10000),
-        })),
-        peakHours: [
-          { hour: "09:00", count: 12 },
-          { hour: "10:00", count: 18 },
-          { hour: "11:00", count: 22 },
-          { hour: "14:00", count: 25 },
-          { hour: "15:00", count: 20 },
-          { hour: "16:00", count: 15 },
-          { hour: "17:00", count: 18 },
-        ],
-        dailyRevenue: Array.from({ length: 30 }, (_, i) => {
-          const date = new Date();
-          date.setDate(date.getDate() - (29 - i));
-          return {
-            date: format(date, "yyyy-MM-dd"),
-            revenue: Math.floor(Math.random() * 2000) + 500,
-          };
-        }),
+        summary: { totalUnitsSold, totalRevenue, stagnantCount },
+        products: productRows.sort((a, b) => b.unitsSold - a.unitsSold),
       });
     } catch (error) {
-      res.status(500).json({ message: "Error fetching reports" });
+      res.status(500).json({ message: "Erro ao buscar relatório de produtos" });
+    }
+  });
+
+  app.get("/api/reports/services", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const barbershop = await getBarbershopForUser((req.user as any).id);
+      const { period, startDate, endDate } = req.query as Record<string, string>;
+      const { start, end } = getReportDateRange(period, startDate, endDate);
+
+      const [allServices, apts] = await Promise.all([
+        storage.getServices(barbershop.id),
+        storage.getAppointmentsByPeriod(barbershop.id, start, end),
+      ]);
+
+      const completed = apts.filter(a => a.status === "completed");
+      const svcMap: Record<string, { count: number; revenue: number }> = {};
+      completed.forEach(a => {
+        if (!svcMap[a.serviceId]) svcMap[a.serviceId] = { count: 0, revenue: 0 };
+        svcMap[a.serviceId].count += 1;
+        svcMap[a.serviceId].revenue += parseFloat((a.finalPrice || a.price)?.toString() || "0");
+      });
+
+      const totalCount = completed.length;
+      const rows = allServices.map(s => {
+        const data = svcMap[s.id] || { count: 0, revenue: 0 };
+        return {
+          id: s.id,
+          name: s.name,
+          count: data.count,
+          revenue: data.revenue,
+          percentage: totalCount > 0 ? (data.count / totalCount) * 100 : 0,
+        };
+      }).sort((a, b) => b.count - a.count);
+
+      res.json({ total: totalCount, services: rows });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar relatório de serviços" });
     }
   });
 

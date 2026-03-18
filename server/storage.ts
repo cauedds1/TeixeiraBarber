@@ -83,6 +83,8 @@ export interface IStorage {
   updateProduct(id: string, data: Partial<InsertProduct>): Promise<Product | undefined>;
   deleteProduct(id: string): Promise<void>;
   getProductVelocity(barbershopId: string, days?: number): Promise<Record<string, number>>;
+  getAppointmentsByPeriod(barbershopId: string, startDate: string, endDate: string): Promise<Appointment[]>;
+  getAppointmentProductsByPeriod(barbershopId: string, startDate: string, endDate: string): Promise<any[]>;
 
   // Transactions
   getTransactions(barbershopId: string): Promise<Transaction[]>;
@@ -621,6 +623,35 @@ export class DatabaseStorage implements IStorage {
       velocity[row.productId] = qty / days;
     }
     return velocity;
+  }
+
+  async getAppointmentsByPeriod(barbershopId: string, startDate: string, endDate: string): Promise<Appointment[]> {
+    return db.select().from(appointments).where(
+      and(
+        eq(appointments.barbershopId, barbershopId),
+        gte(appointments.date, startDate),
+        lte(appointments.date, endDate)
+      )
+    ).orderBy(desc(appointments.date), appointments.startTime);
+  }
+
+  async getAppointmentProductsByPeriod(barbershopId: string, startDate: string, endDate: string): Promise<any[]> {
+    return db.select({
+      appointmentId: appointmentProducts.appointmentId,
+      productId: appointmentProducts.productId,
+      quantity: appointmentProducts.quantity,
+      unitPrice: appointmentProducts.unitPrice,
+    })
+    .from(appointmentProducts)
+    .innerJoin(appointments, eq(appointmentProducts.appointmentId, appointments.id))
+    .where(
+      and(
+        eq(appointments.barbershopId, barbershopId),
+        gte(appointments.date, startDate),
+        lte(appointments.date, endDate),
+        eq(appointments.status, "completed")
+      )
+    );
   }
 
   // Transactions
