@@ -34,7 +34,7 @@ const barberFormSchema = z.object({
   photoUrl: z.string().optional(),
   coverPhotoUrl: z.string().optional(),
   cardBgColor: z.string().optional(),
-  cardBgOpacity: z.number().min(0).max(100).default(60),
+  cardBgOpacity: z.number().min(0).max(100).default(30),
   commissionRate: z.string().default("50"),
   workStartTime: z.string().default("09:00"),
   workEndTime: z.string().default("19:00"),
@@ -136,7 +136,7 @@ export default function Team() {
       photoUrl: barber.photoUrl || "",
       coverPhotoUrl: barber.coverPhotoUrl || "",
       cardBgColor: barber.cardBgColor || "#1a1a1a",
-      cardBgOpacity: barber.cardBgOpacity ?? 60,
+      cardBgOpacity: barber.cardBgOpacity ?? 30,
       commissionRate: barber.commissionRate?.toString() || "50",
       workStartTime: barber.workStartTime || "09:00",
       workEndTime: barber.workEndTime || "19:00",
@@ -272,8 +272,8 @@ export default function Team() {
                       : { background: "linear-gradient(135deg, rgba(201,162,77,0.2), #1a1a1a, #151515)" }
                   }
                 >
-                  {barber.coverPhotoUrl && (
-                    <div className="absolute inset-0 bg-black" style={{ opacity: (100 - (barber.cardBgOpacity ?? 60)) / 100 }} />
+                  {(barber.coverPhotoUrl || barber.cardBgColor) && (
+                    <div className="absolute inset-0 bg-black" style={{ opacity: (barber.cardBgOpacity ?? 30) / 100 }} />
                   )}
                   {barber.photoUrl ? (
                     <img

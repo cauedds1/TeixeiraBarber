@@ -169,7 +169,7 @@ export default function Landing() {
         color: b.color,
         coverPhotoUrl: null as string | null,
         cardBgColor: null as string | null,
-        cardBgOpacity: 60,
+        cardBgOpacity: 30,
         avgRating: 0,
       }))
     : (apiBarbers || []).map((b, i) => ({
@@ -180,7 +180,7 @@ export default function Landing() {
         color: teamColors[i % teamColors.length],
         coverPhotoUrl: b.coverPhotoUrl ?? null,
         cardBgColor: b.cardBgColor ?? null,
-        cardBgOpacity: b.cardBgOpacity ?? 60,
+        cardBgOpacity: b.cardBgOpacity ?? 30,
         avgRating: (b as { avgRating?: number }).avgRating ?? 0,
       }));
 
