@@ -194,6 +194,7 @@ function TabBarbers({ q }: { q: string }) {
   const [selectedBarber, setSelectedBarber] = useState("all");
 
   const fullQ = selectedBarber !== "all" ? `${q}&barberId=${selectedBarber}` : q;
+  const { data: allBarbers } = useQuery<BarberRow[]>({ queryKey: [`/api/reports/barbers?${q}`], enabled: q.length > 0 });
   const { data: rows, isLoading } = useQuery<BarberRow[]>({ queryKey: [`/api/reports/barbers?${fullQ}`], enabled: q.length > 0 });
 
   const tableRows = rows ?? [];
@@ -212,7 +213,7 @@ function TabBarbers({ q }: { q: string }) {
           className="bg-[#1a1a1a] border border-white/10 text-white/80 text-sm rounded-lg px-3 py-1.5 outline-none focus:border-[#C9A24D]/50"
         >
           <option value="all">Todos os barbeiros</option>
-          {(rows ?? []).map(b => (
+          {(allBarbers ?? []).map(b => (
             <option key={b.id} value={b.id}>{b.name}</option>
           ))}
         </select>
@@ -336,7 +337,7 @@ interface ProductsData {
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   em_alta: { label: "Em Alta", color: "#22c55e" },
-  ativo: { label: "Ativo", color: GOLD },
+  ativo: { label: "Ativo", color: "#38bdf8" },
   estoque_baixo: { label: "Estoque Baixo", color: "#ef4444" },
   parado: { label: "Parado", color: "#6b7280" },
 };
@@ -578,6 +579,7 @@ export default function Reports() {
             </div>
             {period === "custom" && (
               <div className="flex items-center gap-2">
+                <span className="text-white/30 text-xs">De</span>
                 <input
                   type="date"
                   value={customStart}
