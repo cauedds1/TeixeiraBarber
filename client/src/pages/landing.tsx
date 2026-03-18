@@ -298,7 +298,7 @@ export default function Landing() {
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/40 to-transparent" />
 
         {/* Content — centered on mobile, left column on desktop */}
-        <div className="relative z-10 max-w-2xl mx-auto text-center space-y-8 md:max-w-none md:w-1/2 md:mx-0 md:text-left md:space-y-7">
+        <div className="relative z-10 max-w-2xl mx-auto text-center space-y-8 md:max-w-none md:w-1/2 md:mx-0 md:text-left md:space-y-4">
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-[#C9A24D]/10 border border-[#C9A24D]/20 text-[#C9A24D] text-xs font-semibold px-4 py-2 rounded-full tracking-widest uppercase">
             <Award className="w-3.5 h-3.5" />
@@ -310,7 +310,7 @@ export default function Landing() {
             <img
               src={teixeiraLogoPath}
               alt="Teixeira Barbearia"
-              className="w-48 sm:w-64 md:w-56 h-auto drop-shadow-2xl"
+              className="w-48 sm:w-64 md:w-44 h-auto drop-shadow-2xl"
             />
           </div>
 
@@ -482,17 +482,33 @@ export default function Landing() {
       </section>
 
       {/* ─── FOTO INTERIOR ────────────────────────────────────────── */}
-      <div className="relative w-full overflow-hidden md:h-[420px]" data-testid="banner-interior">
+      <div className="relative w-full overflow-hidden md:h-[480px]" data-testid="banner-interior">
         <img
           src={interiorPhotoPath}
           alt="Ambiente interno da Teixeira Barbearia"
           loading="lazy"
-          className="w-full h-auto block md:h-full md:object-cover md:object-center"
+          className="w-full h-auto block md:h-full md:object-cover md:object-[center_20%]"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0e0e0e]/50 via-black/10 to-[#111111]/80" />
-        <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 text-center">
+        {/* Mobile: dark bottom gradient | Desktop: full dark overlay for text legibility */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0e0e0e]/50 via-black/10 to-[#111111]/80 md:hidden" />
+        <div className="absolute inset-0 hidden md:block bg-gradient-to-r from-black/75 via-black/40 to-black/10" />
+        <div className="absolute inset-0 hidden md:block bg-gradient-to-b from-transparent via-transparent to-[#0e0e0e]/60" />
+
+        {/* Mobile: text at bottom center */}
+        <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 text-center md:hidden">
           <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-1">Nosso ambiente</p>
-          <p className="text-white text-base sm:text-lg md:text-2xl font-semibold drop-shadow">Ambiente profissional pensado para você</p>
+          <p className="text-white text-base sm:text-lg font-semibold drop-shadow">Ambiente profissional pensado para você</p>
+        </div>
+
+        {/* Desktop: text anchored left, vertically centered */}
+        <div className="absolute inset-0 hidden md:flex flex-col justify-center px-16 max-w-2xl">
+          <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-3">Nosso ambiente</p>
+          <h2 className="text-white text-4xl lg:text-5xl font-black leading-tight drop-shadow-2xl">
+            Ambiente profissional<br />pensado para você
+          </h2>
+          <p className="text-white/60 text-base mt-4 leading-relaxed max-w-sm">
+            Um espaço criado com cuidado para proporcionar conforto e estilo a cada visita.
+          </p>
         </div>
       </div>
 
