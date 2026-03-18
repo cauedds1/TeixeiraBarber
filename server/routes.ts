@@ -1345,10 +1345,11 @@ export async function registerRoutes(
         storage.getServices(barbershop.id),
       ]);
 
+      const activeBarbers = barbers.filter(b => b.isActive !== false);
       const serviceMap = new Map(allServices.map(s => [s.id, s]));
       const completed = allApts.filter(a => a.status === "completed");
 
-      const result = barbers.map(barber => {
+      const result = activeBarbers.map(barber => {
         const barberApts = completed.filter(a => a.barberId === barber.id);
         const revenue = barberApts.reduce((sum, a) => {
           return sum + parseFloat((a.finalPrice || a.price)?.toString() || "0");

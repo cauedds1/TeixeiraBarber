@@ -10,6 +10,7 @@ import {
   Package,
   Scissors,
   Award,
+  type LucideIcon,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -17,8 +18,9 @@ import { ptBR } from "date-fns/locale";
 type Period = "week" | "month" | "quarter" | "year" | "custom";
 
 function buildQuery(p: Period, customStart: string, customEnd: string): string {
-  if (p === "custom" && customStart && customEnd) {
-    return `startDate=${customStart}&endDate=${customEnd}`;
+  if (p === "custom") {
+    if (customStart && customEnd) return `startDate=${customStart}&endDate=${customEnd}`;
+    return "";
   }
   return `period=${p}`;
 }
@@ -40,7 +42,7 @@ function formatCurrency(value: number | string | null | undefined) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(num || 0);
 }
 
-function KpiCard({ label, value, sub, icon: Icon, color }: { label: string; value: string; sub?: string; icon: any; color: string }) {
+function KpiCard({ label, value, sub, icon: Icon, color }: { label: string; value: string; sub?: string; icon: LucideIcon; color: string }) {
   return (
     <div className={`${CARD_BG} ${BORDER} rounded-xl p-5`}>
       <div className="flex items-center justify-between gap-3">
@@ -88,7 +90,7 @@ interface OverviewData {
 }
 
 function TabOverview({ q }: { q: string }) {
-  const { data, isLoading } = useQuery<OverviewData>({ queryKey: [`/api/reports/overview?${q}`] });
+  const { data, isLoading } = useQuery<OverviewData>({ queryKey: [`/api/reports/overview?${q}`], enabled: q.length > 0 });
 
   return (
     <div className="space-y-5">
@@ -192,7 +194,7 @@ function TabBarbers({ q }: { q: string }) {
   const [selectedBarber, setSelectedBarber] = useState("all");
 
   const fullQ = selectedBarber !== "all" ? `${q}&barberId=${selectedBarber}` : q;
-  const { data: rows, isLoading } = useQuery<BarberRow[]>({ queryKey: [`/api/reports/barbers?${fullQ}`] });
+  const { data: rows, isLoading } = useQuery<BarberRow[]>({ queryKey: [`/api/reports/barbers?${fullQ}`], enabled: q.length > 0 });
 
   const tableRows = rows ?? [];
   const maxRevenue = Math.max(...tableRows.map(r => r.revenue), 1);
@@ -340,7 +342,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 };
 
 function TabProducts({ q }: { q: string }) {
-  const { data, isLoading } = useQuery<ProductsData>({ queryKey: [`/api/reports/products?${q}`] });
+  const { data, isLoading } = useQuery<ProductsData>({ queryKey: [`/api/reports/products?${q}`], enabled: q.length > 0 });
   const rows = data?.products ?? [];
   const maxUnits = Math.max(...rows.map(r => r.unitsSold), 1);
 
@@ -432,7 +434,7 @@ interface ServicesData {
 }
 
 function TabServices({ q }: { q: string }) {
-  const { data, isLoading } = useQuery<ServicesData>({ queryKey: [`/api/reports/services?${q}`] });
+  const { data, isLoading } = useQuery<ServicesData>({ queryKey: [`/api/reports/services?${q}`], enabled: q.length > 0 });
   const rows = data?.services ?? [];
   const maxCount = Math.max(...rows.map(r => r.count), 1);
   const medals = ["🥇", "🥈", "🥉"];
@@ -531,7 +533,7 @@ function TabServices({ q }: { q: string }) {
 // ─── Main Page ─────────────────────────────────────────────────────
 type TabId = "overview" | "barbers" | "products" | "services";
 
-const TABS: { id: TabId; label: string; icon: any }[] = [
+const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
   { id: "overview", label: "Visão Geral", icon: BarChart3 },
   { id: "barbers", label: "Por Barbeiro", icon: Users },
   { id: "products", label: "Produtos", icon: Package },
@@ -622,10 +624,19 @@ export default function Reports() {
           </div>
 
           <div className="mt-5">
-            {activeTab === "overview" && <TabOverview q={query} />}
-            {activeTab === "barbers" && <TabBarbers q={query} />}
-            {activeTab === "products" && <TabProducts q={query} />}
-            {activeTab === "services" && <TabServices q={query} />}
+            {query.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3">
+                <Calendar className="h-10 w-10 text-white/10" />
+                <p className="text-white/40 text-sm">Selecione o período inicial e final para exibir os dados</p>
+              </div>
+            ) : (
+              <>
+                {activeTab === "overview" && <TabOverview q={query} />}
+                {activeTab === "barbers" && <TabBarbers q={query} />}
+                {activeTab === "products" && <TabProducts q={query} />}
+                {activeTab === "services" && <TabServices q={query} />}
+              </>
+            )}
           </div>
         </div>
       </div>
