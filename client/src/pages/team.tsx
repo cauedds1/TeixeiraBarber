@@ -51,9 +51,9 @@ export default function Team() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [bgMode, setBgMode] = useState<"photo" | "color">("photo");
+  const [showCoverEditor, setShowCoverEditor] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
-  const coverSectionRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const form = useForm<BarberFormData>({
@@ -117,6 +117,7 @@ export default function Team() {
     setPhotoPreview(null);
     setCoverPreview(null);
     setBgMode("photo");
+    setShowCoverEditor(false);
     form.reset({
       name: "", email: "", phone: "", bio: "", photoUrl: "",
       coverPhotoUrl: "", cardBgColor: "#1a1a1a", cardBgOpacity: 30,
@@ -384,7 +385,7 @@ export default function Team() {
                       ? " bg-gradient-to-b from-[#1e1e1e] to-[#0e0e0e]"
                       : ""
                   }`}
-                  onClick={() => coverSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                  onClick={() => setShowCoverEditor(true)}
                   style={
                     bgMode === "photo" && coverPreview
                       ? { backgroundImage: `url(${coverPreview})`, backgroundSize: "cover", backgroundPosition: "center" }
@@ -441,9 +442,161 @@ export default function Team() {
                 />
 
                 <p className="text-center text-white/25 text-[11px]">
-                  Clique na <span className="text-white/50">foto</span> para alterar · Clique na <span className="text-white/50">capa</span> para editar o fundo
+                  Clique na <span className="text-white/50">foto</span> para alterar o perfil · Clique na <span className="text-white/50">capa</span> para editar o fundo
                 </p>
               </div>
+
+              {/* ── Cover editor sub-panel ───────────────────── */}
+              {showCoverEditor && (
+                <div className="rounded-xl border border-[#C9A24D]/30 bg-[#0e0e0e] overflow-hidden">
+                  {/* Sub-panel header */}
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
+                    <p className="text-white/80 text-sm font-semibold">Fundo do Cartão</p>
+                    <button
+                      type="button"
+                      onClick={() => setShowCoverEditor(false)}
+                      data-testid="button-close-cover-editor"
+                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5 text-white/60" />
+                    </button>
+                  </div>
+
+                  <div className="p-4 space-y-3">
+                    {/* Mode toggle */}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setBgMode("photo")}
+                        data-testid="button-bg-mode-photo"
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${bgMode === "photo" ? "bg-[#C9A24D] text-black" : "bg-white/5 text-white/50 hover:text-white"}`}
+                      >
+                        <Image className="w-3.5 h-3.5" />
+                        Foto
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBgMode("color")}
+                        data-testid="button-bg-mode-color"
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${bgMode === "color" ? "bg-[#C9A24D] text-black" : "bg-white/5 text-white/50 hover:text-white"}`}
+                      >
+                        <Palette className="w-3.5 h-3.5" />
+                        Cor
+                      </button>
+                    </div>
+
+                    {bgMode === "photo" ? (
+                      <div className="space-y-3">
+                        <input
+                          ref={coverFileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleCoverPhotoChange}
+                          className="hidden"
+                          data-testid="input-cover-upload"
+                        />
+                        {coverPreview ? (
+                          <div className="relative">
+                            <div
+                              className="w-full h-24 rounded-lg overflow-hidden relative"
+                              style={{ backgroundImage: `url(${coverPreview})`, backgroundSize: "cover", backgroundPosition: "center" }}
+                            >
+                              <div className="absolute inset-0 bg-black" style={{ opacity: opacityValue / 100 }} />
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-full bg-white/20 border border-white/40" />
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={removeCoverPhoto}
+                              className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/70 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors"
+                              data-testid="button-remove-cover"
+                            >
+                              <X className="w-3.5 h-3.5 text-white" />
+                            </button>
+                            <p className="text-white/30 text-xs mt-1">Prévia do cartão (círculo = foto de perfil)</p>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => coverFileInputRef.current?.click()}
+                            data-testid="button-upload-cover"
+                            className="w-full h-20 rounded-lg border border-dashed border-white/20 hover:border-[#C9A24D]/50 flex flex-col items-center justify-center gap-1.5 text-white/40 hover:text-[#C9A24D] transition-all"
+                          >
+                            <Image className="w-5 h-5" />
+                            <span className="text-xs">Clique para enviar foto de fundo (máx 3MB)</span>
+                          </button>
+                        )}
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center">
+                            <label className="text-white/50 text-xs">Visibilidade da foto</label>
+                            <span className="text-[#C9A24D] text-xs font-bold">{opacityValue}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            value={opacityValue}
+                            onChange={(e) => form.setValue("cardBgOpacity", parseInt(e.target.value))}
+                            data-testid="slider-bg-opacity"
+                            className="w-full h-1.5 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#C9A24D] [&::-webkit-slider-thumb]:cursor-pointer"
+                          />
+                          <div className="flex justify-between text-white/20 text-xs">
+                            <span>Nítido</span>
+                            <span>Escuro</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <FormField control={form.control} name="cardBgColor" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-white/50 text-xs">Cor de fundo</FormLabel>
+                            <FormControl>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="color"
+                                  value={field.value || "#1a1a1a"}
+                                  onChange={field.onChange}
+                                  data-testid="input-bg-color"
+                                  className="w-10 h-10 rounded-lg cursor-pointer border border-white/10 bg-transparent p-0.5"
+                                />
+                                <Input
+                                  value={field.value || ""}
+                                  onChange={field.onChange}
+                                  placeholder="#1a1a1a"
+                                  className="bg-[#151515] border-white/10 text-white text-sm font-mono"
+                                  data-testid="input-bg-color-hex"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center">
+                            <label className="text-white/50 text-xs">Opacidade da cor</label>
+                            <span className="text-[#C9A24D] text-xs font-bold">{opacityValue}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            value={opacityValue}
+                            onChange={(e) => form.setValue("cardBgOpacity", parseInt(e.target.value))}
+                            data-testid="slider-color-opacity"
+                            className="w-full h-1.5 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#C9A24D] [&::-webkit-slider-thumb]:cursor-pointer"
+                          />
+                          <div className="flex justify-between text-white/20 text-xs">
+                            <span>Nítido</span>
+                            <span>Escuro</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
@@ -514,161 +667,6 @@ export default function Team() {
                     <FormMessage />
                   </FormItem>
                 )} />
-              </div>
-
-              {/* ── Fundo do Cartão ─────────────────────────── */}
-              <div ref={coverSectionRef} className="rounded-xl border border-white/10 bg-[#0e0e0e] p-4 space-y-3">
-                <p className="text-white/70 text-sm font-semibold">Fundo do Cartão (Landing Page)</p>
-
-                {/* Mode toggle */}
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setBgMode("photo")}
-                    data-testid="button-bg-mode-photo"
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${bgMode === "photo" ? "bg-[#C9A24D] text-black" : "bg-white/5 text-white/50 hover:text-white"}`}
-                  >
-                    <Image className="w-3.5 h-3.5" />
-                    Foto
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBgMode("color")}
-                    data-testid="button-bg-mode-color"
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${bgMode === "color" ? "bg-[#C9A24D] text-black" : "bg-white/5 text-white/50 hover:text-white"}`}
-                  >
-                    <Palette className="w-3.5 h-3.5" />
-                    Cor
-                  </button>
-                </div>
-
-                {bgMode === "photo" ? (
-                  <div className="space-y-3">
-                    <input
-                      ref={coverFileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleCoverPhotoChange}
-                      className="hidden"
-                      data-testid="input-cover-upload"
-                    />
-                    {coverPreview ? (
-                      <div className="relative">
-                        <div
-                          className="w-full h-24 rounded-lg overflow-hidden relative"
-                          style={{ backgroundImage: `url(${coverPreview})`, backgroundSize: "cover", backgroundPosition: "center" }}
-                        >
-                          <div className="absolute inset-0 bg-black" style={{ opacity: opacityValue / 100 }} />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-10 h-10 rounded-full bg-white/20 border border-white/40" />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={removeCoverPhoto}
-                          className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/70 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors"
-                          data-testid="button-remove-cover"
-                        >
-                          <X className="w-3.5 h-3.5 text-white" />
-                        </button>
-                        <p className="text-white/30 text-xs mt-1">Prévia do cartão (círculo = foto de perfil)</p>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => coverFileInputRef.current?.click()}
-                        data-testid="button-upload-cover"
-                        className="w-full h-20 rounded-lg border border-dashed border-white/20 hover:border-[#C9A24D]/50 flex flex-col items-center justify-center gap-1.5 text-white/40 hover:text-[#C9A24D] transition-all"
-                      >
-                        <Image className="w-5 h-5" />
-                        <span className="text-xs">Clique para enviar foto de fundo (máx 3MB)</span>
-                      </button>
-                    )}
-
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between items-center">
-                        <label className="text-white/50 text-xs">Visibilidade da foto</label>
-                        <span className="text-[#C9A24D] text-xs font-bold">{opacityValue}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={opacityValue}
-                        onChange={(e) => form.setValue("cardBgOpacity", parseInt(e.target.value))}
-                        data-testid="slider-bg-opacity"
-                        className="w-full h-1.5 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#C9A24D] [&::-webkit-slider-thumb]:cursor-pointer"
-                      />
-                      <div className="flex justify-between text-white/20 text-xs">
-                        <span>Nítido</span>
-                        <span>Escuro</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <FormField control={form.control} name="cardBgColor" render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormLabel className="text-white/50 text-xs">Cor de fundo</FormLabel>
-                          <FormControl>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="color"
-                                value={field.value || "#1a1a1a"}
-                                onChange={field.onChange}
-                                data-testid="input-bg-color"
-                                className="w-10 h-10 rounded-lg cursor-pointer border border-white/10 bg-transparent p-0.5"
-                              />
-                              <Input
-                                value={field.value || ""}
-                                onChange={field.onChange}
-                                placeholder="#1a1a1a"
-                                className="bg-[#151515] border-white/10 text-white text-sm font-mono"
-                                data-testid="input-bg-color-hex"
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                    </div>
-
-                    {/* Opacity slider for color mode */}
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between items-center">
-                        <label className="text-white/50 text-xs">Opacidade da cor</label>
-                        <span className="text-[#C9A24D] text-xs font-bold">{opacityValue}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={opacityValue}
-                        onChange={(e) => form.setValue("cardBgOpacity", parseInt(e.target.value))}
-                        data-testid="slider-color-opacity"
-                        className="w-full h-1.5 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#C9A24D] [&::-webkit-slider-thumb]:cursor-pointer"
-                      />
-                      <div className="flex justify-between text-white/20 text-xs">
-                        <span>Nítido</span>
-                        <span>Escuro</span>
-                      </div>
-                    </div>
-
-                    {/* Color preview */}
-                    <div
-                      className="w-full h-16 rounded-lg flex items-center justify-center relative overflow-hidden"
-                      style={{ backgroundColor: bgColorValue || "#1a1a1a" }}
-                    >
-                      <div
-                        className="absolute inset-0 bg-black"
-                        style={{ opacity: opacityValue / 100 }}
-                      />
-                      <div className="relative z-10 w-10 h-10 rounded-full bg-white/20 border border-white/40" />
-                      <p className="absolute bottom-1 right-2 text-white/30 text-xs z-10">prévia</p>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <FormField control={form.control} name="isActive" render={({ field }) => (
