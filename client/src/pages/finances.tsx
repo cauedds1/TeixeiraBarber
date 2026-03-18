@@ -971,8 +971,14 @@ function CommissionsTab() {
               {(commissions as any[]).map((c: any) => (
                 <div key={c.barberId} className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 hover:bg-white/[0.03] transition-colors" data-testid={`row-commission-${c.barberId}`}>
                   <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-[#C9A24D]/15 flex items-center justify-center shrink-0">
-                      <span className="text-[#C9A24D] font-bold text-sm">{c.barberName?.[0] || "?"}</span>
+                    <div className="h-9 w-9 rounded-full shrink-0 overflow-hidden">
+                      {c.barberPhotoUrl ? (
+                        <img src={c.barberPhotoUrl} alt={c.barberName} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-[#C9A24D]/15 flex items-center justify-center">
+                          <span className="text-[#C9A24D] font-bold text-sm">{c.barberName?.[0] || "?"}</span>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <p className="text-white font-medium text-sm">{c.barberName}</p>

@@ -944,6 +944,7 @@ export async function registerRoutes(
         return {
           barberId: barber.id,
           barberName: barber.name,
+          barberPhotoUrl: barber.photoUrl || null,
           accumulated: Math.max(0, earned - paid),
           totalEarned: earned,
           totalPaid: paid,

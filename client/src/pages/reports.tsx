@@ -320,11 +320,21 @@ function TabBarbers({ q, ...filter }: { q: string } & FilterProps) {
                         </td>
                         <td className="py-3 pr-4">
                           <div className="flex items-center gap-2.5">
-                            <div
-                              className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
-                              style={{ background: `${GOLD}20`, color: GOLD }}
-                            >
-                              {barber.name[0]?.toUpperCase()}
+                            <div className="h-8 w-8 rounded-full flex-shrink-0 overflow-hidden">
+                              {barber.photoUrl ? (
+                                <img
+                                  src={barber.photoUrl}
+                                  alt={barber.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div
+                                  className="w-full h-full flex items-center justify-center text-xs font-bold"
+                                  style={{ background: `${GOLD}20`, color: GOLD }}
+                                >
+                                  {barber.name[0]?.toUpperCase()}
+                                </div>
+                              )}
                             </div>
                             <div>
                               <p className="text-white/90 font-medium">{barber.name}</p>
