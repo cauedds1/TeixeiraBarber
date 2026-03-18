@@ -482,7 +482,7 @@ export default function Landing() {
       </section>
 
       {/* ─── FOTO INTERIOR ────────────────────────────────────────── */}
-      <div className="relative w-full overflow-hidden md:h-[480px]" data-testid="banner-interior">
+      <div className="relative w-full overflow-hidden md:h-[480px] border-y border-[#C9A24D]/30" data-testid="banner-interior">
         <img
           src={interiorPhotoPath}
           alt="Ambiente interno da Teixeira Barbearia"
