@@ -53,6 +53,7 @@ export default function Team() {
   const [bgMode, setBgMode] = useState<"photo" | "color">("photo");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
+  const coverSectionRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const form = useForm<BarberFormData>({
@@ -374,32 +375,75 @@ export default function Team() {
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="flex justify-center">
+              {/* ── Card preview: cover + profile photo ─────────── */}
+              <div className="space-y-1.5">
+                {/* Cover area — click opens the cover section below */}
                 <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="relative w-24 h-24 rounded-full cursor-pointer group"
+                  className={`relative h-36 rounded-xl overflow-hidden flex items-center justify-center cursor-pointer group/cover${
+                    !coverPreview && !(bgMode === "color" && bgColorValue)
+                      ? " bg-gradient-to-b from-[#1e1e1e] to-[#0e0e0e]"
+                      : ""
+                  }`}
+                  onClick={() => coverSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                  style={
+                    coverPreview
+                      ? { backgroundImage: `url(${coverPreview})`, backgroundSize: "cover", backgroundPosition: "center" }
+                      : bgMode === "color" && bgColorValue
+                      ? { backgroundColor: bgColorValue }
+                      : undefined
+                  }
+                  data-testid="cover-preview-header"
                 >
-                  {photoPreview ? (
-                    <img src={photoPreview} alt="Preview" className="w-24 h-24 rounded-full object-cover border-2 border-[#C9A24D]/40" />
-                  ) : (
-                    <div className="w-24 h-24 rounded-full bg-[#C9A24D]/10 border-2 border-dashed border-[#C9A24D]/30 flex items-center justify-center">
-                      <Camera className="w-6 h-6 text-[#C9A24D]/60" />
-                    </div>
+                  {/* Opacity overlay */}
+                  {(coverPreview || (bgMode === "color" && bgColorValue)) && (
+                    <div className="absolute inset-0 bg-black" style={{ opacity: opacityValue / 100 }} />
                   )}
-                  <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Camera className="w-5 h-5 text-white" />
+
+                  {/* Profile photo — separate click handler stops propagation */}
+                  <div
+                    className="relative z-10"
+                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                  >
+                    <div className="relative group/photo cursor-pointer">
+                      {photoPreview ? (
+                        <img
+                          src={photoPreview}
+                          alt="Preview"
+                          className="w-20 h-20 rounded-full object-cover border-2 border-[#C9A24D]/40 shadow-lg"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-full bg-white/10 backdrop-blur border-2 border-dashed border-[#C9A24D]/40 flex items-center justify-center">
+                          <Camera className="w-6 h-6 text-[#C9A24D]/60" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center">
+                        <Camera className="w-4 h-4 text-white" />
+                      </div>
+                    </div>
                   </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePhotoChange}
-                    className="hidden"
-                    data-testid="input-photo-upload"
-                  />
+
+                  {/* Edit cover hint — shown on hover */}
+                  <div className="absolute inset-0 bg-black/0 group-hover/cover:bg-black/40 transition-all flex items-end justify-end p-2.5 pointer-events-none">
+                    <span className="flex items-center gap-1 bg-black/70 text-white/80 text-[11px] px-2 py-1 rounded-lg opacity-0 group-hover/cover:opacity-100 transition-opacity">
+                      <Image className="w-3 h-3" />
+                      Editar capa
+                    </span>
+                  </div>
                 </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                  data-testid="input-photo-upload"
+                />
+
+                <p className="text-center text-white/25 text-[11px]">
+                  Clique na <span className="text-white/50">foto</span> para alterar · Clique na <span className="text-white/50">capa</span> para editar o fundo
+                </p>
               </div>
-              <p className="text-center text-white/30 text-xs -mt-2">Clique para enviar foto de perfil (máx 2MB)</p>
 
               <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
@@ -473,7 +517,7 @@ export default function Team() {
               </div>
 
               {/* ── Fundo do Cartão ─────────────────────────── */}
-              <div className="rounded-xl border border-white/10 bg-[#0e0e0e] p-4 space-y-3">
+              <div ref={coverSectionRef} className="rounded-xl border border-white/10 bg-[#0e0e0e] p-4 space-y-3">
                 <p className="text-white/70 text-sm font-semibold">Fundo do Cartão (Landing Page)</p>
 
                 {/* Mode toggle */}

@@ -540,7 +540,7 @@ export default function Landing() {
                 data-testid={`card-barber-${barber.name.toLowerCase().replace(/\s+/g, "-")}`}
               >
                 <div
-                  className={`h-36 md:h-52 flex items-center justify-center relative overflow-hidden${!(barber.coverPhotoUrl || barber.cardBgColor) ? ` bg-gradient-to-br ${barber.color}` : ""}`}
+                  className={`h-36 md:h-52 flex items-center justify-center relative overflow-hidden${!(barber.coverPhotoUrl || barber.cardBgColor) ? " bg-gradient-to-b from-[#1e1e1e] to-[#0e0e0e]" : ""}`}
                   style={
                     barber.coverPhotoUrl
                       ? { backgroundImage: `url(${barber.coverPhotoUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
@@ -549,10 +549,8 @@ export default function Landing() {
                       : undefined
                   }
                 >
-                  {barber.coverPhotoUrl || barber.cardBgColor ? (
+                  {(barber.coverPhotoUrl || barber.cardBgColor) && (
                     <div className="absolute inset-0 bg-black" style={{ opacity: barber.cardBgOpacity / 100 }} />
-                  ) : (
-                    <div className="absolute inset-0 bg-[#0e0e0e]/30" />
                   )}
                   {barber.photoUrl ? (
                     <img
