@@ -291,13 +291,14 @@ export default function Landing() {
       </header>
 
       {/* ─── HERO ─────────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center px-4 pt-16 pb-32 overflow-hidden">
+      <section className="relative min-h-screen flex flex-col items-center justify-center px-4 pt-16 pb-32 overflow-hidden md:flex-row md:items-center md:justify-between md:gap-12 md:px-12 md:pb-16 lg:px-24">
         {/* Background layers */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#1a1408] via-[#0e0e0e] to-[#0e0e0e]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(201,162,77,0.15),transparent)]" />
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/40 to-transparent" />
 
-        <div className="relative z-10 max-w-2xl mx-auto text-center space-y-8">
+        {/* Content — centered on mobile, left column on desktop */}
+        <div className="relative z-10 max-w-2xl mx-auto text-center space-y-8 md:max-w-none md:w-1/2 md:mx-0 md:text-left md:space-y-7">
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-[#C9A24D]/10 border border-[#C9A24D]/20 text-[#C9A24D] text-xs font-semibold px-4 py-2 rounded-full tracking-widest uppercase">
             <Award className="w-3.5 h-3.5" />
@@ -305,11 +306,11 @@ export default function Landing() {
           </div>
 
           {/* Logo */}
-          <div className="flex justify-center">
+          <div className="flex justify-center md:justify-start">
             <img
               src={teixeiraLogoPath}
               alt="Teixeira Barbearia"
-              className="w-48 sm:w-64 h-auto drop-shadow-2xl"
+              className="w-48 sm:w-64 md:w-56 h-auto drop-shadow-2xl"
             />
           </div>
 
@@ -319,13 +320,13 @@ export default function Landing() {
               <span className="text-white">Seu visual no </span>
               <span className="text-[#C9A24D] animate-glowpulse">melhor momento</span>
             </h1>
-            <p className="text-base sm:text-lg text-white/55 max-w-md mx-auto leading-relaxed">
+            <p className="text-base sm:text-lg text-white/55 max-w-md mx-auto leading-relaxed md:mx-0">
               A barbearia que transforma seu estilo com tradição, cuidado e o toque que só a Teixeira tem.
             </p>
           </div>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
             <a
               href={BOOKING_LINK}
               data-testid="button-hero-booking"
@@ -347,7 +348,7 @@ export default function Landing() {
           </div>
 
           {/* Stats */}
-          <div className="flex items-center justify-center gap-6 sm:gap-10 pt-4 border-t border-white/5">
+          <div className="flex items-center justify-center gap-6 sm:gap-10 pt-4 border-t border-white/5 md:justify-start">
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-[#C9A24D]">
                 {[...Array(5)].map((_, i) => <Star key={i} className={`w-3.5 h-3.5 fill-current ${i < displayStars ? "text-[#C9A24D]" : "text-white/20"}`} />)}
@@ -367,6 +368,26 @@ export default function Landing() {
           </div>
         </div>
 
+        {/* Desktop only: right column with contained video */}
+        <div className="hidden md:flex relative z-10 w-1/2 items-center justify-center">
+          <div className="relative w-full rounded-3xl overflow-hidden shadow-2xl shadow-black/60 ring-1 ring-white/10">
+            <video
+              src={droneVideoPath}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="w-full h-[62vh] object-cover block"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0e0e0e]/80 via-transparent to-transparent" />
+            <div className="absolute bottom-6 left-6 right-6">
+              <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-1">Conheça nosso espaço</p>
+              <h3 className="text-white font-black text-xl drop-shadow-lg">Teixeira Barbearia</h3>
+              <p className="text-white/60 text-sm mt-1">Kobrasol, São José – SC · Desde 2018</p>
+            </div>
+          </div>
+        </div>
+
         {/* Scroll hint */}
         <button
           onClick={() => scrollTo("servicos")}
@@ -377,8 +398,8 @@ export default function Landing() {
         </button>
       </section>
 
-      {/* ─── VÍDEO DRONE ──────────────────────────────────────────── */}
-      <section className="relative w-full overflow-hidden" data-testid="section-drone-video">
+      {/* ─── VÍDEO DRONE (mobile only — desktop has it in the hero) ── */}
+      <section className="relative w-full overflow-hidden md:hidden" data-testid="section-drone-video">
         <div className="relative w-full">
           <video
             src={droneVideoPath}
@@ -401,14 +422,14 @@ export default function Landing() {
       </section>
 
       {/* ─── SERVIÇOS ─────────────────────────────────────────────── */}
-      <section id="servicos" className="py-20 px-4">
-        <div className="max-w-4xl mx-auto">
+      <section id="servicos" className="py-20 px-4 md:py-28">
+        <div className="max-w-4xl lg:max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-3">O que oferecemos</p>
-            <h2 className="text-3xl sm:text-4xl font-black">Nossos Serviços</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black">Nossos Serviços</h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {services.length === 0 && (
               <div className="col-span-full text-center py-12">
                 <p className="text-white/40 text-sm">Nossos serviços serão listados em breve.</p>
@@ -461,30 +482,30 @@ export default function Landing() {
       </section>
 
       {/* ─── FOTO INTERIOR ────────────────────────────────────────── */}
-      <div className="relative w-full overflow-hidden" data-testid="banner-interior">
+      <div className="relative w-full overflow-hidden md:h-[420px]" data-testid="banner-interior">
         <img
           src={interiorPhotoPath}
           alt="Ambiente interno da Teixeira Barbearia"
           loading="lazy"
-          className="w-full h-auto block"
+          className="w-full h-auto block md:h-full md:object-cover md:object-center"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#0e0e0e]/50 via-black/10 to-[#111111]/80" />
         <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 text-center">
           <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-1">Nosso ambiente</p>
-          <p className="text-white text-base sm:text-lg font-semibold drop-shadow">Ambiente profissional pensado para você</p>
+          <p className="text-white text-base sm:text-lg md:text-2xl font-semibold drop-shadow">Ambiente profissional pensado para você</p>
         </div>
       </div>
 
       {/* ─── EQUIPE ───────────────────────────────────────────────── */}
-      <section id="equipe" className="py-20 px-4 bg-[#111111]">
-        <div className="max-w-4xl mx-auto">
+      <section id="equipe" className="py-20 px-4 bg-[#111111] md:py-28">
+        <div className="max-w-4xl lg:max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-3">Quem vai cuidar de você</p>
-            <h2 className="text-3xl sm:text-4xl font-black">Nossa Equipe</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black">Nossa Equipe</h2>
             <p className="text-white/40 mt-3 text-sm max-w-sm mx-auto">Profissionais apaixonados pelo que fazem, prontos para te atender.</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 md:gap-6">
             {team.length === 0 && (
               <div className="col-span-full text-center py-12">
                 <p className="text-white/40 text-sm">Nossa equipe será apresentada em breve.</p>
@@ -496,7 +517,7 @@ export default function Landing() {
                 className="group bg-[#151515] border border-white/5 hover:border-[#C9A24D]/20 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-[#C9A24D]/5"
                 data-testid={`card-barber-${barber.name.toLowerCase().replace(/\s+/g, "-")}`}
               >
-                <div className={`h-36 bg-gradient-to-br ${barber.color} flex items-center justify-center relative overflow-hidden`}>
+                <div className={`h-36 md:h-52 bg-gradient-to-br ${barber.color} flex items-center justify-center relative overflow-hidden`}>
                   <div className="absolute inset-0 bg-[#0e0e0e]/30" />
                   {barber.photoUrl ? (
                     <img
@@ -538,12 +559,13 @@ export default function Landing() {
       </section>
 
       {/* ─── AVALIAÇÕES ───────────────────────────────────────────── */}
-      <section id="avaliacoes" className="py-20 px-4 relative overflow-hidden">
+      <section id="avaliacoes" className="py-20 px-4 relative overflow-hidden md:py-28">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_50%,rgba(201,162,77,0.04),transparent)]" />
-        <div className="max-w-3xl mx-auto relative">
+        <div className="max-w-3xl lg:max-w-6xl mx-auto relative">
+          {/* Header — always centered */}
           <div className="text-center mb-12">
             <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-3">O que dizem nossos clientes</p>
-            <h2 className="text-3xl sm:text-4xl font-black">Avaliações</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black">Avaliações</h2>
             <div className="flex items-center justify-center gap-2 mt-4">
               <div className="flex">
                 {[...Array(5)].map((_, i) => <Star key={i} className={`w-5 h-5 fill-current ${i < displayStars ? "text-[#C9A24D]" : "text-white/20"}`} />)}
@@ -553,83 +575,92 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Featured review */}
-          {displayReviews.length > 0 && (
-            <div className="bg-[#151515] border border-white/5 rounded-3xl p-8 mb-6 min-h-[160px] flex flex-col justify-between transition-all duration-500">
-              <p className="text-white/80 text-base sm:text-lg leading-relaxed italic">
-                "{displayReviews[activeReview % displayReviews.length].text}"
-              </p>
-              <div className="flex items-center justify-between mt-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-[#C9A24D]/20 flex items-center justify-center">
-                    <span className="text-[#C9A24D] text-sm font-bold">
-                      {displayReviews[activeReview % displayReviews.length].author[0]}
-                    </span>
-                  </div>
+          {/* Desktop: 2-column — featured left, mini grid right | Mobile: stacked */}
+          <div className="md:grid md:grid-cols-2 md:gap-8 md:items-start">
+            {/* Left: featured review + dots */}
+            <div>
+              {displayReviews.length > 0 && (
+                <div className="bg-[#151515] border border-white/5 rounded-3xl p-8 mb-6 min-h-[160px] md:min-h-[280px] flex flex-col justify-between transition-all duration-500">
                   <div>
-                    <p className="font-semibold text-sm text-white">{displayReviews[activeReview % displayReviews.length].author}</p>
-                    <p className="text-white/30 text-xs">{displayReviews[activeReview % displayReviews.length].date}</p>
+                    <div className="flex gap-0.5 mb-4">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className={`w-4 h-4 fill-current ${i < (displayReviews[activeReview % displayReviews.length].rating || 5) ? "text-[#C9A24D]" : "text-white/20"}`} />
+                      ))}
+                    </div>
+                    <p className="text-white/80 text-base sm:text-lg md:text-xl leading-relaxed italic">
+                      "{displayReviews[activeReview % displayReviews.length].text}"
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 mt-6">
+                    <div className="w-9 h-9 rounded-full bg-[#C9A24D]/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#C9A24D] text-sm font-bold">
+                        {displayReviews[activeReview % displayReviews.length].author[0]}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm text-white">{displayReviews[activeReview % displayReviews.length].author}</p>
+                      <p className="text-white/30 text-xs">{displayReviews[activeReview % displayReviews.length].date}</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className={`w-4 h-4 fill-current ${i < (displayReviews[activeReview % displayReviews.length].rating || 5) ? "text-[#C9A24D]" : "text-white/20"}`} />
-                  ))}
-                </div>
+              )}
+
+              {/* Dot indicators */}
+              <div className="flex justify-center gap-2 mb-8 md:justify-start md:mb-0">
+                {displayReviews.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setActiveReview(i); if (reviewInterval.current) clearInterval(reviewInterval.current); }}
+                    className={`transition-all duration-300 rounded-full ${
+                      i === activeReview % displayReviews.length ? "w-6 h-2 bg-[#C9A24D]" : "w-2 h-2 bg-white/20 hover:bg-white/40"
+                    }`}
+                    data-testid={`button-review-dot-${i}`}
+                  />
+                ))}
               </div>
             </div>
-          )}
 
-          {/* Dot indicators */}
-          <div className="flex justify-center gap-2 mb-8">
-            {displayReviews.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => { setActiveReview(i); if (reviewInterval.current) clearInterval(reviewInterval.current); }}
-                className={`transition-all duration-300 rounded-full ${
-                  i === activeReview % displayReviews.length ? "w-6 h-2 bg-[#C9A24D]" : "w-2 h-2 bg-white/20 hover:bg-white/40"
-                }`}
-                data-testid={`button-review-dot-${i}`}
-              />
-            ))}
-          </div>
-
-          {/* Mini reviews grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {displayReviews.slice(0, 3).map((review, i) => (
-              <div
-                key={i}
-                onClick={() => setActiveReview(i)}
-                className="bg-[#151515] border border-white/5 hover:border-[#C9A24D]/15 rounded-2xl p-4 cursor-pointer transition-all hover:bg-[#1a1a1a]"
-                data-testid={`card-review-${i}`}
-              >
-                <div className="flex gap-0.5 mb-2">
-                  {[...Array(5)].map((_, j) => (
-                    <Star key={j} className={`w-3 h-3 fill-current ${j < (review.rating || 5) ? "text-[#C9A24D]" : "text-white/20"}`} />
-                  ))}
-                </div>
-                <p className="text-white/60 text-xs leading-relaxed line-clamp-2">"{review.text}"</p>
-                <p className="text-white/30 text-xs mt-2 font-medium">— {review.author}</p>
+            {/* Right: mini reviews grid (shows 6 on desktop, 3 on mobile) */}
+            <div className="md:mt-0">
+              <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-2 gap-3">
+                {displayReviews.slice(0, 6).map((review, i) => (
+                  <div
+                    key={i}
+                    onClick={() => setActiveReview(i)}
+                    className={`bg-[#151515] border rounded-2xl p-4 cursor-pointer transition-all hover:bg-[#1a1a1a] ${
+                      i === activeReview % displayReviews.length ? "border-[#C9A24D]/30" : "border-white/5 hover:border-[#C9A24D]/15"
+                    }`}
+                    data-testid={`card-review-${i}`}
+                  >
+                    <div className="flex gap-0.5 mb-2">
+                      {[...Array(5)].map((_, j) => (
+                        <Star key={j} className={`w-3 h-3 fill-current ${j < (review.rating || 5) ? "text-[#C9A24D]" : "text-white/20"}`} />
+                      ))}
+                    </div>
+                    <p className="text-white/60 text-xs leading-relaxed line-clamp-3">"{review.text}"</p>
+                    <p className="text-white/30 text-xs mt-2 font-medium">— {review.author}</p>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* ─── POR QUÊ AGENDAR ONLINE ───────────────────────────────── */}
-      <section className="py-16 px-4 bg-[#111111]">
-        <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <section className="py-16 px-4 bg-[#111111] md:py-20">
+        <div className="max-w-4xl lg:max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-6">
             {[
               { icon: "⚡", title: "Rápido", desc: "Agendamento em menos de 1 minuto" },
               { icon: "📱", title: "Fácil", desc: "Sem cadastro, sem complicação" },
               { icon: "🕐", title: weekdayLabel, desc: "Horário de funcionamento" },
               { icon: "💬", title: "WhatsApp", desc: "Confirmação direto no seu celular" },
             ].map((item) => (
-              <div key={item.title} className="bg-[#151515] border border-white/5 rounded-2xl p-5 text-center">
-                <div className="text-3xl mb-3">{item.icon}</div>
-                <h3 className="font-bold text-white text-sm mb-1">{item.title}</h3>
-                <p className="text-white/35 text-xs leading-relaxed">{item.desc}</p>
+              <div key={item.title} className="bg-[#151515] border border-white/5 rounded-2xl p-5 md:p-8 text-center">
+                <div className="text-3xl md:text-4xl mb-3">{item.icon}</div>
+                <h3 className="font-bold text-white text-sm md:text-base mb-1">{item.title}</h3>
+                <p className="text-white/35 text-xs md:text-sm leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -637,20 +668,20 @@ export default function Landing() {
       </section>
 
       {/* ─── CONTATO / LOCALIZAÇÃO ────────────────────────────────── */}
-      <section id="contato" className="py-20 px-4">
-        <div className="max-w-4xl mx-auto">
+      <section id="contato" className="py-20 px-4 md:py-28">
+        <div className="max-w-4xl lg:max-w-6xl mx-auto">
           <div className="text-center mb-10">
             <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-3">Onde estamos</p>
-            <h2 className="text-3xl sm:text-4xl font-black">Venha nos visitar</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black">Venha nos visitar</h2>
           </div>
 
           {/* Facade photo */}
-          <div className="relative w-full rounded-3xl overflow-hidden mb-8" data-testid="banner-facade">
+          <div className="relative w-full rounded-3xl overflow-hidden mb-8 md:h-[380px]" data-testid="banner-facade">
             <img
               src={facadePhotoPath}
               alt="Fachada da Teixeira Barbearia"
               loading="lazy"
-              className="w-full h-auto block"
+              className="w-full h-auto block md:h-full md:object-cover md:object-center"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
             <div className="absolute bottom-0 left-0 p-6">
@@ -659,7 +690,7 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
             {/* Info card */}
             <div className="bg-[#151515] border border-white/5 rounded-3xl p-7 space-y-6">
               <div className="flex items-start gap-4">
