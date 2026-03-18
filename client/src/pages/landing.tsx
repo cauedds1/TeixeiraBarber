@@ -423,7 +423,7 @@ export default function Landing() {
 
       {/* ─── SERVIÇOS ─────────────────────────────────────────────── */}
       <section id="servicos" className="py-20 px-4 md:py-28">
-        <div className="max-w-4xl lg:max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-3">O que oferecemos</p>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black">Nossos Serviços</h2>
@@ -498,7 +498,7 @@ export default function Landing() {
 
       {/* ─── EQUIPE ───────────────────────────────────────────────── */}
       <section id="equipe" className="py-20 px-4 bg-[#111111] md:py-28">
-        <div className="max-w-4xl lg:max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-3">Quem vai cuidar de você</p>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black">Nossa Equipe</h2>
@@ -561,7 +561,7 @@ export default function Landing() {
       {/* ─── AVALIAÇÕES ───────────────────────────────────────────── */}
       <section id="avaliacoes" className="py-20 px-4 relative overflow-hidden md:py-28">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_50%,rgba(201,162,77,0.04),transparent)]" />
-        <div className="max-w-3xl lg:max-w-6xl mx-auto relative">
+        <div className="max-w-6xl mx-auto relative">
           {/* Header — always centered */}
           <div className="text-center mb-12">
             <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-3">O que dizem nossos clientes</p>
@@ -649,7 +649,7 @@ export default function Landing() {
 
       {/* ─── POR QUÊ AGENDAR ONLINE ───────────────────────────────── */}
       <section className="py-16 px-4 bg-[#111111] md:py-20">
-        <div className="max-w-4xl lg:max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-6">
             {[
               { icon: "⚡", title: "Rápido", desc: "Agendamento em menos de 1 minuto" },
@@ -669,7 +669,7 @@ export default function Landing() {
 
       {/* ─── CONTATO / LOCALIZAÇÃO ────────────────────────────────── */}
       <section id="contato" className="py-20 px-4 md:py-28">
-        <div className="max-w-4xl lg:max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10">
             <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-3">Onde estamos</p>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black">Venha nos visitar</h2>
