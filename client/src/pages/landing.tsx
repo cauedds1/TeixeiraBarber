@@ -88,6 +88,7 @@ export default function Landing() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeReview, setActiveReview] = useState(0);
+  const [showAllLandingServices, setShowAllLandingServices] = useState(false);
   const reviewInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: barbershopData } = useQuery<Barbershop>({
@@ -152,13 +153,19 @@ export default function Landing() {
         duration: formatDuration(s.duration),
         price: formatCurrency(s.price),
         icon: s.icon,
+        isFeatured: false,
       }))
     : activeApiServices.map((s, i) => ({
         name: s.name,
         duration: formatDuration(s.duration),
         price: formatCurrency(s.price),
         icon: s.emoji || serviceIcons[i % serviceIcons.length],
+        isFeatured: s.isFeatured ?? false,
       }));
+
+  const featuredLandingServices = services.filter(s => s.isFeatured);
+  const otherLandingServices = services.filter(s => !s.isFeatured);
+  const hasLandingFeatured = featuredLandingServices.length > 0;
 
   const team = barbersError
     ? fallbackTeam.map((b, i) => ({
@@ -437,44 +444,106 @@ export default function Landing() {
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black">Nossos Serviços</h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {services.length === 0 && (
-              <div className="col-span-full text-center py-12">
-                <p className="text-white/40 text-sm">Nossos serviços serão listados em breve.</p>
-                <a href={BOOKING_LINK} className="inline-flex items-center gap-2 mt-4 text-[#C9A24D] text-sm font-semibold hover:underline" data-testid="link-services-booking">
-                  <Calendar className="w-4 h-4" />
-                  Agende pelo WhatsApp
-                </a>
-              </div>
-            )}
-            {services.map((service) => (
-              <a
-                key={service.name}
-                href={BOOKING_LINK}
-                data-testid={`card-service-${service.name.toLowerCase().replace(/\s+/g, "-")}`}
-                className="group flex items-center justify-between bg-[#151515] hover:bg-[#1a1a1a] border border-white/5 hover:border-[#C9A24D]/20 rounded-2xl p-5 transition-all duration-200 hover:shadow-lg hover:shadow-[#C9A24D]/5 cursor-pointer"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-[#C9A24D]/10 flex items-center justify-center text-xl flex-shrink-0">
-                    {service.icon}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-base text-white">{service.name}</h3>
-                    <div className="flex items-center gap-1.5 mt-1 text-white/40 text-sm">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>{service.duration}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[#C9A24D] font-black text-lg">{service.price}</span>
-                  <div className="w-8 h-8 rounded-full bg-[#C9A24D]/10 group-hover:bg-[#C9A24D] flex items-center justify-center transition-colors">
-                    <ArrowRight className="w-4 h-4 text-[#C9A24D] group-hover:text-black transition-colors" />
-                  </div>
-                </div>
+          {services.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-white/40 text-sm">Nossos serviços serão listados em breve.</p>
+              <a href={BOOKING_LINK} className="inline-flex items-center gap-2 mt-4 text-[#C9A24D] text-sm font-semibold hover:underline" data-testid="link-services-booking">
+                <Calendar className="w-4 h-4" />
+                Agende pelo WhatsApp
               </a>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <>
+              {/* ── Mobile: featured first, others behind toggle ── */}
+              <div className="sm:hidden space-y-3">
+                <div className="grid grid-cols-1 gap-3">
+                  {(hasLandingFeatured ? featuredLandingServices : services).map((service) => (
+                    <a
+                      key={service.name}
+                      href={BOOKING_LINK}
+                      data-testid={`card-service-${service.name.toLowerCase().replace(/\s+/g, "-")}`}
+                      className="group flex items-center justify-between bg-[#151515] hover:bg-[#1a1a1a] border border-white/5 hover:border-[#C9A24D]/20 rounded-2xl p-5 transition-all duration-200 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-[#C9A24D]/10 flex items-center justify-center text-xl flex-shrink-0">{service.icon}</div>
+                        <div>
+                          <h3 className="font-bold text-base text-white">{service.name}</h3>
+                          <div className="flex items-center gap-1.5 mt-1 text-white/40 text-sm"><Clock className="w-3.5 h-3.5" /><span>{service.duration}</span></div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[#C9A24D] font-black text-lg">{service.price}</span>
+                        <div className="w-8 h-8 rounded-full bg-[#C9A24D]/10 group-hover:bg-[#C9A24D] flex items-center justify-center transition-colors">
+                          <ArrowRight className="w-4 h-4 text-[#C9A24D] group-hover:text-black transition-colors" />
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                  {hasLandingFeatured && showAllLandingServices && otherLandingServices.map((service) => (
+                    <a
+                      key={service.name}
+                      href={BOOKING_LINK}
+                      data-testid={`card-service-${service.name.toLowerCase().replace(/\s+/g, "-")}`}
+                      className="group flex items-center justify-between bg-[#151515] hover:bg-[#1a1a1a] border border-white/5 hover:border-[#C9A24D]/20 rounded-2xl p-5 transition-all duration-200 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-[#C9A24D]/10 flex items-center justify-center text-xl flex-shrink-0">{service.icon}</div>
+                        <div>
+                          <h3 className="font-bold text-base text-white">{service.name}</h3>
+                          <div className="flex items-center gap-1.5 mt-1 text-white/40 text-sm"><Clock className="w-3.5 h-3.5" /><span>{service.duration}</span></div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[#C9A24D] font-black text-lg">{service.price}</span>
+                        <div className="w-8 h-8 rounded-full bg-[#C9A24D]/10 group-hover:bg-[#C9A24D] flex items-center justify-center transition-colors">
+                          <ArrowRight className="w-4 h-4 text-[#C9A24D] group-hover:text-black transition-colors" />
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+                {hasLandingFeatured && otherLandingServices.length > 0 && (
+                  <button
+                    onClick={() => setShowAllLandingServices(v => !v)}
+                    data-testid="button-toggle-landing-services"
+                    className="w-full flex items-center justify-center gap-2 py-3 border border-white/10 hover:border-[#C9A24D]/30 rounded-2xl text-white/50 hover:text-[#C9A24D] text-sm font-medium transition-all"
+                  >
+                    {showAllLandingServices ? (
+                      <>Mostrar menos <ChevronDown className="w-4 h-4 rotate-180" /></>
+                    ) : (
+                      <>Todos os serviços ({otherLandingServices.length}) <ChevronDown className="w-4 h-4" /></>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {/* ── Desktop: full grid ─────────────────────────── */}
+              <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {services.map((service) => (
+                  <a
+                    key={service.name}
+                    href={BOOKING_LINK}
+                    data-testid={`card-service-${service.name.toLowerCase().replace(/\s+/g, "-")}`}
+                    className="group flex items-center justify-between bg-[#151515] hover:bg-[#1a1a1a] border border-white/5 hover:border-[#C9A24D]/20 rounded-2xl p-5 transition-all duration-200 hover:shadow-lg hover:shadow-[#C9A24D]/5 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-[#C9A24D]/10 flex items-center justify-center text-xl flex-shrink-0">{service.icon}</div>
+                      <div>
+                        <h3 className="font-bold text-base text-white">{service.name}</h3>
+                        <div className="flex items-center gap-1.5 mt-1 text-white/40 text-sm"><Clock className="w-3.5 h-3.5" /><span>{service.duration}</span></div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[#C9A24D] font-black text-lg">{service.price}</span>
+                      <div className="w-8 h-8 rounded-full bg-[#C9A24D]/10 group-hover:bg-[#C9A24D] flex items-center justify-center transition-colors">
+                        <ArrowRight className="w-4 h-4 text-[#C9A24D] group-hover:text-black transition-colors" />
+                      </div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </>
+          )}
 
           <div className="mt-8 text-center">
             <a

@@ -233,7 +233,6 @@ export async function registerRoutes(
             m < timeToMinutes(b.end) && (m + serviceDuration) > timeToMinutes(b.start)
           );
           if (!conflict) nextSlots.push(minutesToTime(m));
-          if (nextSlots.length >= 4) break;
         }
 
         return { ...barber, available: false, nextSlots };

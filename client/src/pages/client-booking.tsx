@@ -64,6 +64,7 @@ export default function ClientBooking() {
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
   const [expandedBarber, setExpandedBarber] = useState<string | null>(null);
   const [showAllServices, setShowAllServices] = useState(false);
+  const [expandedDesc, setExpandedDesc] = useState<Set<string>>(new Set());
   const [clientName, setClientName] = useState(() => localStorage.getItem("teixeira_client_name") || "");
   const [clientPhone, setClientPhone] = useState(() => localStorage.getItem("teixeira_client_phone") || "");
   const [booked, setBooked] = useState(false);
@@ -156,12 +157,21 @@ export default function ClientBooking() {
     if (!barbershop) return [];
     const dayKey = getDayKey(new Date(selectedDate + "T12:00:00"));
     const daySchedule = ws[dayKey];
-    return generateSlots(
+    const slots = generateSlots(
       daySchedule.open || barbershop.openingTime || "09:00",
       daySchedule.close || barbershop.closingTime || "19:00",
       selectedService?.duration || 30
     );
-  }, [barbershop, selectedService, selectedDate]);
+    if (selectedDate === todayStr) {
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      return slots.filter((time) => {
+        const [h, m] = time.split(":").map(Number);
+        return h * 60 + m > nowMinutes;
+      });
+    }
+    return slots;
+  }, [barbershop, selectedService, selectedDate, todayStr]);
 
   const activeServices = services.filter((s) => s.isActive);
   const featuredServices = activeServices.filter((s) => s.isFeatured);
@@ -344,7 +354,16 @@ export default function ClientBooking() {
                             <span className="text-2xl w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">{service.emoji || "✂️"}</span>
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold text-white text-sm">{service.name}</p>
-                              {service.description && <p className="text-xs text-white/30 mt-0.5 line-clamp-2">{service.description}</p>}
+                              {service.description && (
+                                service.description.length > 120 ? (
+                                  <div>
+                                    <p className={`text-xs text-white/30 mt-0.5 ${expandedDesc.has(String(service.id)) ? "" : "line-clamp-2"}`}>{service.description}</p>
+                                    <button onClick={(e) => { e.stopPropagation(); setExpandedDesc(prev => { const next = new Set(prev); next.has(String(service.id)) ? next.delete(String(service.id)) : next.add(String(service.id)); return next; }); }} className="text-[10px] text-[#C9A24D]/70 hover:text-[#C9A24D] mt-0.5 font-medium" data-testid={`btn-lerMais-${service.id}`}>{expandedDesc.has(String(service.id)) ? "← Ler menos" : "Ler mais →"}</button>
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-white/30 mt-0.5 line-clamp-2">{service.description}</p>
+                                )
+                              )}
                               <p className="text-xs text-white/25 mt-1 flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{service.duration} min</p>
                             </div>
                             <div className="flex-shrink-0 text-right">
@@ -387,7 +406,16 @@ export default function ClientBooking() {
                           <span className="text-2xl w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">{service.emoji || "✂️"}</span>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-white text-sm">{service.name}</p>
-                            {service.description && <p className="text-xs text-white/30 mt-0.5 line-clamp-2">{service.description}</p>}
+                            {service.description && (
+                              service.description.length > 120 ? (
+                                <div>
+                                  <p className={`text-xs text-white/30 mt-0.5 ${expandedDesc.has(String(service.id)) ? "" : "line-clamp-2"}`}>{service.description}</p>
+                                  <button onClick={(e) => { e.stopPropagation(); setExpandedDesc(prev => { const next = new Set(prev); next.has(String(service.id)) ? next.delete(String(service.id)) : next.add(String(service.id)); return next; }); }} className="text-[10px] text-[#C9A24D]/70 hover:text-[#C9A24D] mt-0.5 font-medium" data-testid={`btn-lerMais-${service.id}`}>{expandedDesc.has(String(service.id)) ? "← Ler menos" : "Ler mais →"}</button>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-white/30 mt-0.5 line-clamp-2">{service.description}</p>
+                              )
+                            )}
                             <p className="text-xs text-white/25 mt-1 flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{service.duration} min</p>
                           </div>
                           <div className="flex-shrink-0 text-right">
