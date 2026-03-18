@@ -297,7 +297,7 @@ export default function Landing() {
       </header>
 
       {/* ─── HERO ─────────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center px-4 pt-16 pb-32 overflow-hidden md:flex-row md:items-center md:justify-between md:gap-12 md:px-12 md:pb-16 lg:px-24">
+      <section className="relative min-h-screen flex flex-col items-center justify-center px-4 pt-16 pb-20 overflow-hidden md:flex-row md:items-center md:justify-between md:gap-12 md:px-12 md:pb-16 lg:px-24">
         {/* Background layers */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#1a1408] via-[#0e0e0e] to-[#0e0e0e]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(201,162,77,0.15),transparent)]" />
@@ -354,7 +354,7 @@ export default function Landing() {
           </div>
 
           {/* Stats */}
-          <div className="flex items-center justify-center gap-6 sm:gap-10 pt-4 border-t border-white/5 md:justify-start">
+          <div className="flex items-center justify-center gap-4 sm:gap-10 pt-4 border-t border-white/5 md:justify-start">
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-[#C9A24D]">
                 {[...Array(5)].map((_, i) => <Star key={i} className={`w-3.5 h-3.5 fill-current ${i < displayStars ? "text-[#C9A24D]" : "text-white/20"}`} />)}
@@ -405,24 +405,24 @@ export default function Landing() {
       </section>
 
       {/* ─── VÍDEO DRONE (mobile only — desktop has it in the hero) ── */}
-      <section className="relative w-full overflow-hidden md:hidden" data-testid="section-drone-video">
-        <div className="relative w-full">
+      <section className="w-full md:hidden px-4 py-6 bg-[#0e0e0e]" data-testid="section-drone-video">
+        <div className="relative w-full aspect-video rounded-2xl overflow-hidden shadow-2xl shadow-black/60 ring-1 ring-white/10">
           <video
             src={droneVideoPath}
             autoPlay
             muted
             loop
             playsInline
-            className="w-full h-auto block"
+            className="absolute inset-0 w-full h-full object-cover"
             data-testid="video-drone"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0e0e0e]/60 via-black/20 to-[#0e0e0e]/70" />
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
-            <p className="text-[#C9A24D] text-xs font-semibold tracking-widest uppercase mb-2">Conheça nosso espaço</p>
-            <h2 className="text-white text-2xl sm:text-3xl lg:text-4xl font-black drop-shadow-lg">
-              Teixeira Barbearia
-            </h2>
-            <p className="text-white/60 text-sm mt-2 max-w-xs">Kobrasol, São José – SC · Desde 2018</p>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 p-5">
+            <div className="border-l-2 border-[#C9A24D] pl-4">
+              <p className="text-[#C9A24D] text-[10px] font-semibold tracking-widest uppercase mb-1">Conheça nosso espaço</p>
+              <h2 className="text-white text-xl font-black drop-shadow-lg leading-tight">Teixeira Barbearia</h2>
+              <p className="text-white/55 text-xs mt-0.5">Kobrasol, São José – SC · Desde 2018</p>
+            </div>
           </div>
         </div>
       </section>
@@ -488,12 +488,12 @@ export default function Landing() {
       </section>
 
       {/* ─── FOTO INTERIOR ────────────────────────────────────────── */}
-      <div className="relative w-full overflow-hidden md:h-[480px] border-y border-[#C9A24D]/30" data-testid="banner-interior">
+      <div className="relative w-full overflow-hidden h-[300px] md:h-[480px] border-y border-[#C9A24D]/30" data-testid="banner-interior">
         <img
           src={interiorPhotoPath}
           alt="Ambiente interno da Teixeira Barbearia"
           loading="lazy"
-          className="w-full h-auto block md:h-full md:object-cover md:object-[center_20%]"
+          className="w-full h-full object-cover object-[center_20%] block"
         />
         {/* Mobile: dark bottom gradient | Desktop: full dark overlay for text legibility */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0e0e0e]/50 via-black/10 to-[#111111]/80 md:hidden" />
@@ -527,16 +527,16 @@ export default function Landing() {
             <p className="text-white/40 mt-3 text-sm max-w-sm mx-auto">Profissionais apaixonados pelo que fazem, prontos para te atender.</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 md:gap-6">
+          <div className="flex overflow-x-auto gap-4 snap-x snap-mandatory pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-3 md:gap-6 md:overflow-visible md:pb-0">
             {team.length === 0 && (
-              <div className="col-span-full text-center py-12">
+              <div className="col-span-full w-full text-center py-12">
                 <p className="text-white/40 text-sm">Nossa equipe será apresentada em breve.</p>
               </div>
             )}
             {team.map((barber) => (
               <div
                 key={barber.name}
-                className="group bg-[#151515] border border-white/5 hover:border-[#C9A24D]/20 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-[#C9A24D]/5"
+                className="group flex-shrink-0 w-[78vw] snap-start bg-[#151515] border border-white/5 hover:border-[#C9A24D]/20 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-[#C9A24D]/5 md:w-auto md:flex-shrink"
                 data-testid={`card-barber-${barber.name.toLowerCase().replace(/\s+/g, "-")}`}
               >
                 <div
@@ -590,6 +590,8 @@ export default function Landing() {
               </div>
             ))}
           </div>
+          {/* Mobile: swipe hint */}
+          <p className="text-white/20 text-xs text-center mt-3 md:hidden tracking-wide">deslize para ver a equipe →</p>
         </div>
       </section>
 
@@ -655,8 +657,8 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Right: mini reviews grid (shows 6 on desktop, 3 on mobile) */}
-            <div className="md:mt-0">
+            {/* Right: mini reviews grid (desktop only) */}
+            <div className="hidden md:block md:mt-0">
               <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-2 gap-3">
                 {displayReviews.slice(0, 6).map((review, i) => (
                   <div
@@ -711,12 +713,12 @@ export default function Landing() {
           </div>
 
           {/* Facade photo */}
-          <div className="relative w-full rounded-3xl overflow-hidden mb-8 md:h-[380px]" data-testid="banner-facade">
+          <div className="relative w-full rounded-3xl overflow-hidden mb-8 h-[220px] md:h-[380px]" data-testid="banner-facade">
             <img
               src={facadePhotoPath}
               alt="Fachada da Teixeira Barbearia"
               loading="lazy"
-              className="w-full h-auto block md:h-full md:object-cover md:object-center"
+              className="w-full h-full object-cover object-center block"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
             <div className="absolute bottom-0 left-0 p-6">
