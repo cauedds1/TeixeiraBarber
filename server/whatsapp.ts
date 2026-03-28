@@ -66,6 +66,7 @@ class WhatsAppService {
   private status: WhatsAppStatus = "disconnected";
   private qrDataUrl: string | null = null;
   private connectedPhone: string | null = null;
+  private intentionalDisconnect = false;
   private barbershopSlug = "teixeira";
 
   getStatus(): WhatsAppStatus {
@@ -162,14 +163,19 @@ class WhatsAppService {
           this.status = "connected";
           this.qrDataUrl = null;
           // Extract the connected phone number from the JID (e.g. "5548999505167:1@s.whatsapp.net")
+          // Sanitize strictly to digits to guard against any non-numeric JID characters.
           const jid = sock.user?.id ?? "";
-          this.connectedPhone = jid.split(":")[0].split("@")[0] || null;
+          const rawPhone = jid.split(":")[0].split("@")[0];
+          this.connectedPhone = rawPhone.replace(/\D/g, "") || null;
           log(`[WhatsApp] Conectado com sucesso! Número: ${this.connectedPhone}`);
         }
 
         if (connection === "close") {
           const reason = (lastDisconnect?.error as Boom)?.output?.statusCode;
-          const shouldReconnect = reason !== DisconnectReason.loggedOut;
+          // Never auto-reconnect if this close was triggered by an intentional user disconnect
+          const shouldReconnect =
+            !this.intentionalDisconnect && reason !== DisconnectReason.loggedOut;
+          this.intentionalDisconnect = false;
           log(`[WhatsApp] Conexão fechada. Motivo: ${reason}. Reconectar: ${shouldReconnect}`);
           this.status = "disconnected";
           this.sock = null;
@@ -178,7 +184,7 @@ class WhatsAppService {
           if (shouldReconnect) {
             setTimeout(() => this.connect(), 5000);
           } else {
-            // Logged out — clear QR since it's invalid
+            // Logged out or intentional — clear QR since it's invalid
             this.qrDataUrl = null;
           }
         }
@@ -237,6 +243,9 @@ class WhatsAppService {
 
   async disconnect(): Promise<void> {
     log("[WhatsApp] Desconectando por solicitação do usuário...");
+    // Set flag before touching sock so the close event handler (if fired by logout/end)
+    // knows not to auto-reconnect regardless of the disconnect reason code.
+    this.intentionalDisconnect = true;
     if (this.sock) {
       try {
         await this.sock.logout();
