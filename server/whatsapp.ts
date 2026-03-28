@@ -1,17 +1,43 @@
-import makeWASocket, {
+import * as BaileysModule from "@whiskeysockets/baileys";
+import type { WASocket } from "@whiskeysockets/baileys";
+import { Boom } from "@hapi/boom";
+import * as qrcode from "qrcode";
+import * as path from "path";
+import * as _pinoModule from "pino";
+import { handleIncomingMessage } from "./whatsapp-ai";
+import { isInReviewConversation, handleReviewResponse } from "./review-conversation";
+import { log } from "./index";
+
+// ---------------------------------------------------------------------------
+// CJS/ESM interop helpers
+// ---------------------------------------------------------------------------
+// In production (CJS bundle), esbuild compiles `import makeWASocket from "..."` into
+// `require("...").default`, but when a CJS version of an ESM package is loaded,
+// `.default` might be the whole module object — not the function.
+// We resolve defensively: prefer `.default` if it's a function, otherwise use the
+// module itself (for packages that export the main function as `module.exports`).
+
+const {
   DisconnectReason,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
-  WASocket,
-} from "@whiskeysockets/baileys";
-import { Boom } from "@hapi/boom";
-import * as qrcode from "qrcode";
-import * as path from "path";
-import P from "pino";
-import { handleIncomingMessage } from "./whatsapp-ai";
-import { isInReviewConversation, handleReviewResponse } from "./review-conversation";
-import { log } from "./index";
+} = BaileysModule;
+
+type MakeWASocketFn = typeof BaileysModule.default;
+
+const makeWASocket: MakeWASocketFn =
+  typeof BaileysModule.default === "function"
+    ? BaileysModule.default
+    : (BaileysModule as unknown as MakeWASocketFn);
+
+type PinoFn = typeof _pinoModule.default;
+const P: PinoFn =
+  typeof (_pinoModule as any).default === "function"
+    ? (_pinoModule as any).default
+    : (_pinoModule as unknown as PinoFn);
+
+// ---------------------------------------------------------------------------
 
 const pinoLogger = P({ level: "silent" });
 
@@ -138,8 +164,12 @@ class WhatsAppService {
           log(`[WhatsApp] Conexão fechada. Motivo: ${reason}. Reconectar: ${shouldReconnect}`);
           this.status = "disconnected";
           this.sock = null;
+          // Keep qrDataUrl so the UI can keep showing it during reconnect
           if (shouldReconnect) {
             setTimeout(() => this.connect(), 5000);
+          } else {
+            // Logged out — clear QR since it's invalid
+            this.qrDataUrl = null;
           }
         }
       });
@@ -188,7 +218,9 @@ class WhatsAppService {
       this.sock = null;
     }
     this.status = "disconnected";
-    this.qrDataUrl = null;
+    // Do NOT clear qrDataUrl here — keep showing the last QR while reconnecting
+    // so the user doesn't see a blank screen. It will be replaced once a new QR
+    // is generated, or cleared on successful connection.
     await this.connect();
   }
 }

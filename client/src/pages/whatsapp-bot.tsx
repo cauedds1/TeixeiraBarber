@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Wifi, WifiOff, QrCode, RefreshCw, MessageCircle, Bot, Bell, Zap } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type WAStatus = "connected" | "waiting_qr" | "disconnected";
 
@@ -17,20 +17,28 @@ interface WhatsAppStatusResponse {
 export default function WhatsAppBotPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  // Track when the user last clicked reconnect so we can poll aggressively
+  const [reconnectingUntil, setReconnectingUntil] = useState<number>(0);
+  const reconnectingUntilRef = useRef(reconnectingUntil);
+  reconnectingUntilRef.current = reconnectingUntil;
 
   const { data, isLoading } = useQuery<WhatsAppStatusResponse>({
     queryKey: ["/api/whatsapp/status"],
     refetchInterval: (query) => {
       const s = query.state.data?.status;
       if (s === "connected") return 30000;
-      if (s === "waiting_qr") return 5000;
-      return 10000;
+      if (s === "waiting_qr") return 3000;
+      // After reconnect is clicked, poll every 2s for 30s to catch the QR quickly
+      if (Date.now() < reconnectingUntilRef.current) return 2000;
+      return 3000;
     },
   });
 
   const reconnectMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/whatsapp/reconnect"),
     onSuccess: () => {
+      // Poll aggressively for the next 30 seconds while waiting for the QR
+      setReconnectingUntil(Date.now() + 30_000);
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/status"] });
       toast({ title: "Reconectando...", description: "Aguarde o QR Code aparecer." });
     },
