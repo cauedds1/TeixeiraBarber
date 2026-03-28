@@ -224,8 +224,9 @@ async function executeTool(
       const data = String(args.data ?? "");
       const duracaoMinutos = Number(args.duracao_minutos ?? 30);
 
-      // Update booking state with collected info
+      // Persist collected info into booking state
       if (data) booking.date = data;
+      if (duracaoMinutos) booking.durationMin = duracaoMinutos;
 
       if (barbeiroId === "qualquer") {
         // Check all active barbers and return slots per barber
@@ -257,6 +258,11 @@ async function executeTool(
       }
 
       // Specific barber
+      const barber = await storage.getBarber(barbeiroId).catch(() => null);
+      if (!barber || barber.barbershopId !== barbershopId || !barber.isActive) {
+        return JSON.stringify({ erro: "Barbeiro não encontrado ou inativo." });
+      }
+
       const slots = await getSlotsForBarber(barbeiroId, data, duracaoMinutos);
 
       if (!slots.length) {
@@ -264,6 +270,7 @@ async function executeTool(
       }
 
       booking.barberId = barbeiroId;
+      booking.barberName = barber.name;
       booking.date = data;
 
       return JSON.stringify({ disponivel: true, horarios: slots.slice(0, 8) });
@@ -293,6 +300,26 @@ async function executeTool(
         });
       }
 
+      // Validate barber and service belong to this barbershop and are active
+      const barber = await storage.getBarber(barbeiroId).catch(() => null);
+      if (!barber || barber.barbershopId !== barbershopId || !barber.isActive) {
+        return JSON.stringify({ erro: "Barbeiro inválido ou não pertence à barbearia." });
+      }
+
+      const service = await storage.getService(servicoId).catch(() => null);
+      if (!service || service.barbershopId !== barbershopId || !service.isActive) {
+        return JSON.stringify({ erro: "Serviço inválido ou não pertence à barbearia." });
+      }
+
+      // Revalidate slot availability immediately before booking (prevent double-booking)
+      const availableNow = await getSlotsForBarber(barbeiroId, data, duracaoMinutos);
+      if (!availableNow.includes(horario)) {
+        return JSON.stringify({
+          erro: "Este horário não está mais disponível. Por favor, escolha outro horário.",
+          horarios_disponiveis: availableNow.slice(0, 6),
+        });
+      }
+
       const startMin = timeToMinutes(horario);
       const endTime = minutesToTime(startMin + duracaoMinutos);
 
@@ -304,20 +331,27 @@ async function executeTool(
         startTime: horario,
         endTime,
         status: "confirmed",
-        price: String(preco),
+        price: String(preco || service.price),
         clientName: nomeCliente,
         clientPhone: phone,
       });
 
-      // Update booking state
+      // Persist full booking state
+      booking.barberId = barbeiroId;
+      booking.barberName = barbeiroNome || barber.name;
+      booking.serviceId = servicoId;
+      booking.serviceName = servicoNome || service.name;
+      booking.durationMin = duracaoMinutos;
+      booking.price = Number(preco || service.price);
+      booking.date = data;
       booking.slot = horario;
       booking.clientName = nomeCliente;
 
       return JSON.stringify({
         sucesso: true,
         agendamento_id: appt.id,
-        barbeiro: barbeiroNome,
-        servico: servicoNome,
+        barbeiro: booking.barberName,
+        servico: booking.serviceName,
         data,
         horario,
         nome: nomeCliente,
