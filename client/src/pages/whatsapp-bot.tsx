@@ -128,7 +128,7 @@ export default function WhatsAppBotPage() {
                   />
                 </div>
                 <p className="text-xs text-white/40 text-center">
-                  QR Code atualiza automaticamente a cada 5 segundos
+                  QR Code atualiza automaticamente a cada 3 segundos
                 </p>
               </div>
             )}

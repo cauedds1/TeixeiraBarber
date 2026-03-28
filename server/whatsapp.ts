@@ -32,9 +32,10 @@ const makeWASocket: MakeWASocketFn =
     : (BaileysModule as unknown as MakeWASocketFn);
 
 type PinoFn = typeof _pinoModule.default;
+const _pinoCompat = _pinoModule as unknown as { default?: PinoFn };
 const P: PinoFn =
-  typeof (_pinoModule as any).default === "function"
-    ? (_pinoModule as any).default
+  typeof _pinoCompat.default === "function"
+    ? _pinoCompat.default
     : (_pinoModule as unknown as PinoFn);
 
 // ---------------------------------------------------------------------------
