@@ -304,7 +304,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(clients.barbershopId, barbershopId),
-          eq(clients.phone, normalized)
+          sql`REGEXP_REPLACE(${clients.phone}, '[^0-9]', '', 'g') = ${normalized}`
         )
       )
       .limit(1);
