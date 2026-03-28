@@ -65,6 +65,7 @@ class WhatsAppService {
   private sock: WASocket | null = null;
   private status: WhatsAppStatus = "disconnected";
   private qrDataUrl: string | null = null;
+  private connectedPhone: string | null = null;
   private barbershopSlug = "teixeira";
 
   getStatus(): WhatsAppStatus {
@@ -73,6 +74,10 @@ class WhatsAppService {
 
   getQR(): string | null {
     return this.qrDataUrl;
+  }
+
+  getPhone(): string | null {
+    return this.connectedPhone;
   }
 
   /**
@@ -156,7 +161,10 @@ class WhatsAppService {
         if (connection === "open") {
           this.status = "connected";
           this.qrDataUrl = null;
-          log("[WhatsApp] Conectado com sucesso!");
+          // Extract the connected phone number from the JID (e.g. "5548999505167:1@s.whatsapp.net")
+          const jid = sock.user?.id ?? "";
+          this.connectedPhone = jid.split(":")[0].split("@")[0] || null;
+          log(`[WhatsApp] Conectado com sucesso! Número: ${this.connectedPhone}`);
         }
 
         if (connection === "close") {
@@ -165,6 +173,7 @@ class WhatsAppService {
           log(`[WhatsApp] Conexão fechada. Motivo: ${reason}. Reconectar: ${shouldReconnect}`);
           this.status = "disconnected";
           this.sock = null;
+          this.connectedPhone = null;
           // Keep qrDataUrl so the UI can keep showing it during reconnect
           if (shouldReconnect) {
             setTimeout(() => this.connect(), 5000);
@@ -219,10 +228,27 @@ class WhatsAppService {
       this.sock = null;
     }
     this.status = "disconnected";
+    this.connectedPhone = null;
     // Do NOT clear qrDataUrl here — keep showing the last QR while reconnecting
     // so the user doesn't see a blank screen. It will be replaced once a new QR
     // is generated, or cleared on successful connection.
     await this.connect();
+  }
+
+  async disconnect(): Promise<void> {
+    log("[WhatsApp] Desconectando por solicitação do usuário...");
+    if (this.sock) {
+      try {
+        await this.sock.logout();
+      } catch {
+        try { this.sock.end(undefined); } catch {}
+      }
+      this.sock = null;
+    }
+    this.status = "disconnected";
+    this.qrDataUrl = null;
+    this.connectedPhone = null;
+    log("[WhatsApp] Sessão encerrada.");
   }
 }
 

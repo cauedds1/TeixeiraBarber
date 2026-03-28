@@ -1510,7 +1510,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/whatsapp/status", isAuthenticated, (_req: Request, res: Response) => {
-    res.json({ status: whatsappService.getStatus(), qr: whatsappService.getQR() });
+    res.json({ status: whatsappService.getStatus(), qr: whatsappService.getQR(), phone: whatsappService.getPhone() });
   });
 
   app.post("/api/whatsapp/reconnect", isAuthenticated, async (_req: Request, res: Response) => {
@@ -1519,6 +1519,15 @@ export async function registerRoutes(
       res.json({ ok: true });
     } catch (error) {
       res.status(500).json({ message: "Erro ao reconectar WhatsApp" });
+    }
+  });
+
+  app.post("/api/whatsapp/disconnect", isAuthenticated, async (_req: Request, res: Response) => {
+    try {
+      await whatsappService.disconnect();
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao desconectar WhatsApp" });
     }
   });
 

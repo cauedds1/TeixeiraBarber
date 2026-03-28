@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Wifi, WifiOff, QrCode, RefreshCw, MessageCircle, Bot, Bell, Zap } from "lucide-react";
+import { Wifi, WifiOff, QrCode, RefreshCw, MessageCircle, Bot, Bell, Zap, LogOut } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 type WAStatus = "connected" | "waiting_qr" | "disconnected";
@@ -12,6 +12,19 @@ type WAStatus = "connected" | "waiting_qr" | "disconnected";
 interface WhatsAppStatusResponse {
   status: WAStatus;
   qr?: string | null;
+  phone?: string | null;
+}
+
+function formatBrazilianPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("55") && digits.length >= 12) {
+    const withoutCountry = digits.slice(2);
+    const ddd = withoutCountry.slice(0, 2);
+    const rest = withoutCountry.slice(2);
+    if (rest.length === 9) return `+55 ${ddd} ${rest.slice(0, 5)}-${rest.slice(5)}`;
+    if (rest.length === 8) return `+55 ${ddd} ${rest.slice(0, 4)}-${rest.slice(4)}`;
+  }
+  return `+${digits}`;
 }
 
 export default function WhatsAppBotPage() {
@@ -44,6 +57,17 @@ export default function WhatsAppBotPage() {
     },
     onError: () => {
       toast({ title: "Erro", description: "Falha ao reconectar.", variant: "destructive" });
+    },
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/whatsapp/disconnect"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/status"] });
+      toast({ title: "Desconectado", description: "Sessão do WhatsApp encerrada com sucesso." });
+    },
+    onError: () => {
+      toast({ title: "Erro", description: "Falha ao desconectar.", variant: "destructive" });
     },
   });
 
@@ -139,6 +163,14 @@ export default function WhatsAppBotPage() {
                   <Wifi className="h-8 w-8 text-[#C9A24D]" />
                 </div>
                 <p className="text-[#C9A24D] font-medium">Número conectado com sucesso!</p>
+                {data?.phone && (
+                  <p
+                    data-testid="text-whatsapp-phone"
+                    className="text-white font-semibold text-base tracking-wide"
+                  >
+                    {formatBrazilianPhone(data.phone)}
+                  </p>
+                )}
                 <p className="text-white/40 text-sm text-center">
                   O bot está ativo. Clientes que enviarem mensagens receberão respostas automáticas.
                 </p>
@@ -156,19 +188,36 @@ export default function WhatsAppBotPage() {
               </div>
             )}
 
-            <Button
-              data-testid="button-whatsapp-reconnect"
-              onClick={() => reconnectMutation.mutate()}
-              disabled={reconnectMutation.isPending}
-              className="w-full bg-[#C9A24D] hover:bg-[#b8903e] text-black font-semibold"
-            >
-              {reconnectMutation.isPending ? (
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
+            <div className={`flex gap-2 ${status === "connected" ? "flex-row" : "flex-col"}`}>
+              <Button
+                data-testid="button-whatsapp-reconnect"
+                onClick={() => reconnectMutation.mutate()}
+                disabled={reconnectMutation.isPending || disconnectMutation.isPending}
+                className="flex-1 bg-[#C9A24D] hover:bg-[#b8903e] text-black font-semibold"
+              >
+                {reconnectMutation.isPending ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                {status === "disconnected" ? "Conectar WhatsApp" : "Reconectar"}
+              </Button>
+              {status === "connected" && (
+                <Button
+                  data-testid="button-whatsapp-disconnect"
+                  onClick={() => disconnectMutation.mutate()}
+                  disabled={disconnectMutation.isPending || reconnectMutation.isPending}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold"
+                >
+                  {disconnectMutation.isPending ? (
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <LogOut className="h-4 w-4 mr-2" />
+                  )}
+                  Desconectar
+                </Button>
               )}
-              {status === "disconnected" ? "Conectar WhatsApp" : "Reconectar"}
-            </Button>
+            </div>
           </CardContent>
         </Card>
 
