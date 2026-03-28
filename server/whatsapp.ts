@@ -244,9 +244,9 @@ class WhatsAppService {
       this.sock = null;
     }
     this.connectedPhone = null;
-    // connect() sets status = "connecting" at its very first line, so the status
-    // endpoint will immediately reflect that state when the UI polls after the
-    // reconnect button is clicked.
+    // Set connecting immediately so the next status poll returns "connecting"
+    // before connect() is awaited (connect() also sets it at its first line).
+    this.status = "connecting";
     await this.connect();
   }
 

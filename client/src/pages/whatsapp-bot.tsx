@@ -125,7 +125,7 @@ export default function WhatsAppBotPage() {
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-white text-lg flex items-center gap-2">
-                <StatusIcon className="h-5 w-5 text-[#C9A24D]" />
+                <StatusIcon className={`h-5 w-5 text-[#C9A24D]${status === "connecting" ? " animate-spin" : ""}`} />
                 Status da Conexão
               </CardTitle>
               <Badge
