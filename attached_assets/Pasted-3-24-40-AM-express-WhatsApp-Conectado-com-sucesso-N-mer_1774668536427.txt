@@ -1,0 +1,43 @@
+3:24:40 AM [express] [WhatsApp] Conectado com sucesso! Número: 554899186426
+3:24:40 AM [express] GET /api/whatsapp/status 200 in 5ms :: {"status":"connected","qr":null,"phone":"554899186426"}
+Closing session: aA {
+    used: 1774668280450,
+  _chains: {
+    },
+    created: 1774668280450,
+    'BTSKfLXizlA6ZEC6hxTdOF+D/xlQi+Z8gCeyrmcI7RUS': { chainKey: [Object], chainType: 2, messageKeys: {} },
+    lastRemoteEphemeralKey: <Buffer 05 34 8a 7c b5 e2 ce 50 3a 64 40 ba 87 14 dd 38 5f 83 ff 19 50 8b e6 7c 80 27 b2 ae 67 08 ed 15 12>,
+    remoteIdentityKey: <Buffer 05 a4 f6 16 5b 5f c5 73 5f 57 04 ac 20 0f 35 e6 95 0e 61 25 fd 0e f1 41 33 53 12 d9 a8 11 ae 8d 65>
+    BTAxSFZsVTAaJibH6DIbQEXXBMvKrmSLNdiyEwIxqa8w: { chainKey: [Object], chainType: 1, messageKeys: {} }
+    previousCounter: 0,
+  },
+  indexInfo: {
+  currentRatchet: {
+    baseKey: <Buffer 05 b7 d9 27 dc 60 c4 2c 6f 5b d7 52 60 b5 77 47 2b b4 15 97 24 78 f1 02 80 e6 27 6c 7e 73 99 7d 26>,
+    baseKeyType: 2,
+    ephemeralKeyPair: {
+    closed: -1,
+      pubKey: <Buffer 05 30 31 48 56 6c 55 30 1a 26 26 c7 e8 32 1b 40 45 d7 04 cb ca ae 64 8b 35 d8 b2 13 02 31 a9 af 30>,
+      privKey: <Buffer 50 bc bf cb 47 bc 31 5c c8 bf 0c 3a 44 51 4e 44 61 db 92 3b 47 71 b8 e3 2f 21 71 43 9f 35 cf 54>
+  }
+    baseKeyType: 2,
+}
+      pubKey: <Buffer 05 14 51 63 67 86 3b 67 2d d9 cf 63 be af d9 f4 da 4c 92 33 09 df 06 c6 57 f2 7e 10 db 4b 7b 14 11>,
+Closing session: aA {
+      privKey: <Buffer 10 72 8f 5b 13 43 5f 27 de f6 c9 0f 34 5d 75 09 82 0c f1 49 6d 4c b4 05 88 2f 7f dc 88 af 6d 6c>
+    lastRemoteEphemeralKey: <Buffer 05 c8 99 d9 90 c6 62 2a 76 cb 7c 5e 35 9e e0 77 d1 20 a9 d8 db 43 0b 3a e2 77 35 07 5a 1a 62 e4 78>,
+  _chains: {
+    },
+    'BV2ur8Up+9Mb+HQsXcrM8ugIRv77ArR9Ivu2CbPsCwgJ': { chainKey: [Object], chainType: 2, messageKeys: {} },
+    previousCounter: 0,
+    rootKey: <Buffer ef 8a 71 8d 64 8a b7 f6 0d 7f 32 c6 94 f2 a6 18 42 71 38 43 e2 06 77 31 26 cd 7a 2e ff cd eb 23>
+    BciZ2ZDGYip2y3xeNZ7gd9EgqdjbQws64nc1B1oaYuR4: { chainKey: [Object], chainType: 2, messageKeys: {} },
+  },
+    'BRRRY2eGO2ct2c9jvq/Z9NpMkjMJ3wbGV/J+ENtLexQR': { chainKey: [Object], chainType: 1, messageKeys: {} }
+  },
+  registrationId: 1969841986,
+  currentRatchet: {
+    used: 1774668295537,
+    created: 1774668290885,
+  }
+}

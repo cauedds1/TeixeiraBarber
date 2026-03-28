@@ -3,13 +3,18 @@ import { whatsappService } from "./whatsapp";
 import { format } from "date-fns";
 
 function log(msg: string) {
-  const t = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true });
+  const t = new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
   console.log(`${t} [express] ${msg}`);
 }
 
 export const BOOKING_URL = process.env.REPLIT_DEV_DOMAIN
   ? `https://${process.env.REPLIT_DEV_DOMAIN}/agendar/teixeira`
-  : "https://57963618-5dfb-413a-88eb-ab8ee22cb96d-00-347r04xq55rqy.spock.replit.dev/agendar/teixeira";
+  : "https://teixeirabarber-production.up.railway.app/agendar/teixeira";
 
 function timeToMs(timeStr: string): number {
   const [h, m] = timeStr.split(":").map(Number);
@@ -18,17 +23,25 @@ function timeToMs(timeStr: string): number {
 
 function paymentEmoji(method: string | null): string {
   switch (method) {
-    case "pix": return "📱 Pix";
-    case "credit": return "💳 Cartão Crédito";
-    case "debit": return "💳 Cartão Débito";
-    case "cash": return "💵 Dinheiro";
-    default: return "💰 Outro";
+    case "pix":
+      return "📱 Pix";
+    case "credit":
+      return "💳 Cartão Crédito";
+    case "debit":
+      return "💳 Cartão Débito";
+    case "cash":
+      return "💵 Dinheiro";
+    default:
+      return "💰 Outro";
   }
 }
 
 function formatCurrency(value: string | number | null): string {
   const n = parseFloat(String(value || "0"));
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(n);
 }
 
 export function startReminderScheduler(): void {
@@ -66,7 +79,9 @@ export function startReminderScheduler(): void {
 
             await whatsappService.sendMessage(appt.clientPhone, msg);
             await storage.markReminderSent(appt.id);
-            log(`[Lembretes] Lembrete enviado para ${appt.clientName} (${appt.startTime})`);
+            log(
+              `[Lembretes] Lembrete enviado para ${appt.clientName} (${appt.startTime})`,
+            );
           } catch (e) {
             log(`[Lembretes] Erro ao enviar lembrete para ${appt.id}: ${e}`);
           }
@@ -96,7 +111,10 @@ export function startCheckoutFollowUpScheduler(): void {
           ].join(" + ");
 
           const productLines = (appt.productDetails || [])
-            .map((p: any) => `🧴 ${p.name}${p.quantity > 1 ? ` (x${p.quantity})` : ""}`)
+            .map(
+              (p: any) =>
+                `🧴 ${p.name}${p.quantity > 1 ? ` (x${p.quantity})` : ""}`,
+            )
             .join("\n");
 
           const totalValue = appt.finalPrice ?? appt.price;
