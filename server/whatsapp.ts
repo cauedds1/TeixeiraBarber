@@ -163,7 +163,7 @@ class WhatsAppService {
             if (isInReviewConversation(phone)) {
               reply = await handleReviewResponse(phone, text);
             } else {
-              reply = await handleIncomingMessage(text, this.barbershopSlug);
+              reply = await handleIncomingMessage(text, this.barbershopSlug, phone);
             }
 
             if (reply) {
