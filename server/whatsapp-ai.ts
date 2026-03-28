@@ -579,7 +579,11 @@ export async function handleIncomingMessage(
     const conv = getOrCreateConversation(phone);
     const isFirstContact = conv.history.length === 0;
 
-    // Inject DB name into conversation state — DB is the source of truth
+    // DB is the source of truth for the client name.
+    // When the DB has a name, always overwrite whatever is in memory.
+    // When the DB has no name, we intentionally leave conv.booking.clientName
+    // untouched so that a name collected earlier in the same live session
+    // (e.g. user said their name but has not confirmed booking yet) is preserved.
     if (knownName !== null) {
       conv.booking.clientName = knownName;
     }
