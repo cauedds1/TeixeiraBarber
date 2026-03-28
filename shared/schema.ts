@@ -153,7 +153,9 @@ export const clients = pgTable("clients", {
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_clients_barbershop_phone").on(table.barbershopId, table.phone),
+]);
 
 // Appointments
 export const appointments = pgTable("appointments", {
@@ -182,7 +184,14 @@ export const appointments = pgTable("appointments", {
   cancelledAt: timestamp("cancelled_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_apt_barber_date").on(table.barberId, table.date),
+  index("idx_apt_barbershop_date").on(table.barbershopId, table.date),
+  index("idx_apt_client_phone").on(table.clientPhone, table.barbershopId),
+  index("idx_apt_reminder").on(table.date, table.reminderSent, table.status),
+  index("idx_apt_review").on(table.date, table.reviewRequestSent, table.reviewCompleted, table.status),
+  index("idx_apt_followup").on(table.status, table.checkoutFollowUpSent),
+]);
 
 // Appointment extras (additional services added to appointment)
 export const appointmentExtras = pgTable("appointment_extras", {
