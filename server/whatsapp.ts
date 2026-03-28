@@ -42,9 +42,13 @@ const P: PinoFn =
 
 const pinoLogger = P({ level: "silent" });
 
-export type WhatsAppStatus = "connected" | "waiting_qr" | "disconnected";
+export type WhatsAppStatus = "connected" | "waiting_qr" | "connecting" | "disconnected";
 
 const SESSION_DIR = path.join(process.cwd(), "whatsapp-session");
+
+// Cache the Baileys version after the first successful fetch to avoid a slow
+// HTTP round-trip to WhatsApp's servers on every reconnect.
+let cachedBaileysVersion: [number, number, number] | null = null;
 
 // Prevent Baileys internal unhandled rejections from crashing the server
 process.on("unhandledRejection", (reason: any) => {
@@ -132,9 +136,15 @@ class WhatsAppService {
   }
 
   async connect(): Promise<void> {
+    this.status = "connecting";
     try {
       const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
-      const { version } = await fetchLatestBaileysVersion();
+      if (!cachedBaileysVersion) {
+        const { version } = await fetchLatestBaileysVersion();
+        cachedBaileysVersion = version;
+        log(`[WhatsApp] Versão Baileys obtida: ${version.join(".")}`);
+      }
+      const version = cachedBaileysVersion;
 
       const sock = makeWASocket({
         version,
@@ -233,11 +243,10 @@ class WhatsAppService {
       try { this.sock.end(undefined); } catch {}
       this.sock = null;
     }
-    this.status = "disconnected";
     this.connectedPhone = null;
-    // Do NOT clear qrDataUrl here — keep showing the last QR while reconnecting
-    // so the user doesn't see a blank screen. It will be replaced once a new QR
-    // is generated, or cleared on successful connection.
+    // connect() sets status = "connecting" at its very first line, so the status
+    // endpoint will immediately reflect that state when the UI polls after the
+    // reconnect button is clicked.
     await this.connect();
   }
 

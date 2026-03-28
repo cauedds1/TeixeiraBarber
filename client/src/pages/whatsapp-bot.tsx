@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Wifi, WifiOff, QrCode, RefreshCw, MessageCircle, Bot, Bell, Zap, LogOut } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-type WAStatus = "connected" | "waiting_qr" | "disconnected";
+type WAStatus = "connected" | "waiting_qr" | "connecting" | "disconnected";
 
 interface WhatsAppStatusResponse {
   status: WAStatus;
@@ -41,6 +41,8 @@ export default function WhatsAppBotPage() {
       const s = query.state.data?.status;
       if (s === "connected") return 30000;
       if (s === "waiting_qr") return 3000;
+      // "connecting" means backend is initialising — poll fast to catch QR/connected
+      if (s === "connecting") return 2000;
       // After reconnect is clicked, poll every 2s for 30s to catch the QR quickly
       if (Date.now() < reconnectingUntilRef.current) return 2000;
       return 3000;
@@ -92,6 +94,12 @@ export default function WhatsAppBotPage() {
       badgeClass: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
       dot: "bg-yellow-400 animate-pulse",
     },
+    connecting: {
+      label: "Conectando…",
+      icon: RefreshCw,
+      badgeClass: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+      dot: "bg-yellow-400 animate-pulse",
+    },
     disconnected: {
       label: "Desconectado",
       icon: WifiOff,
@@ -131,6 +139,7 @@ export default function WhatsAppBotPage() {
             <CardDescription className="text-white/40">
               {status === "connected" && "Bot ativo — mensagens automáticas habilitadas"}
               {status === "waiting_qr" && "Abra o WhatsApp no celular e escaneie o QR Code"}
+              {status === "connecting" && "Estabelecendo conexão com o WhatsApp…"}
               {status === "disconnected" && "Clique em Conectar para iniciar a sessão"}
             </CardDescription>
           </CardHeader>
@@ -177,6 +186,18 @@ export default function WhatsAppBotPage() {
               </div>
             )}
 
+            {!isLoading && status === "connecting" && (
+              <div className="flex flex-col items-center gap-3 py-6">
+                <div className="w-16 h-16 rounded-full bg-yellow-500/10 flex items-center justify-center">
+                  <RefreshCw className="h-8 w-8 text-yellow-400 animate-spin" />
+                </div>
+                <p className="text-yellow-400 font-medium">Iniciando conexão…</p>
+                <p className="text-white/40 text-sm text-center">
+                  Estabelecendo conexão com o WhatsApp. O QR Code aparecerá em instantes.
+                </p>
+              </div>
+            )}
+
             {!isLoading && status === "disconnected" && !data?.qr && (
               <div className="flex flex-col items-center gap-3 py-6">
                 <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center">
@@ -192,15 +213,15 @@ export default function WhatsAppBotPage() {
               <Button
                 data-testid="button-whatsapp-reconnect"
                 onClick={() => reconnectMutation.mutate()}
-                disabled={reconnectMutation.isPending || disconnectMutation.isPending}
+                disabled={reconnectMutation.isPending || disconnectMutation.isPending || status === "connecting"}
                 className="flex-1 bg-[#C9A24D] hover:bg-[#b8903e] text-black font-semibold"
               >
-                {reconnectMutation.isPending ? (
+                {reconnectMutation.isPending || status === "connecting" ? (
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <RefreshCw className="h-4 w-4 mr-2" />
                 )}
-                {status === "disconnected" ? "Conectar WhatsApp" : "Reconectar"}
+                {status === "disconnected" ? "Conectar WhatsApp" : status === "connecting" ? "Conectando…" : "Reconectar"}
               </Button>
               {status === "connected" && (
                 <Button
