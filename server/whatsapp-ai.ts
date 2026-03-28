@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { storage } from "./storage";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { BOOKING_URL } from "./reminder";
 
 let openaiClient: OpenAI | null = null;
 
@@ -19,6 +20,18 @@ function getClient(): OpenAI | null {
 
 type ChatMessage = OpenAI.Chat.ChatCompletionMessageParam;
 
+interface PendingBookingData {
+  barberId: string;
+  barberName: string;
+  serviceId: string;
+  serviceName: string;
+  date: string;
+  slot: string;
+  clientName: string;
+  durationMin: number;
+  price: number;
+}
+
 interface BookingState {
   serviceId?: string;
   serviceName?: string;
@@ -29,6 +42,8 @@ interface BookingState {
   date?: string;
   slot?: string;
   clientName?: string;
+  pending?: PendingBookingData;
+  cancelTargetId?: string;
 }
 
 interface ConversationState {
@@ -118,7 +133,10 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "listar_servicos",
-      description: "Retorna os serviços disponíveis da barbearia com id, nome, preço e duração.",
+      description:
+        "Retorna todos os serviços ativos da barbearia com id, nome, preço e duração. " +
+        "Use quando o cliente quiser ver o cardápio completo ou quando precisar encontrar " +
+        "o id de um serviço que o cliente mencionou.",
       parameters: { type: "object", properties: {} },
     },
   },
@@ -126,7 +144,7 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "listar_barbeiros",
-      description: "Retorna os barbeiros ativos da barbearia com id e nome.",
+      description: "Retorna os barbeiros ativos com id e nome.",
       parameters: { type: "object", properties: {} },
     },
   },
@@ -135,25 +153,18 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
     function: {
       name: "verificar_disponibilidade",
       description:
-        "Verifica horários livres para um barbeiro em uma data. " +
-        "Se o cliente não tiver preferência de barbeiro, passe barbeiro_id como 'qualquer' " +
-        "para buscar disponibilidade em todos os barbeiros ativos.",
+        "Verifica horários livres em tempo real. Consulta o banco de dados ao vivo — " +
+        "reflete imediatamente qualquer agendamento feito pelo site ou pelo WhatsApp. " +
+        "Se barbeiro_id for 'qualquer', retorna horários disponíveis por barbeiro.",
       parameters: {
         type: "object",
         properties: {
           barbeiro_id: {
             type: "string",
-            description:
-              "ID do barbeiro, ou a string 'qualquer' para checar todos os barbeiros ativos.",
+            description: "ID do barbeiro, ou 'qualquer' se o cliente não tiver preferência.",
           },
-          data: {
-            type: "string",
-            description: "Data no formato YYYY-MM-DD.",
-          },
-          duracao_minutos: {
-            type: "number",
-            description: "Duração do serviço em minutos.",
-          },
+          data: { type: "string", description: "Data no formato YYYY-MM-DD." },
+          duracao_minutos: { type: "number", description: "Duração do serviço em minutos." },
         },
         required: ["barbeiro_id", "data", "duracao_minutos"],
       },
@@ -162,25 +173,67 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
-      name: "criar_agendamento",
-      description: "Cria um agendamento após coletar todas as informações do cliente.",
+      name: "propor_agendamento",
+      description:
+        "Registra internamente a proposta de agendamento com todos os dados coletados. " +
+        "Chame esta tool ANTES de apresentar a frase de confirmação ao cliente. " +
+        "Após chamar esta tool, SEMPRE escreva a mensagem de confirmação no formato exato: " +
+        "'Posso confirmar *[Serviço]* às *[HH:MM]* do dia *[DD/MM]* com *[Barbeiro]* por *R$ [preço]*? Responda *sim* para confirmar.' " +
+        "Só chame confirmar_agendamento na mensagem SEGUINTE, quando o cliente responder positivamente.",
       parameters: {
         type: "object",
         properties: {
-          barbeiro_id: { type: "string", description: "ID do barbeiro." },
-          barbeiro_nome: { type: "string", description: "Nome do barbeiro." },
-          servico_id: { type: "string", description: "ID do serviço." },
-          servico_nome: { type: "string", description: "Nome do serviço." },
-          data: { type: "string", description: "Data no formato YYYY-MM-DD." },
-          horario: { type: "string", description: "Horário de início no formato HH:MM." },
-          nome_cliente: { type: "string", description: "Nome do cliente." },
-          duracao_minutos: { type: "number", description: "Duração do serviço em minutos." },
-          preco: { type: "number", description: "Preço do serviço." },
+          barbeiro_id: { type: "string" },
+          barbeiro_nome: { type: "string" },
+          servico_id: { type: "string" },
+          servico_nome: { type: "string" },
+          data: { type: "string", description: "YYYY-MM-DD" },
+          horario: { type: "string", description: "HH:MM" },
+          nome_cliente: { type: "string" },
+          duracao_minutos: { type: "number" },
+          preco: { type: "number" },
         },
         required: [
           "barbeiro_id", "barbeiro_nome", "servico_id", "servico_nome",
           "data", "horario", "nome_cliente", "duracao_minutos", "preco",
         ],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "confirmar_agendamento",
+      description:
+        "Cria o agendamento no banco de dados. Só chame esta tool quando o cliente " +
+        "tiver respondido positivamente à frase de confirmação (sim, confirmo, pode agendar, etc.). " +
+        "NÃO chame antes de obter confirmação explícita do cliente.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "buscar_agendamento_para_cancelar",
+      description:
+        "Busca os próximos agendamentos ativos do cliente pelo número de telefone. " +
+        "Use quando o cliente quiser cancelar um agendamento.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "executar_cancelamento",
+      description:
+        "Cancela o agendamento no banco de dados. Só chame após o cliente confirmar " +
+        "que quer cancelar.",
+      parameters: {
+        type: "object",
+        properties: {
+          agendamento_id: { type: "string", description: "ID do agendamento a cancelar." },
+        },
+        required: ["agendamento_id"],
       },
     },
   },
@@ -198,6 +251,7 @@ async function executeTool(
   booking: BookingState
 ): Promise<string> {
   try {
+    // ---- listar_servicos ----
     if (name === "listar_servicos") {
       const services = await storage.getServices(barbershopId);
       const active = services.filter((s) => s.isActive);
@@ -212,6 +266,7 @@ async function executeTool(
       );
     }
 
+    // ---- listar_barbeiros ----
     if (name === "listar_barbeiros") {
       const barbers = await storage.getBarbers(barbershopId);
       const active = barbers.filter((b) => b.isActive);
@@ -219,17 +274,16 @@ async function executeTool(
       return JSON.stringify(active.map((b) => ({ id: b.id, nome: b.name })));
     }
 
+    // ---- verificar_disponibilidade ----
     if (name === "verificar_disponibilidade") {
       const barbeiroId = String(args.barbeiro_id ?? "");
       const data = String(args.data ?? "");
       const duracaoMinutos = Number(args.duracao_minutos ?? 30);
 
-      // Persist collected info into booking state
       if (data) booking.date = data;
       if (duracaoMinutos) booking.durationMin = duracaoMinutos;
 
       if (barbeiroId === "qualquer") {
-        // Check all active barbers and return slots per barber
         const barbers = await storage.getBarbers(barbershopId);
         const active = barbers.filter((b) => b.isActive);
         const results: Array<{ barbeiro: string; id: string; horarios: string[] }> = [];
@@ -237,11 +291,7 @@ async function executeTool(
         for (const barber of active) {
           const slots = await getSlotsForBarber(barber.id, data, duracaoMinutos);
           if (slots.length > 0) {
-            results.push({
-              barbeiro: barber.name,
-              id: barber.id,
-              horarios: slots.slice(0, 6),
-            });
+            results.push({ barbeiro: barber.name, id: barber.id, horarios: slots.slice(0, 6) });
           }
         }
 
@@ -249,7 +299,6 @@ async function executeTool(
           return JSON.stringify({ disponivel: false, mensagem: "Nenhum barbeiro tem horários disponíveis nesta data." });
         }
 
-        // Auto-select the barber with most availability for booking state
         const best = results.reduce((a, b) => (a.horarios.length >= b.horarios.length ? a : b));
         booking.barberId = best.id;
         booking.barberName = best.barbeiro;
@@ -257,14 +306,12 @@ async function executeTool(
         return JSON.stringify({ disponivel: true, por_barbeiro: results });
       }
 
-      // Specific barber
       const barber = await storage.getBarber(barbeiroId).catch(() => null);
       if (!barber || barber.barbershopId !== barbershopId || !barber.isActive) {
         return JSON.stringify({ erro: "Barbeiro não encontrado ou inativo." });
       }
 
       const slots = await getSlotsForBarber(barbeiroId, data, duracaoMinutos);
-
       if (!slots.length) {
         return JSON.stringify({ disponivel: false, mensagem: "Sem horários disponíveis nesta data para este barbeiro." });
       }
@@ -276,7 +323,8 @@ async function executeTool(
       return JSON.stringify({ disponivel: true, horarios: slots.slice(0, 8) });
     }
 
-    if (name === "criar_agendamento") {
+    // ---- propor_agendamento ----
+    if (name === "propor_agendamento") {
       const barbeiroId = String(args.barbeiro_id ?? booking.barberId ?? "");
       const barbeiroNome = String(args.barbeiro_nome ?? booking.barberName ?? "");
       const servicoId = String(args.servico_id ?? booking.serviceId ?? "");
@@ -289,7 +337,7 @@ async function executeTool(
 
       if (!barbeiroId || !servicoId || !data || !horario || !nomeCliente) {
         return JSON.stringify({
-          erro: "Dados incompletos para criar o agendamento.",
+          erro: "Dados incompletos para propor agendamento.",
           faltando: {
             barbeiro: !barbeiroId,
             servico: !servicoId,
@@ -300,67 +348,165 @@ async function executeTool(
         });
       }
 
-      // Validate barber and service belong to this barbershop and are active
+      // Validate entities
       const barber = await storage.getBarber(barbeiroId).catch(() => null);
       if (!barber || barber.barbershopId !== barbershopId || !barber.isActive) {
-        return JSON.stringify({ erro: "Barbeiro inválido ou não pertence à barbearia." });
+        return JSON.stringify({ erro: "Barbeiro inválido." });
       }
-
       const service = await storage.getService(servicoId).catch(() => null);
       if (!service || service.barbershopId !== barbershopId || !service.isActive) {
-        return JSON.stringify({ erro: "Serviço inválido ou não pertence à barbearia." });
+        return JSON.stringify({ erro: "Serviço inválido." });
       }
 
-      // Revalidate slot availability immediately before booking (prevent double-booking)
+      // Check slot still free at proposal time
       const availableNow = await getSlotsForBarber(barbeiroId, data, duracaoMinutos);
       if (!availableNow.includes(horario)) {
         return JSON.stringify({
-          erro: "Este horário não está mais disponível. Por favor, escolha outro horário.",
+          erro: "Horário não disponível.",
           horarios_disponiveis: availableNow.slice(0, 6),
         });
       }
 
-      const startMin = timeToMinutes(horario);
-      const endTime = minutesToTime(startMin + duracaoMinutos);
+      // Store pending proposal
+      booking.pending = {
+        barberId: barbeiroId,
+        barberName: barbeiroNome || barber.name,
+        serviceId: servicoId,
+        serviceName: servicoNome || service.name,
+        date: data,
+        slot: horario,
+        clientName: nomeCliente,
+        durationMin: duracaoMinutos,
+        price: preco || Number(service.price),
+      };
+
+      return JSON.stringify({
+        proposta_registrada: true,
+        servico: booking.pending.serviceName,
+        horario: booking.pending.slot,
+        data: booking.pending.date,
+        barbeiro: booking.pending.barberName,
+        preco: booking.pending.price.toFixed(2),
+        nome: booking.pending.clientName,
+      });
+    }
+
+    // ---- confirmar_agendamento ----
+    if (name === "confirmar_agendamento") {
+      const p = booking.pending;
+      if (!p) {
+        return JSON.stringify({ erro: "Nenhuma proposta de agendamento pendente." });
+      }
+
+      // Final slot revalidation before writing
+      const availableNow = await getSlotsForBarber(p.barberId, p.date, p.durationMin);
+      if (!availableNow.includes(p.slot)) {
+        booking.pending = undefined;
+        return JSON.stringify({
+          erro: "O horário não está mais disponível. Preciso oferecer outro horário.",
+          horarios_disponiveis: availableNow.slice(0, 6),
+        });
+      }
+
+      const startMin = timeToMinutes(p.slot);
+      const endTime = minutesToTime(startMin + p.durationMin);
 
       const appt = await storage.createAppointment({
         barbershopId,
-        barberId: barbeiroId,
-        serviceId: servicoId,
-        date: data,
-        startTime: horario,
+        barberId: p.barberId,
+        serviceId: p.serviceId,
+        date: p.date,
+        startTime: p.slot,
         endTime,
         status: "confirmed",
-        price: String(preco || service.price),
-        clientName: nomeCliente,
+        price: String(p.price),
+        clientName: p.clientName,
         clientPhone: phone,
       });
 
-      // Persist full booking state
-      booking.barberId = barbeiroId;
-      booking.barberName = barbeiroNome || barber.name;
-      booking.serviceId = servicoId;
-      booking.serviceName = servicoNome || service.name;
-      booking.durationMin = duracaoMinutos;
-      booking.price = Number(preco || service.price);
-      booking.date = data;
-      booking.slot = horario;
-      booking.clientName = nomeCliente;
+      // Persist to booking state
+      booking.barberId = p.barberId;
+      booking.barberName = p.barberName;
+      booking.serviceId = p.serviceId;
+      booking.serviceName = p.serviceName;
+      booking.durationMin = p.durationMin;
+      booking.price = p.price;
+      booking.date = p.date;
+      booking.slot = p.slot;
+      booking.clientName = p.clientName;
+      booking.pending = undefined;
 
       return JSON.stringify({
         sucesso: true,
         agendamento_id: appt.id,
-        barbeiro: booking.barberName,
-        servico: booking.serviceName,
-        data,
-        horario,
-        nome: nomeCliente,
+        barbeiro: p.barberName,
+        servico: p.serviceName,
+        data: p.date,
+        horario: p.slot,
+        nome: p.clientName,
+      });
+    }
+
+    // ---- buscar_agendamento_para_cancelar ----
+    if (name === "buscar_agendamento_para_cancelar") {
+      const appts = await storage.getUpcomingAppointmentsByPhone(phone, barbershopId).catch(() => []);
+      if (!appts.length) {
+        return JSON.stringify({ encontrado: false, mensagem: "Nenhum agendamento ativo encontrado para este número." });
+      }
+
+      const enriched = await Promise.all(
+        appts.map(async (a) => {
+          const barber = a.barberId ? await storage.getBarber(a.barberId).catch(() => null) : null;
+          const service = a.serviceId ? await storage.getService(a.serviceId).catch(() => null) : null;
+          return {
+            id: a.id,
+            servico: service?.name ?? "Serviço",
+            barbeiro: barber?.name ?? "Barbeiro",
+            data: a.date,
+            horario: a.startTime,
+            status: a.status,
+          };
+        })
+      );
+
+      // Store first one as cancel target
+      booking.cancelTargetId = enriched[0].id;
+
+      return JSON.stringify({ encontrado: true, agendamentos: enriched });
+    }
+
+    // ---- executar_cancelamento ----
+    if (name === "executar_cancelamento") {
+      const agendamentoId = String(args.agendamento_id ?? booking.cancelTargetId ?? "");
+      if (!agendamentoId) {
+        return JSON.stringify({ erro: "ID do agendamento não informado." });
+      }
+
+      // Validate ownership before cancelling
+      const appt = await storage.getAppointment(agendamentoId).catch(() => null);
+      if (!appt || appt.barbershopId !== barbershopId) {
+        return JSON.stringify({ erro: "Agendamento não encontrado." });
+      }
+      if (appt.clientPhone !== phone) {
+        return JSON.stringify({ erro: "Este agendamento não pertence a este número." });
+      }
+      if (appt.status === "cancelled") {
+        return JSON.stringify({ erro: "Este agendamento já está cancelado." });
+      }
+
+      await storage.updateAppointmentStatus(agendamentoId, "cancelled");
+      booking.cancelTargetId = undefined;
+
+      return JSON.stringify({
+        sucesso: true,
+        mensagem: "Agendamento cancelado com sucesso.",
+        agendamento_id: agendamentoId,
       });
     }
 
     return JSON.stringify({ erro: "Ferramenta desconhecida." });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Erro interno ao executar ferramenta.";
+    const msg = e instanceof Error ? e.message : "Erro interno.";
     return JSON.stringify({ erro: msg });
   }
 }
@@ -389,47 +535,92 @@ export async function handleIncomingMessage(
     const today = format(new Date(), "yyyy-MM-dd");
     const todayReadable = format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
-    const systemPrompt = `Você é Rafael, atendente da Teixeira Barbearia. Você atende clientes pelo WhatsApp de forma natural e humana — como uma pessoa real, não como um robô ou assistente virtual.
+    const conv = getOrCreateConversation(phone);
+    const isFirstContact = conv.history.length === 0;
+
+    conv.history.push({ role: "user", content: text });
+
+    const systemPrompt = `Você é Rafael, atendente da Teixeira Barbearia. Atende clientes pelo WhatsApp de forma natural e humana — como um funcionário real, direto ao ponto.
 
 BARBEARIA:
 - Nome: Teixeira Barbearia
 - Endereço: Rua Koesa, 430, Sala 03, Kobrasol, São José – SC
 - Instagram: @teixeirabarbeariaoficial
-- Fundada em 2018
+- Site/agendamento online: ${BOOKING_URL}
 
 HORÁRIOS:
 - Segunda a Sexta: 09h às 20h
 - Sábado: 08h às 14h
 - Domingo: fechado
 
-DATA DE HOJE: ${todayReadable} (a data atual em formato YYYY-MM-DD é ${today} — use para interpretar "hoje", "amanhã", "segunda que vem", etc.)
+DATA DE HOJE: ${todayReadable} (formato YYYY-MM-DD: ${today})
 
-COMO SE COMPORTAR:
-- Linguagem informal, descontraída e acolhedora. Sem formalidades desnecessárias.
-- Sem frases fixas de abertura ou encerramento — varie conforme o contexto.
-- Respostas curtas e diretas. Sem parágrafos longos.
-- Use emojis com naturalidade e moderação (✂️ 💈 👊 😄).
-- Use *negrito* do WhatsApp para destacar horários, preços, nomes e datas importantes.
-- Se perguntarem se você é IA, desvie com bom humor: "Sou tão real quanto uma navalha bem afiada 😄"
-- NUNCA fale sobre assuntos fora da barbearia. Se tentarem, redirecione com leveza: "Aqui só entendo de barba e cabelo mesmo 😄 Posso te ajudar com mais alguma coisa?"
+═══════════════════════════════════════
+PRIMEIRO CONTATO${isFirstContact ? " ← ESTA É A PRIMEIRA MENSAGEM DO CLIENTE" : ""}
+═══════════════════════════════════════
+${isFirstContact ? `Se for o primeiro contato, responda de forma breve e objetiva:
+1. Se apresente rapidamente ("Oi! Aqui é o Rafael da Teixeira Barbearia 💈")
+2. Mencione que pode agendar pelo site: ${BOOKING_URL}
+3. E também pelo próprio WhatsApp — é só falar
+4. Pergunte como pode ajudar
+Seja curto. Não escreva parágrafos.` : "Continue a conversa normalmente."}
 
-COMO AGENDAR:
-Quando o cliente quiser agendar, use as ferramentas disponíveis nesta ordem:
-1. Chame listar_servicos para conhecer o cardápio e pergunte qual serviço o cliente quer.
-2. Pergunte se o cliente tem preferência de barbeiro. Se tiver, chame listar_barbeiros para obter o ID. Se não tiver preferência, use barbeiro_id='qualquer' no próximo passo.
-3. Pergunte a data desejada. Converta linguagem natural para YYYY-MM-DD usando a data atual.
-4. Chame verificar_disponibilidade. Se barbeiro_id='qualquer', o sistema retornará horários por barbeiro e você pode apresentar as opções de forma natural. Mostre no máximo 6 horários.
-5. Pergunte o nome do cliente se ainda não souber.
-6. Só chame criar_agendamento quando tiver barbeiro_id, servico_id, data, horario e nome_cliente confirmados.
-7. Após criar, confirme o agendamento de forma natural com barbeiro, serviço, data e horário.
+═══════════════════════════════════════
+COMPORTAMENTO GERAL
+═══════════════════════════════════════
+- Linguagem informal, descontraída. Sem formalidades.
+- Respostas curtas e diretas. Nada de parágrafos longos.
+- Use *negrito* para horários, preços, nomes e datas.
+- Emojis com moderação (✂️ 💈 👊 😄).
+- Se perguntarem se você é IA: "Sou tão real quanto uma navalha bem afiada 😄"
+- NUNCA fale de assuntos fora da barbearia. Redirecione: "Aqui só entendo de barba e cabelo 😄"
 
-REGRAS EXTRAS:
-- Nunca invente horários — sempre use verificar_disponibilidade com dados reais.
-- Se não houver horários na data pedida, sugira outra data ou outro barbeiro.
-- Não crie agendamentos sem confirmar o nome do cliente.`;
+═══════════════════════════════════════
+FLUXO DE AGENDAMENTO (SEJA EFICIENTE)
+═══════════════════════════════════════
+REGRA PRINCIPAL: Vá direto ao ponto. Colete informações em paralelo sempre que possível.
 
-    const conv = getOrCreateConversation(phone);
-    conv.history.push({ role: "user", content: text });
+QUANDO O CLIENTE JÁ MENCIONA UM SERVIÇO ("quero cortar o cabelo", "quero fazer a barba", etc.):
+→ Chame listar_servicos para encontrar o ID do serviço mencionado (NÃO mostre o menu completo)
+→ Pergunte a data e a preferência de barbeiro AO MESMO TEMPO, em uma única mensagem
+→ Com data e barbeiro definidos, chame verificar_disponibilidade imediatamente
+→ Mostre os horários disponíveis JÁ com o serviço e preço: "Tenho esses horários para *Corte de Cabelo* (R$ 35,00 | 40 min) com o *João*:"
+
+QUANDO O CLIENTE NÃO ESPECIFICA O SERVIÇO:
+→ Chame listar_servicos e mostre o menu brevemente
+→ Pergunte qual quer
+
+QUANDO O CLIENTE PEDE PARA VER TODOS OS SERVIÇOS:
+→ Chame listar_servicos e liste todos com preço e duração
+
+PASSOS DO AGENDAMENTO:
+1. Identifique o serviço (ID + nome + preço + duração)
+2. Verifique preferência de barbeiro (se não tiver, use barbeiro_id='qualquer')
+3. Obtenha a data desejada (interprete linguagem natural usando a data atual)
+4. Chame verificar_disponibilidade e mostre até 6 horários
+5. Cliente escolhe o horário
+6. Se ainda não souber o nome, pergunte
+7. Com TODOS os dados: chame propor_agendamento
+8. OBRIGATÓRIO: escreva EXATAMENTE esta frase após propor_agendamento:
+   "Posso confirmar *[Serviço]* às *[HH:MM]* do dia *[DD/MM]* com *[Barbeiro]* por *R$ [preço]*? Responda *sim* para confirmar."
+9. APENAS quando o cliente responder "sim", "confirmo", "pode", "ok" ou similar → chame confirmar_agendamento
+10. Confirme o agendamento com os detalhes e uma mensagem simpática
+
+REGRAS DE OURO:
+- NUNCA chame confirmar_agendamento sem antes chamar propor_agendamento E receber "sim" do cliente
+- NUNCA invente horários — sempre use verificar_disponibilidade
+- Se o horário já foi tomado, informe e ofereça outros
+- Os horários refletem o banco em tempo real (site + WhatsApp compartilham os mesmos dados)
+
+═══════════════════════════════════════
+FLUXO DE CANCELAMENTO
+═══════════════════════════════════════
+QUANDO O CLIENTE QUER CANCELAR:
+1. Chame buscar_agendamento_para_cancelar
+2. Apresente os agendamentos encontrados com detalhes (serviço, barbeiro, data, horário)
+3. Pergunte se confirma o cancelamento: "Confirma o cancelamento de *[Serviço]* às *[HH:MM]* do dia *[DD/MM]*?"
+4. APENAS quando o cliente confirmar → chame executar_cancelamento com o agendamento_id
+5. Informe que foi cancelado e que pode reagendar quando quiser`;
 
     const messages: ChatMessage[] = [
       { role: "system", content: systemPrompt },
@@ -442,11 +633,11 @@ REGRAS EXTRAS:
       tools,
       tool_choice: "auto",
       max_tokens: 700,
-      temperature: 0.75,
+      temperature: 0.7,
     });
 
     let iterations = 0;
-    while (response.choices[0]?.finish_reason === "tool_calls" && iterations < 6) {
+    while (response.choices[0]?.finish_reason === "tool_calls" && iterations < 8) {
       iterations++;
       const assistantMsg = response.choices[0].message;
       conv.history.push(assistantMsg);
@@ -488,14 +679,14 @@ REGRAS EXTRAS:
         tools,
         tool_choice: "auto",
         max_tokens: 700,
-        temperature: 0.75,
+        temperature: 0.7,
       });
     }
 
     const finalText = response.choices[0]?.message?.content ?? FALLBACK_REPLY;
     conv.history.push({ role: "assistant", content: finalText });
 
-    // Keep history bounded — retain last 40 messages (20 exchanges)
+    // Keep history bounded — last 40 messages
     if (conv.history.length > 40) {
       conv.history = conv.history.slice(-40);
     }

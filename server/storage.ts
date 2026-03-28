@@ -75,6 +75,7 @@ export interface IStorage {
   }): Promise<Appointment | undefined>;
   getCompletedWithoutFollowUp(): Promise<any[]>;
   markCheckoutFollowUpSent(id: string): Promise<void>;
+  getUpcomingAppointmentsByPhone(phone: string, barbershopId: string): Promise<Appointment[]>;
 
   // Products
   getProducts(barbershopId: string): Promise<Product[]>;
@@ -566,6 +567,18 @@ export class DatabaseStorage implements IStorage {
     await db.update(appointments)
       .set({ checkoutFollowUpSent: true, updatedAt: new Date() })
       .where(eq(appointments.id, id));
+  }
+
+  async getUpcomingAppointmentsByPhone(phone: string, barbershopId: string): Promise<Appointment[]> {
+    const today = new Date().toISOString().slice(0, 10);
+    return db.select().from(appointments)
+      .where(and(
+        eq(appointments.barbershopId, barbershopId),
+        eq(appointments.clientPhone, phone),
+        sql`${appointments.date} >= ${today}`,
+        sql`${appointments.status} IN ('pending', 'confirmed')`
+      ))
+      .orderBy(appointments.date, appointments.startTime);
   }
 
   // Products
