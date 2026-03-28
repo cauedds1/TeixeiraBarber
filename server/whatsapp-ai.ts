@@ -446,6 +446,14 @@ async function executeTool(
         clientPhone: phone,
       });
 
+      // Persist client name to DB so the bot remembers it forever
+      if (p.clientName) {
+        const normalizedPhone = phone.replace(/\D/g, "");
+        storage.upsertClientByPhone(barbershopId, normalizedPhone, p.clientName).catch((e) => {
+          console.error("[WhatsApp AI] Erro ao salvar nome do cliente:", e);
+        });
+      }
+
       // Persist to booking state
       booking.barberId = p.barberId;
       booking.barberName = p.barberName;
@@ -564,8 +572,17 @@ export async function handleIncomingMessage(
     const today = format(new Date(), "yyyy-MM-dd");
     const todayReadable = format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
+    const normalizedPhone = phone.replace(/\D/g, "");
+    const knownClient = await storage.getClientByPhone(barbershop.id, normalizedPhone).catch(() => null);
+    const knownName = knownClient?.name ?? null;
+
     const conv = getOrCreateConversation(phone);
     const isFirstContact = conv.history.length === 0;
+
+    // Inject DB name into conversation state — DB is the source of truth
+    if (knownName !== null) {
+      conv.booking.clientName = knownName;
+    }
 
     conv.history.push({ role: "user", content: text });
 
@@ -585,13 +602,21 @@ HORÁRIOS:
 DATA DE HOJE: ${todayReadable} (formato YYYY-MM-DD: ${today})
 
 ═══════════════════════════════════════
+CLIENTE ATUAL
+═══════════════════════════════════════
+- Telefone: ${phone}
+${knownName
+  ? `- Nome: ${knownName}\n⚠️ Você JÁ SABE o nome deste cliente. NUNCA peça o nome novamente. Use-o naturalmente na conversa.`
+  : "- Nome: desconhecido (pergunte quando necessário para agendar — apenas uma vez)"}
+
+═══════════════════════════════════════
 PRIMEIRO CONTATO${isFirstContact ? " ← ESTA É A PRIMEIRA MENSAGEM DO CLIENTE" : ""}
 ═══════════════════════════════════════
 ${isFirstContact ? `Se for o primeiro contato, responda de forma breve e objetiva:
 1. Se apresente rapidamente ("Oi! Aqui é o Rafael da Teixeira Barbearia 💈")
-2. Mencione que pode agendar pelo site: ${BOOKING_URL}
+${knownName ? `2. Chame o cliente pelo nome (${knownName}) e pergunte como pode ajudar` : `2. Mencione que pode agendar pelo site: ${BOOKING_URL}
 3. E também pelo próprio WhatsApp — é só falar
-4. Pergunte como pode ajudar
+4. Pergunte como pode ajudar`}
 Seja curto. Não escreva parágrafos.` : "Continue a conversa normalmente."}
 
 ═══════════════════════════════════════

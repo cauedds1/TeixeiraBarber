@@ -53,6 +53,8 @@ export interface IStorage {
   getClient(id: string): Promise<Client | undefined>;
   createClient(data: InsertClient): Promise<Client>;
   updateClient(id: string, data: Partial<InsertClient>): Promise<Client | undefined>;
+  getClientByPhone(barbershopId: string, phone: string): Promise<Client | null>;
+  upsertClientByPhone(barbershopId: string, phone: string, name: string): Promise<Client>;
 
   // Appointments
   getAppointments(barbershopId: string, date?: string): Promise<Appointment[]>;
@@ -292,6 +294,44 @@ export class DatabaseStorage implements IStorage {
       .where(eq(clients.id, id))
       .returning();
     return client;
+  }
+
+  async getClientByPhone(barbershopId: string, phone: string): Promise<Client | null> {
+    const normalized = phone.replace(/\D/g, "");
+    const [client] = await db
+      .select()
+      .from(clients)
+      .where(
+        and(
+          eq(clients.barbershopId, barbershopId),
+          eq(clients.phone, normalized)
+        )
+      )
+      .limit(1);
+    return client ?? null;
+  }
+
+  async upsertClientByPhone(barbershopId: string, phone: string, name: string): Promise<Client> {
+    const normalized = phone.replace(/\D/g, "");
+    const existing = await this.getClientByPhone(barbershopId, normalized);
+
+    if (existing) {
+      if (existing.name !== name) {
+        const [updated] = await db
+          .update(clients)
+          .set({ name, updatedAt: new Date() })
+          .where(eq(clients.id, existing.id))
+          .returning();
+        return updated;
+      }
+      return existing;
+    }
+
+    const [created] = await db
+      .insert(clients)
+      .values({ barbershopId, phone: normalized, name, isActive: true })
+      .returning();
+    return created;
   }
 
   // Appointments
