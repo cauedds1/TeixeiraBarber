@@ -117,7 +117,7 @@ export default function WhatsAppBotPage() {
               </div>
             )}
 
-            {!isLoading && status === "waiting_qr" && data?.qr && (
+            {!isLoading && data?.qr && (
               <div className="flex flex-col items-center gap-3">
                 <div className="p-3 bg-white rounded-xl">
                   <img
