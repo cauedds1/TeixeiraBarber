@@ -243,12 +243,27 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
 // Tool execution
 // ---------------------------------------------------------------------------
 
+const AFFIRMATIVE_PATTERNS = [
+  "sim", "s", "yes", "y", "confirmo", "confirmado", "confirmar",
+  "pode", "pode ser", "ok", "okay", "tá", "ta", "tá bom", "ta bom",
+  "quero", "feito", "vai", "vamos", "bora", "certo", "perfeito", "ótimo", "otimo",
+  "isso", "esse", "esse mesmo", "esse horário", "esse horario",
+];
+
+function isAffirmative(text: string): boolean {
+  const normalized = text.trim().toLowerCase().replace(/[!.]/g, "");
+  return AFFIRMATIVE_PATTERNS.some(
+    (p) => normalized === p || normalized.startsWith(p + " ") || normalized.endsWith(" " + p)
+  );
+}
+
 async function executeTool(
   name: string,
   args: Record<string, unknown>,
   barbershopId: string,
   phone: string,
-  booking: BookingState
+  booking: BookingState,
+  lastUserMessage: string
 ): Promise<string> {
   try {
     // ---- listar_servicos ----
@@ -393,6 +408,13 @@ async function executeTool(
 
     // ---- confirmar_agendamento ----
     if (name === "confirmar_agendamento") {
+      // Server-side guard: only proceed if the user's last message was affirmative
+      if (!isAffirmative(lastUserMessage)) {
+        return JSON.stringify({
+          erro: "Aguardando confirmação do cliente. O cliente ainda não respondeu positivamente.",
+        });
+      }
+
       const p = booking.pending;
       if (!p) {
         return JSON.stringify({ erro: "Nenhuma proposta de agendamento pendente." });
@@ -454,25 +476,32 @@ async function executeTool(
         return JSON.stringify({ encontrado: false, mensagem: "Nenhum agendamento ativo encontrado para este número." });
       }
 
-      const enriched = await Promise.all(
-        appts.map(async (a) => {
-          const barber = a.barberId ? await storage.getBarber(a.barberId).catch(() => null) : null;
-          const service = a.serviceId ? await storage.getService(a.serviceId).catch(() => null) : null;
-          return {
-            id: a.id,
-            servico: service?.name ?? "Serviço",
-            barbeiro: barber?.name ?? "Barbeiro",
-            data: a.date,
-            horario: a.startTime,
-            status: a.status,
-          };
-        })
-      );
+      // Use only the soonest appointment as the default cancel target
+      const next = appts[0];
+      const barber = next.barberId ? await storage.getBarber(next.barberId).catch(() => null) : null;
+      const service = next.serviceId ? await storage.getService(next.serviceId).catch(() => null) : null;
 
-      // Store first one as cancel target
-      booking.cancelTargetId = enriched[0].id;
+      const result = {
+        id: next.id,
+        servico: service?.name ?? "Serviço",
+        barbeiro: barber?.name ?? "Barbeiro",
+        data: next.date,
+        horario: next.startTime,
+        status: next.status,
+      };
 
-      return JSON.stringify({ encontrado: true, agendamentos: enriched });
+      booking.cancelTargetId = next.id;
+
+      const hasMore = appts.length > 1;
+
+      return JSON.stringify({
+        encontrado: true,
+        proximo_agendamento: result,
+        total_agendamentos: appts.length,
+        observacao: hasMore
+          ? `O cliente tem ${appts.length} agendamentos futuros. Este é o mais próximo. Se quiser cancelar outro, peça o detalhamento.`
+          : undefined,
+      });
     }
 
     // ---- executar_cancelamento ----
@@ -660,7 +689,8 @@ QUANDO O CLIENTE QUER CANCELAR:
           args,
           barbershop.id,
           phone,
-          conv.booking
+          conv.booking,
+          text
         );
 
         toolResults.push({
