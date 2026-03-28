@@ -19,8 +19,21 @@ function getClient(): OpenAI | null {
 
 type ChatMessage = OpenAI.Chat.ChatCompletionMessageParam;
 
+interface BookingState {
+  serviceId?: string;
+  serviceName?: string;
+  durationMin?: number;
+  price?: number;
+  barberId?: string;
+  barberName?: string;
+  date?: string;
+  slot?: string;
+  clientName?: string;
+}
+
 interface ConversationState {
   history: ChatMessage[];
+  booking: BookingState;
   expiresAt: number;
 }
 
@@ -35,6 +48,7 @@ function getOrCreateConversation(phone: string): ConversationState {
   }
   const fresh: ConversationState = {
     history: [],
+    booking: {},
     expiresAt: Date.now() + CONV_TTL_MS,
   };
   conversations.set(phone, fresh);
@@ -43,7 +57,7 @@ function getOrCreateConversation(phone: string): ConversationState {
 
 setInterval(() => {
   const now = Date.now();
-  for (const [phone, conv] of conversations.entries()) {
+  for (const [phone, conv] of conversations) {
     if (now > conv.expiresAt) conversations.delete(phone);
   }
 }, 30 * 60 * 1000);
@@ -63,7 +77,7 @@ function minutesToTime(minutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-async function getAvailableSlots(
+async function getSlotsForBarber(
   barberId: string,
   date: string,
   durationMin: number
@@ -77,8 +91,8 @@ async function getAvailableSlots(
   const existingAppts = await storage.getAppointmentsByBarber(barberId, date).catch(() => []);
 
   const busy = existingAppts
-    .filter((a: any) => a.status !== "cancelled")
-    .map((a: any) => ({
+    .filter((a) => a.status !== "cancelled")
+    .map((a) => ({
       start: timeToMinutes(a.startTime),
       end: timeToMinutes(a.endTime),
     }));
@@ -86,7 +100,7 @@ async function getAvailableSlots(
   const slots: string[] = [];
   for (let t = workStart; t + durationMin <= workEnd; t += 30) {
     const slotEnd = t + durationMin;
-    const overlaps = busy.some((b: any) => t < b.end && slotEnd > b.start);
+    const overlaps = busy.some((b) => t < b.end && slotEnd > b.start);
     if (!overlaps) {
       slots.push(minutesToTime(t));
     }
@@ -120,13 +134,17 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "verificar_disponibilidade",
-      description: "Verifica os horários livres para um barbeiro em uma data específica.",
+      description:
+        "Verifica horários livres para um barbeiro em uma data. " +
+        "Se o cliente não tiver preferência de barbeiro, passe barbeiro_id como 'qualquer' " +
+        "para buscar disponibilidade em todos os barbeiros ativos.",
       parameters: {
         type: "object",
         properties: {
           barbeiro_id: {
             type: "string",
-            description: "ID do barbeiro.",
+            description:
+              "ID do barbeiro, ou a string 'qualquer' para checar todos os barbeiros ativos.",
           },
           data: {
             type: "string",
@@ -150,9 +168,9 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
         type: "object",
         properties: {
           barbeiro_id: { type: "string", description: "ID do barbeiro." },
-          barbeiro_nome: { type: "string", description: "Nome do barbeiro (para confirmação)." },
+          barbeiro_nome: { type: "string", description: "Nome do barbeiro." },
           servico_id: { type: "string", description: "ID do serviço." },
-          servico_nome: { type: "string", description: "Nome do serviço (para confirmação)." },
+          servico_nome: { type: "string", description: "Nome do serviço." },
           data: { type: "string", description: "Data no formato YYYY-MM-DD." },
           horario: { type: "string", description: "Horário de início no formato HH:MM." },
           nome_cliente: { type: "string", description: "Nome do cliente." },
@@ -174,17 +192,18 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
 
 async function executeTool(
   name: string,
-  args: any,
+  args: Record<string, unknown>,
   barbershopId: string,
-  phone: string
+  phone: string,
+  booking: BookingState
 ): Promise<string> {
   try {
     if (name === "listar_servicos") {
       const services = await storage.getServices(barbershopId);
-      const active = services.filter((s: any) => s.isActive);
+      const active = services.filter((s) => s.isActive);
       if (!active.length) return JSON.stringify({ erro: "Nenhum serviço cadastrado." });
       return JSON.stringify(
-        active.map((s: any) => ({
+        active.map((s) => ({
           id: s.id,
           nome: s.name,
           preco: Number(s.price).toFixed(2),
@@ -195,50 +214,120 @@ async function executeTool(
 
     if (name === "listar_barbeiros") {
       const barbers = await storage.getBarbers(barbershopId);
-      const active = barbers.filter((b: any) => b.isActive);
+      const active = barbers.filter((b) => b.isActive);
       if (!active.length) return JSON.stringify({ erro: "Nenhum barbeiro disponível." });
-      return JSON.stringify(
-        active.map((b: any) => ({ id: b.id, nome: b.name }))
-      );
+      return JSON.stringify(active.map((b) => ({ id: b.id, nome: b.name })));
     }
 
     if (name === "verificar_disponibilidade") {
-      const { barbeiro_id, data, duracao_minutos } = args;
-      const slots = await getAvailableSlots(barbeiro_id, data, duracao_minutos);
-      if (!slots.length) {
-        return JSON.stringify({ disponivel: false, mensagem: "Sem horários disponíveis nesta data." });
+      const barbeiroId = String(args.barbeiro_id ?? "");
+      const data = String(args.data ?? "");
+      const duracaoMinutos = Number(args.duracao_minutos ?? 30);
+
+      // Update booking state with collected info
+      if (data) booking.date = data;
+
+      if (barbeiroId === "qualquer") {
+        // Check all active barbers and return slots per barber
+        const barbers = await storage.getBarbers(barbershopId);
+        const active = barbers.filter((b) => b.isActive);
+        const results: Array<{ barbeiro: string; id: string; horarios: string[] }> = [];
+
+        for (const barber of active) {
+          const slots = await getSlotsForBarber(barber.id, data, duracaoMinutos);
+          if (slots.length > 0) {
+            results.push({
+              barbeiro: barber.name,
+              id: barber.id,
+              horarios: slots.slice(0, 6),
+            });
+          }
+        }
+
+        if (!results.length) {
+          return JSON.stringify({ disponivel: false, mensagem: "Nenhum barbeiro tem horários disponíveis nesta data." });
+        }
+
+        // Auto-select the barber with most availability for booking state
+        const best = results.reduce((a, b) => (a.horarios.length >= b.horarios.length ? a : b));
+        booking.barberId = best.id;
+        booking.barberName = best.barbeiro;
+
+        return JSON.stringify({ disponivel: true, por_barbeiro: results });
       }
-      return JSON.stringify({ disponivel: true, horarios: slots });
+
+      // Specific barber
+      const slots = await getSlotsForBarber(barbeiroId, data, duracaoMinutos);
+
+      if (!slots.length) {
+        return JSON.stringify({ disponivel: false, mensagem: "Sem horários disponíveis nesta data para este barbeiro." });
+      }
+
+      booking.barberId = barbeiroId;
+      booking.date = data;
+
+      return JSON.stringify({ disponivel: true, horarios: slots.slice(0, 8) });
     }
 
     if (name === "criar_agendamento") {
-      const {
-        barbeiro_id, servico_id, data, horario,
-        nome_cliente, duracao_minutos, preco,
-      } = args;
+      const barbeiroId = String(args.barbeiro_id ?? booking.barberId ?? "");
+      const barbeiroNome = String(args.barbeiro_nome ?? booking.barberName ?? "");
+      const servicoId = String(args.servico_id ?? booking.serviceId ?? "");
+      const servicoNome = String(args.servico_nome ?? booking.serviceName ?? "");
+      const data = String(args.data ?? booking.date ?? "");
+      const horario = String(args.horario ?? booking.slot ?? "");
+      const nomeCliente = String(args.nome_cliente ?? booking.clientName ?? "");
+      const duracaoMinutos = Number(args.duracao_minutos ?? booking.durationMin ?? 30);
+      const preco = Number(args.preco ?? booking.price ?? 0);
+
+      if (!barbeiroId || !servicoId || !data || !horario || !nomeCliente) {
+        return JSON.stringify({
+          erro: "Dados incompletos para criar o agendamento.",
+          faltando: {
+            barbeiro: !barbeiroId,
+            servico: !servicoId,
+            data: !data,
+            horario: !horario,
+            nome: !nomeCliente,
+          },
+        });
+      }
 
       const startMin = timeToMinutes(horario);
-      const endTime = minutesToTime(startMin + duracao_minutos);
+      const endTime = minutesToTime(startMin + duracaoMinutos);
 
       const appt = await storage.createAppointment({
         barbershopId,
-        barberId: barbeiro_id,
-        serviceId: servico_id,
+        barberId: barbeiroId,
+        serviceId: servicoId,
         date: data,
         startTime: horario,
         endTime,
         status: "confirmed",
         price: String(preco),
-        clientName: nome_cliente,
+        clientName: nomeCliente,
         clientPhone: phone,
       });
 
-      return JSON.stringify({ sucesso: true, agendamento_id: appt.id });
+      // Update booking state
+      booking.slot = horario;
+      booking.clientName = nomeCliente;
+
+      return JSON.stringify({
+        sucesso: true,
+        agendamento_id: appt.id,
+        barbeiro: barbeiroNome,
+        servico: servicoNome,
+        data,
+        horario,
+        nome: nomeCliente,
+      });
     }
 
     return JSON.stringify({ erro: "Ferramenta desconhecida." });
-  } catch (e: any) {
-    return JSON.stringify({ erro: e.message || "Erro interno ao executar ferramenta." });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro interno ao executar ferramenta.";
+    return JSON.stringify({ erro: msg });
   }
 }
 
@@ -247,7 +336,9 @@ async function executeTool(
 // ---------------------------------------------------------------------------
 
 const FALLBACK_REPLY =
-  `Oi! Tô tendo um probleminha técnico aqui agora, mas a gente funciona de *segunda a sexta das 09h às 20h* e *sábado das 08h às 14h*. Tenta me chamar de novo em instantes! 💈`;
+  `Oi! Tô com um probleminha técnico agora, mas já já resolvo. ` +
+  `Funcionamos de *segunda a sexta das 09h às 20h* e *sábado das 08h às 14h*. ` +
+  `Tenta me chamar de novo em instantes! 💈`;
 
 export async function handleIncomingMessage(
   text: string,
@@ -277,34 +368,33 @@ HORÁRIOS:
 - Sábado: 08h às 14h
 - Domingo: fechado
 
-DATA DE HOJE: ${todayReadable} (use para interpretar "hoje", "amanhã", "semana que vem", etc. A data de hoje em formato YYYY-MM-DD é ${today})
+DATA DE HOJE: ${todayReadable} (a data atual em formato YYYY-MM-DD é ${today} — use para interpretar "hoje", "amanhã", "segunda que vem", etc.)
 
 COMO SE COMPORTAR:
 - Linguagem informal, descontraída e acolhedora. Sem formalidades desnecessárias.
 - Sem frases fixas de abertura ou encerramento — varie conforme o contexto.
 - Respostas curtas e diretas. Sem parágrafos longos.
 - Use emojis com naturalidade e moderação (✂️ 💈 👊 😄).
-- Use *negrito* do WhatsApp para destacar horários, preços, nomes e datas.
+- Use *negrito* do WhatsApp para destacar horários, preços, nomes e datas importantes.
 - Se perguntarem se você é IA, desvie com bom humor: "Sou tão real quanto uma navalha bem afiada 😄"
 - NUNCA fale sobre assuntos fora da barbearia. Se tentarem, redirecione com leveza: "Aqui só entendo de barba e cabelo mesmo 😄 Posso te ajudar com mais alguma coisa?"
 
 COMO AGENDAR:
-Quando o cliente quiser agendar, siga este fluxo usando as ferramentas disponíveis:
-1. Chame listar_servicos para saber o que está disponível e pergunte qual serviço o cliente quer.
-2. Chame listar_barbeiros. Se o cliente não tiver preferência, escolha o primeiro da lista.
-3. Pergunte a data desejada. Converta linguagem natural (ex: "amanhã", "segunda") para YYYY-MM-DD.
-4. Chame verificar_disponibilidade com o barbeiro, data e duração do serviço escolhido e mostre os horários disponíveis.
-5. Peça o nome do cliente se ainda não souber.
-6. Após ter barbeiro_id, servico_id, data, horario e nome_cliente, chame criar_agendamento.
-7. Confirme o agendamento de forma natural, mencionando barbeiro, serviço, data e horário.
+Quando o cliente quiser agendar, use as ferramentas disponíveis nesta ordem:
+1. Chame listar_servicos para conhecer o cardápio e pergunte qual serviço o cliente quer.
+2. Pergunte se o cliente tem preferência de barbeiro. Se tiver, chame listar_barbeiros para obter o ID. Se não tiver preferência, use barbeiro_id='qualquer' no próximo passo.
+3. Pergunte a data desejada. Converta linguagem natural para YYYY-MM-DD usando a data atual.
+4. Chame verificar_disponibilidade. Se barbeiro_id='qualquer', o sistema retornará horários por barbeiro e você pode apresentar as opções de forma natural. Mostre no máximo 6 horários.
+5. Pergunte o nome do cliente se ainda não souber.
+6. Só chame criar_agendamento quando tiver barbeiro_id, servico_id, data, horario e nome_cliente confirmados.
+7. Após criar, confirme o agendamento de forma natural com barbeiro, serviço, data e horário.
 
-REGRAS DO AGENDAMENTO:
-- Só crie o agendamento quando tiver TODOS os dados obrigatórios.
-- Mostre no máximo 6 horários disponíveis por vez para não sobrecarregar.
-- Se não houver horários, sugira outra data ou outro barbeiro.`;
+REGRAS EXTRAS:
+- Nunca invente horários — sempre use verificar_disponibilidade com dados reais.
+- Se não houver horários na data pedida, sugira outra data ou outro barbeiro.
+- Não crie agendamentos sem confirmar o nome do cliente.`;
 
     const conv = getOrCreateConversation(phone);
-
     conv.history.push({ role: "user", content: text });
 
     const messages: ChatMessage[] = [
@@ -325,21 +415,34 @@ REGRAS DO AGENDAMENTO:
     while (response.choices[0]?.finish_reason === "tool_calls" && iterations < 6) {
       iterations++;
       const assistantMsg = response.choices[0].message;
-      conv.history.push(assistantMsg as ChatMessage);
-      messages.push(assistantMsg as ChatMessage);
+      conv.history.push(assistantMsg);
+      messages.push(assistantMsg);
 
       const toolResults: ChatMessage[] = [];
-      for (const toolCall of assistantMsg.tool_calls || []) {
-        let args: any = {};
+
+      for (const toolCall of assistantMsg.tool_calls ?? []) {
+        if (toolCall.type !== "function") continue;
+
+        let args: Record<string, unknown> = {};
         try {
-          args = JSON.parse(toolCall.function.arguments || "{}");
-        } catch {}
-        const result = await executeTool(toolCall.function.name, args, barbershop.id, phone);
+          args = JSON.parse(toolCall.function.arguments || "{}") as Record<string, unknown>;
+        } catch {
+          args = {};
+        }
+
+        const result = await executeTool(
+          toolCall.function.name,
+          args,
+          barbershop.id,
+          phone,
+          conv.booking
+        );
+
         toolResults.push({
           role: "tool",
           tool_call_id: toolCall.id,
           content: result,
-        } as ChatMessage);
+        });
       }
 
       conv.history.push(...toolResults);
@@ -355,10 +458,10 @@ REGRAS DO AGENDAMENTO:
       });
     }
 
-    const finalText = response.choices[0]?.message?.content || FALLBACK_REPLY;
+    const finalText = response.choices[0]?.message?.content ?? FALLBACK_REPLY;
     conv.history.push({ role: "assistant", content: finalText });
 
-    // Keep history bounded — last 40 messages (20 exchanges)
+    // Keep history bounded — retain last 40 messages (20 exchanges)
     if (conv.history.length > 40) {
       conv.history = conv.history.slice(-40);
     }
